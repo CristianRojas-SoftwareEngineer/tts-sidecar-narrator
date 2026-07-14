@@ -1,7 +1,7 @@
 {
   "name": "tts-sidecar-narrator",
   "owner": {
-    "name": "Cristian Rojas"
+    "name": "Cristián Rojas Arredondo"
   },
   "metadata": {
     "description": "Marketplace del plugin tts-sidecar-narrator: narración por voz de la sesión de Claude Code mediante TTS-Sidecar."

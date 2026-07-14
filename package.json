@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Plugin de Claude Code: narración por voz con TTS-Sidecar.",
+  "author": "Cristián Rojas Arredondo",
   "license": "GPL-3.0-or-later",
   "scripts": {
     "build": "node build.mjs",

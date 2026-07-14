@@ -116,6 +116,14 @@ npm run check-dist # verifica que dist/ está sincronizado con src/
 `dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS
 compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
 
+## Documentación
+
+- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — integración con el motor
+  TTS-Sidecar desde la perspectiva del plugin: contrato del CLI, uso por cada
+  hook, requisitos y degradación. Su contraparte, desde la perspectiva del
+  motor, está en
+  [TTS-Sidecar/docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
+
 ## Licencia
 
 GPL-3.0-or-later.
