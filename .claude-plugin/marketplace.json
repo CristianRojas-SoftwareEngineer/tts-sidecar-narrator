@@ -1,0 +1,16 @@
+{
+  "name": "tts-sidecar-narrator",
+  "owner": {
+    "name": "Cristian Rojas"
+  },
+  "metadata": {
+    "description": "Marketplace del plugin tts-sidecar-narrator: narración por voz de la sesión de Claude Code mediante TTS-Sidecar."
+  },
+  "plugins": [
+    {
+      "name": "tts-sidecar-narrator",
+      "source": "./",
+      "description": "Narra por voz la actividad de la sesión de Claude Code usando TTS-Sidecar. Genera un mensaje conversacional corto por turno (cadena LLM gratuita con degradación local) y lo sintetiza vía el CLI tts-sidecar. Multiplataforma, no intrusivo, costo cero."
+    }
+  ]
+}
