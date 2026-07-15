@@ -232,10 +232,12 @@ verificar el contrato entre las dos versiones publicadas. Concretamente:
   `docs/INTEGRATION.md` («Requisitos sobre el motor») y en el README **contra
   qué versión mínima del CLI `tts-sidecar` fue verificado** (la que el motor
   etiquete en el release sincronizado). Hoy el requisito está descrito
-  cualitativamente (qué comandos y flags usa) pero sin número. Opcionalmente,
-  `health-check` puede consultar `tts-sidecar --version` y avisar — no
-  bloquear — si el motor es más viejo que la versión verificada; la degradación
-  silenciosa sigue siendo el comportamiento base.
+  cualitativamente (qué comandos y flags usa) pero sin número. **Resuelto**:
+  v0.7.2 quedó declarada en ambos documentos. Opcionalmente, `health-check`
+  puede consultar `tts-sidecar version` (subcomando; el CLI del motor no
+  acepta `--version`) y avisar — no bloquear — si el motor es más viejo que la
+  versión verificada; la degradación silenciosa sigue siendo el comportamiento
+  base.
 - **Orden de corte**: primero el motor, después el plugin. El release del
   motor es automático al pushear su tag (CircleCI publica binarios y PyPI); el
   del plugin es manual. La secuencia correcta es: (1) el motor corta su tag y
@@ -302,6 +304,15 @@ El orden importa: cada bloque habilita al siguiente.
 4. **Sincronización** — el motor corta su release; smoke test del plugin
    contra el motor **instalado desde los artefactos publicados**, en modo
    `local` y `llm`; referencias cruzadas de ambos repos verificadas.
+   *Pre-verificado en local (2026-07-15)*: la config de CircleCI valida con
+   `circleci config validate`; las referencias cruzadas del motor
+   (`docs/NARRATION-INTEGRATION.md`, `docs/CLAUDE-CODE-PLUGIN.md`) apuntan
+   correctamente a este repo; y la porción automatizable del smoke test pasa
+   contra el motor v0.7.2 instalado localmente (`health-check` con payload
+   real de `SessionStart` avisa del modelo faltante con exit 0 sin bloquear;
+   `narrate-ctl status` reporta sin exponer claves). Queda lo que exige el
+   release publicado del motor: narración audible en modo `local` y `llm`
+   contra los artefactos publicados.
 5. **Corte** — bump `0.1.0` confirmado en `package.json` **y**
    `.claude-plugin/plugin.json`, `dist/` regenerado y `check-dist` en verde,
    tag `v0.1.0`, push del tag.
