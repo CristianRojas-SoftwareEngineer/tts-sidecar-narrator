@@ -9,11 +9,12 @@ const MAX_CHARS = 320;
 export function toPlainText(input: string): string {
   let t = input ?? "";
 
-  // Bloques de código cercados y su contenido.
-  t = t.replace(/```[\s\S]*?```/g, " ");
-  t = t.replace(/~~~[\s\S]*?~~~/g, " ");
-  // Código en línea.
-  t = t.replace(/`[^`]*`/g, " ");
+  // Bloques de código cercados: se quitan los delimitadores pero se conserva
+  // el contenido (rutas/nombres de archivo deben pronunciarse).
+  t = t.replace(/```([\s\S]*?)```/g, "$1");
+  t = t.replace(/~~~([\s\S]*?)~~~/g, "$1");
+  // Código en línea: se quitan las comillas invertidas, conservando el texto.
+  t = t.replace(/`([^`]*)`/g, "$1");
   // Enlaces markdown [texto](url) → texto; imágenes ![alt](url) → alt.
   t = t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
   // URLs sueltas.

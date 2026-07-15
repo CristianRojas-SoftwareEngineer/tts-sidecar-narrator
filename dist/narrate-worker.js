@@ -174,10 +174,13 @@ function buildUserContent(input) {
 
 // src/message/prompts.ts
 var SUMMARY_SYSTEM_PROMPT = "Eres la voz del asistente de programaci\xF3n Claude Code. Recibes el \xFAltimo mensaje del asistente (y, si est\xE1, algo del hilo previo). Narra en alto nivel, en una o dos frases cortas en espa\xF1ol, una s\xEDntesis de lo realizado en el turno. Parafrasea; no expliques detalle t\xE9cnico punto por punto ni enumeres pasos ni menciones nombres de archivos, rutas o comandos. Habla en primera persona. Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de las oraciones.";
+var PROMPT_SYSTEM_PROMPT = "Eres un asistente de voz para Claude Code. Recibes el prompt del usuario y un contexto breve de la conversaci\xF3n. Responde SOLO al prompt actual en una oraci\xF3n breve y natural en espa\xF1ol, confirmando que investigar\xE1s o ejecutar\xE1s la acci\xF3n solicitada. No repitas el prompt, no des expliques, no menciones herramientas. Habla en primera persona. Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de la oraci\xF3n.";
 function systemPromptFor(mode) {
   switch (mode) {
     case "summary":
       return SUMMARY_SYSTEM_PROMPT;
+    case "prompt":
+      return PROMPT_SYSTEM_PROMPT;
   }
 }
 
@@ -262,9 +265,9 @@ var OpenRouterProvider = class {
 var MAX_CHARS = 320;
 function toPlainText(input) {
   let t = input ?? "";
-  t = t.replace(/```[\s\S]*?```/g, " ");
-  t = t.replace(/~~~[\s\S]*?~~~/g, " ");
-  t = t.replace(/`[^`]*`/g, " ");
+  t = t.replace(/```([\s\S]*?)```/g, "$1");
+  t = t.replace(/~~~([\s\S]*?)~~~/g, "$1");
+  t = t.replace(/`([^`]*)`/g, "$1");
   t = t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
   t = t.replace(/https?:\/\/\S+/g, " ");
   t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
@@ -294,6 +297,7 @@ function sanitizeForSpeech(input, maxSentences = 2) {
 // src/message/local-builder.ts
 var STATIC_BY_EVENT = {
   Stop: "El asistente termin\xF3 su turno",
+  UserPromptSubmit: "Petici\xF3n recibida. Procesando con Claude.",
   Notification: "Claude necesita tu atenci\xF3n",
   SessionStart: "Sesi\xF3n iniciada"
 };
@@ -317,6 +321,9 @@ async function buildMessage(payload, cfg) {
   if (event === "Notification") {
     return buildNotice(payload.message);
   }
+  if (event === "UserPromptSubmit") {
+    return buildPromptMessage(payload, cfg);
+  }
   const primary = (payload.last_assistant_message ?? "").trim();
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
@@ -336,6 +343,28 @@ async function buildMessage(payload, cfg) {
   const localSummary = buildLocalSummary(primary);
   if (localSummary) return localSummary;
   return staticForEvent(event);
+}
+async function buildPromptMessage(payload, cfg) {
+  const transcript = readTranscriptTail(payload.transcript_path);
+  const promptText = transcript.length > 0 ? transcript[transcript.length - 1].replace(/^usuario: /, "") : "";
+  if (cfg.messageMode === "llm") {
+    const providers = buildProviders(cfg);
+    if (providers.length > 0) {
+      const input = {
+        mode: "prompt",
+        text: promptText,
+        transcript: readTranscriptTail(payload.transcript_path)
+      };
+      const llm = await runChain(providers, input);
+      if (llm) {
+        const clean = sanitizeForSpeech(llm);
+        if (clean) return clean;
+      }
+    }
+  }
+  const localSummary = buildLocalSummary(promptText);
+  if (localSummary) return localSummary;
+  return staticForEvent("UserPromptSubmit");
 }
 function buildProviders(cfg) {
   const providers = [];

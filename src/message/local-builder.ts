@@ -6,6 +6,7 @@ import { sanitizeForSpeech } from "./sanitize.js";
 
 const STATIC_BY_EVENT: Record<string, string> = {
   Stop: "El asistente terminó su turno",
+  UserPromptSubmit: "Petición recibida. Procesando con Claude.",
   Notification: "Claude necesita tu atención",
   SessionStart: "Sesión iniciada",
 };

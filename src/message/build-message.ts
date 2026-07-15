@@ -1,7 +1,8 @@
 // Orquestador del subsistema de mensajes: payload → texto a narrar. Siempre
 // resuelve (nunca lanza). Degradación: cadena LLM (solo modo summary y con keys)
 // → resumen local determinista → texto estático por evento. El modo notice
-// (Notification) no usa LLM.
+// (Notification) no usa LLM. El modo prompt (UserPromptSubmit) usa LLM para
+// responder brevemente al prompt actual.
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import type { Config } from "../lib/config.js";
 import type { HookPayload } from "../lib/hook-payload.js";
@@ -21,6 +22,12 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
   // Modo notice: sin LLM, el mensaje ya viene redactado.
   if (event === "Notification") {
     return buildNotice(payload.message);
+  }
+
+  // Modo prompt: UserPromptSubmit necesita contexto del transcript + prompt actual.
+  // El payload no tiene last_assistant_message (aún no ha respondido).
+  if (event === "UserPromptSubmit") {
+    return buildPromptMessage(payload, cfg);
   }
 
   // Modo summary (Stop y cualquier otro evento con texto del asistente).
@@ -48,6 +55,40 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
 
   // Último recurso: estático por evento.
   return staticForEvent(event);
+}
+
+/**
+ * Mensaje para UserPromptSubmit: responde al prompt actual como asistente de voz.
+ * Usa LLM si está disponible, de lo contrario fallback local o estático.
+ */
+async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<string> {
+  // Extraer el prompt actual del transcript (última línea del archivo).
+  const transcript = readTranscriptTail(payload.transcript_path);
+  const promptText = transcript.length > 0 ? transcript[transcript.length - 1].replace(/^usuario: /, "") : "";
+
+  // En modo LLM, generar respuesta breve al prompt.
+  if (cfg.messageMode === "llm") {
+    const providers = buildProviders(cfg);
+    if (providers.length > 0) {
+      const input: GenerationInput = {
+        mode: "prompt",
+        text: promptText,
+        transcript: readTranscriptTail(payload.transcript_path),
+      };
+      const llm = await runChain(providers, input);
+      if (llm) {
+        const clean = sanitizeForSpeech(llm);
+        if (clean) return clean;
+      }
+    }
+  }
+
+  // Degradación local: usar el prompt como texto primario.
+  const localSummary = buildLocalSummary(promptText);
+  if (localSummary) return localSummary;
+
+  // Último recurso: estático.
+  return staticForEvent("UserPromptSubmit");
 }
 
 /** Providers en orden de prioridad; se omite el que no tenga key. */
