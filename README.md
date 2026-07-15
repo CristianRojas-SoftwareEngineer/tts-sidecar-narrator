@@ -133,6 +133,8 @@ compilado debe estar en el árbol para que los hooks funcionen sin paso de build
   hook, requisitos y degradación. Su contraparte, desde la perspectiva del
   motor, está en
   [TTS-Sidecar/docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
+- [`docs/RELEASE-READINESS.md`](docs/RELEASE-READINESS.md) — brechas de testing,
+  CI y documentación pendientes para un primer release público.
 
 ## Licencia
 
