@@ -7,6 +7,16 @@ La contraparte, escrita desde la perspectiva del motor, está en el repositorio 
 TTS-Sidecar:
 [docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
 
+## Tabla de contenidos
+
+- [Rol en el sistema de narración](#rol-en-el-sistema-de-narración)
+- [Contrato: solo la CLI pública](#contrato-solo-la-cli-pública)
+- [Superficies del CLI que consume](#superficies-del-cli-que-consume)
+- [Cómo lo usan los hooks](#cómo-lo-usan-los-hooks)
+- [Requisitos sobre el motor](#requisitos-sobre-el-motor)
+- [Degradación y no intrusión](#degradación-y-no-intrusión)
+- [Estabilidad del contrato](#estabilidad-del-contrato)
+
 ## Rol en el sistema de narración
 
 El sistema de narración por voz tiene dos componentes con repositorios y ciclos

@@ -20,6 +20,16 @@ no el texto en bruto del asistente, sino una locución procesada, en español.
 > original (`docs/CLAUDE-CODE-PLUGIN.md`, en el repo de TTS-Sidecar) sirvió de
 > especificación inicial y hoy es solo un puntero histórico a este repo.
 
+## Tabla de contenidos
+
+- [Prerequisitos](#prerequisitos)
+- [Instalación](#instalación)
+- [Configuración](#configuración)
+- [Privacidad](#privacidad)
+- [Desarrollo](#desarrollo)
+- [Documentación](#documentación)
+- [Licencia](#licencia)
+
 ## Prerequisitos
 
 1. **TTS-Sidecar** instalado (instalador nativo o `uv tool install tts-sidecar`)
