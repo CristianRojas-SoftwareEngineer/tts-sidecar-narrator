@@ -294,9 +294,12 @@ El orden importa: cada bloque habilita al siguiente.
    y `narrate-ctl` como subproceso); script `npm test` en `package.json`.
 2. ✅ **CI** — workflow de CircleCI en cada push con la triple puerta
    `test-linux`/`test-windows`/`test-macos` (misma nomenclatura que el motor):
-   `npm ci && npm run typecheck && npm run check-dist && npm test`. Queda
-   activarlo en la cuenta de CircleCI al publicar el repo y verificarlo en
-   verde.
+   `npm ci && npm run typecheck && npm run check-dist && npm test`.
+   **Verificado en verde en el entorno real de CircleCI** (2026-07-15,
+   pipeline #3 sobre `main`): los tres jobs exitosos. El primer intento
+   destapó un fallo real de plataforma — el checkout con CRLF del runner de
+   Windows rompía `check-dist` — corregido fijando `eol=lf` en
+   `.gitattributes`.
 3. ✅ **Documentación** — `SECURITY.md` (con la nota de Windows/ACL),
    `CHANGELOG.md` (Keep a Changelog, sección `[Unreleased]` que se corta a
    `[0.1.0]` en el paso 5) y `docs/RELEASING.md` escritos; versión mínima del
