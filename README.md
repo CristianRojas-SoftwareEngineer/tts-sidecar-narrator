@@ -32,8 +32,11 @@ no el texto en bruto del asistente, sino una locución procesada, en español.
 
 ## Prerequisitos
 
-1. **TTS-Sidecar** instalado (instalador nativo o `uv tool install tts-sidecar`)
-   y aprovisionado:
+1. **TTS-Sidecar ≥ v0.7.2** instalado (instalador nativo o
+   `uv tool install tts-sidecar`) y aprovisionado — v0.7.2 es la versión del
+   motor contra la que este plugin fue verificado; versiones anteriores pueden
+   funcionar pero no están cubiertas por el contrato de
+   [`docs/INTEGRATION.md`](docs/INTEGRATION.md):
    ```bash
    tts-sidecar setup
    ```
@@ -121,10 +124,15 @@ npm install       # solo para desarrollo (typescript, esbuild)
 npm run typecheck # verificación de tipos
 npm run build     # compila src/ → dist/ (commitear dist/)
 npm run check-dist # verifica que dist/ está sincronizado con src/
+npm test          # suite de tests (node --test, sin framework externo)
 ```
 
 `dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS
 compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
+
+El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre
+`typecheck`, `check-dist` y la suite de tests en Linux, Windows y macOS en cada
+push — el mismo proveedor y nomenclatura de jobs que usa el motor.
 
 ## Documentación
 
@@ -133,8 +141,13 @@ compilado debe estar en el árbol para que los hooks funcionen sin paso de build
   hook, requisitos y degradación. Su contraparte, desde la perspectiva del
   motor, está en
   [TTS-Sidecar/docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
-- [`docs/RELEASE-READINESS.md`](docs/RELEASE-READINESS.md) — brechas de testing,
-  CI y documentación pendientes para un primer release público.
+- [`docs/RELEASING.md`](docs/RELEASING.md) — proceso de release del plugin y
+  su sincronización con los releases del motor.
+- [`SECURITY.md`](SECURITY.md) — política de seguridad y modelo de amenaza del
+  plugin (credenciales, modo `llm`, cadena de suministro).
+- [`CHANGELOG.md`](CHANGELOG.md) — cambios notables por versión.
+- [`docs/RELEASE-READINESS.md`](docs/RELEASE-READINESS.md) — registro vivo de
+  la preparación del primer release público sincronizado con el motor.
 
 ## Licencia
 

@@ -68,14 +68,24 @@ Lo que ya existe y está en buen estado:
   sección de este documento).
 - Licencia (GPL-3.0-or-later) y atribución de autoría presentes.
 
-Lo que falta se agrupa en cuatro brechas: **cero tests**, **cero CI**,
-**documentación de release/seguridad incompleta**, y **sincronización con el
-motor sin definir** (ni versión mínima declarada del CLI, ni tag propio — el
-repo sigue en `0.1.0` sin tags).
+Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero
+CI**, **documentación de release/seguridad incompleta**, y **sincronización con
+el motor sin definir**. Las tres primeras están **cerradas** (suite de 81 tests
+con `node --test`, pipeline de CircleCI con triple puerta por SO, y
+`SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión
+mínima del motor declarada). La cuarta — el corte sincronizado en sí — queda
+pendiente por diseño: depende de que el motor publique su release (ver el
+checklist consolidado, bloques 4–6).
 
 ## Testing
 
-No existe ningún archivo de test en el repo. Para un plugin que orquesta hooks,
+**Estado: implementado** — suite de 81 tests en `tests/` (`npm test`), que
+cubre la tabla de priorización completa de abajo. Las ramas por SO de
+`state-dir.ts`/`resolve-cli.ts` se ejercitan en cualquier máquina falsificando
+`process.platform` (además de correr sobre los tres SO reales en CI). El
+razonamiento original de la brecha se conserva a continuación.
+
+Para un plugin que orquesta hooks,
 un worker desacoplado y una cadena de providers LLM externos, el riesgo de una
 regresión silenciosa es real: un cambio en `provider-chain.ts` o `sanitize.ts`
 podría filtrar contenido no saneado a un tercero, o romper el fallback
@@ -111,9 +121,14 @@ piezas puras que orquestan.
 
 ## CI (y por qué no CD)
 
-No existe ningún workflow (`.github/workflows` no existe). Hoy `typecheck`,
-`build` y `check-dist` son responsabilidad manual del autor antes de cada
-commit.
+**Estado: implementado** — pipeline en [`.circleci/config.yml`](../.circleci/config.yml)
+según la recomendación de abajo, con Node fijado por pipeline parameter y la
+imagen/instaladores pineados (digest de `cimg/node`, Chocolatey, tarball
+oficial con SHA-256) siguiendo la política de pins del motor. El razonamiento
+original de la brecha se conserva a continuación.
+
+Antes no existía ningún workflow: `typecheck`, `build` y `check-dist` eran
+responsabilidad manual del autor antes de cada commit.
 
 **Por qué el CI es necesario aquí y no solo deseable**: el plugin se distribuye
 con `dist/` commiteado — el artefacto que ejecutan los usuarios es el que está
@@ -150,8 +165,15 @@ git precedido por un checklist manual, y eso se documenta en
 
 ## Documentación
 
+**Estado: implementado** — las tres piezas están escritas según las
+especificaciones de abajo: [`SECURITY.md`](../SECURITY.md) (con la nota de
+Windows/ACL), [`CHANGELOG.md`](../CHANGELOG.md) (sección `[Unreleased]` lista
+para cortarse a `[0.1.0]` en el release, con la nota de convergencia en
+v1.0.0) y [`docs/RELEASING.md`](RELEASING.md); la versión mínima del motor
+(v0.7.2) quedó declarada en el README y `docs/INTEGRATION.md`.
+
 Comparado con la cobertura documental del motor (`SECURITY.md`, `CHANGELOG.md`,
-`docs/RELEASING.md`, `docs/GOAL.md`/`ROADMAP.md`), al plugin le faltan tres
+`docs/RELEASING.md`, `docs/GOAL.md`/`ROADMAP.md`), al plugin le faltaban tres
 piezas — y una decisión explícita de no replicar una cuarta:
 
 - **`SECURITY.md`** en la raíz, espejo estructural del del motor (versiones
@@ -264,17 +286,19 @@ arriba, para que el marketplace resuelva una versión fija en vez de la punta de
 
 El orden importa: cada bloque habilita al siguiente.
 
-1. **Testing** — suite `node --test` cubriendo la tabla de priorización
-   (mínimo: `sanitize`, `local-builder`, `provider-chain`, `config`,
-   `hook-payload`, `state-dir`, `resolve-cli`); script `npm test` en
-   `package.json`.
-2. **CI** — workflow de CircleCI en push/PR a `main` con la triple puerta
+1. ✅ **Testing** — suite `node --test` cubriendo la tabla de priorización
+   completa (`sanitize`, `local-builder`, `provider-chain`, `config`,
+   `hook-payload`, `state-dir`, `resolve-cli`, providers con `fetch` mockeado
+   y `narrate-ctl` como subproceso); script `npm test` en `package.json`.
+2. ✅ **CI** — workflow de CircleCI en cada push con la triple puerta
    `test-linux`/`test-windows`/`test-macos` (misma nomenclatura que el motor):
-   `npm ci && npm run typecheck && npm run check-dist && npm test`, en verde.
-3. **Documentación** — `SECURITY.md` (con la nota de Windows/ACL),
-   `CHANGELOG.md` (Keep a Changelog, sección `[0.1.0]` cortada) y
-   `docs/RELEASING.md` escritos; versión mínima del motor declarada en
-   `docs/INTEGRATION.md` y README.
+   `npm ci && npm run typecheck && npm run check-dist && npm test`. Queda
+   activarlo en la cuenta de CircleCI al publicar el repo y verificarlo en
+   verde.
+3. ✅ **Documentación** — `SECURITY.md` (con la nota de Windows/ACL),
+   `CHANGELOG.md` (Keep a Changelog, sección `[Unreleased]` que se corta a
+   `[0.1.0]` en el paso 5) y `docs/RELEASING.md` escritos; versión mínima del
+   motor declarada en `docs/INTEGRATION.md` y README.
 4. **Sincronización** — el motor corta su release; smoke test del plugin
    contra el motor **instalado desde los artefactos publicados**, en modo
    `local` y `llm`; referencias cruzadas de ambos repos verificadas.

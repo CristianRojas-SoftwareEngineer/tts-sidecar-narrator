@@ -1,0 +1,38 @@
+// Compila los tests de tests/ a bundles en tests/.build/ con esbuild (misma
+// dependencia que el build) y los ejecuta con el corredor nativo de Node
+// (node --test). Sin framework de testing externo, alineado con el principio
+// de no exigir runtime extra.
+import { build } from "esbuild";
+import { readdir, rm } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const root = dirname(fileURLToPath(import.meta.url));
+const testsDir = join(root, "tests");
+const outDir = join(testsDir, ".build");
+
+const entries = (await readdir(testsDir)).filter((f) => f.endsWith(".test.ts"));
+if (entries.length === 0) {
+  console.error("No hay archivos *.test.ts en tests/.");
+  process.exit(1);
+}
+
+await rm(outDir, { recursive: true, force: true });
+await build({
+  entryPoints: entries.map((f) => join(testsDir, f)),
+  outdir: outDir,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node18",
+  sourcemap: "inline",
+});
+
+const compiled = entries.map((f) =>
+  join(outDir, f.replace(/\.ts$/, ".js")),
+);
+const res = spawnSync(process.execPath, ["--test", ...compiled], {
+  stdio: "inherit",
+});
+process.exit(res.status ?? 1);

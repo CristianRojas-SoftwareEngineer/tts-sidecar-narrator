@@ -1,0 +1,206 @@
+version: 2.1
+
+orbs:
+  win: circleci/windows@5.0
+
+# Fuente única del pin de Node (espejo de la política de pins del motor
+# TTS-Sidecar: cada versión de entorno-CI vive aquí y se interpola en los
+# jobs). Actualizar la versión = editar solo esta sección… y el digest de la
+# imagen Docker y el SHA-256 del tarball macOS, que van pineados junto a su
+# uso porque dependen de la versión.
+parameters:
+  node_version:
+    type: string
+    default: "24.13.1"
+    description: >
+      Node exacto usado en los tres jobs (imagen cimg/node en Linux, choco en
+      Windows, tarball oficial en macOS). Espejo entre plataformas.
+
+# Diferencia deliberada con el pipeline del motor — el disparador: el CircleCI
+# de TTS-Sidecar corre solo en tags `v*` porque existe para construir y
+# publicar artefactos. El plugin no publica artefactos (su build vive
+# commiteado en dist/), así que este workflow invierte el filtro: corre en
+# cada push como verificación continua (typecheck + dist sincronizado + suite
+# de tests) y no tiene jobs de build ni de publicación. El release del plugin
+# es un tag de git precedido por el checklist manual de docs/RELEASING.md.
+#
+# La triple puerta test-linux/test-windows/test-macos (misma nomenclatura que
+# el motor) es la única forma realista de ejercitar las ramas por SO de
+# state-dir.ts y resolve-cli.ts sobre los tres sistemas reales. No requiere
+# secretos: los tests de providers mockean fetch y nunca llaman a APIs reales.
+
+jobs:
+  test-linux:
+    docker:
+      # Imagen fijada por digest (misma política que el motor). Bump manual:
+      # tomar el digest vigente del tag nuevo en
+      # https://hub.docker.com/v2/repositories/cimg/node/tags y reemplazarlo
+      # junto con el pipeline parameter node_version.
+      - image: cimg/node:24.13.1@sha256:5d77ee6db8cb46bc53f329d94d84cc7afa8c522e34729abf79026085971c26b9
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+      - run:
+          # npm ci instala exactamente el lockfile (y falla si package.json y
+          # package-lock.json divergen). La caché guarda ~/.npm (la caché de
+          # descargas de npm), no node_modules: npm ci siempre parte de un
+          # node_modules limpio, con la caché solo evita re-descargar.
+          name: Install dev deps from lockfile (npm ci)
+          command: |
+            echo "[STEP] Install dev deps from lockfile (npm ci) - INICIO"
+            npm ci
+            echo "[STEP] Install dev deps from lockfile (npm ci) - FIN"
+      - save_cache:
+          key: npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Typecheck (tsc --noEmit)
+          command: |
+            echo "[STEP] Typecheck (tsc --noEmit) - INICIO"
+            npm run typecheck
+            echo "[STEP] Typecheck (tsc --noEmit) - FIN"
+      - run:
+          # El guard del modo de fallo propio de distribuir dist/ commiteado:
+          # detecta un dist/ desincronizado con src/ (build olvidado) que
+          # haría que los usuarios ejecuten código viejo en silencio.
+          name: Check dist/ is in sync with src/ (check-dist)
+          command: |
+            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
+            npm run check-dist
+            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+      - run:
+          name: Run node --test suite over tests/
+          command: |
+            echo "[STEP] Run node --test suite over tests/ - INICIO"
+            npm test
+            echo "[STEP] Run node --test suite over tests/ - FIN"
+
+  test-windows:
+    # Ejercita en Windows real las ramas win32 de state-dir.ts (LOCALAPPDATA),
+    # resolve-cli.ts (PATHEXT, shims .cmd/.bat) y el subproceso de
+    # narrate-ctl. Mismo executor Windows que usa el motor.
+    executor: win/server-2022
+    steps:
+      - checkout
+      - run:
+          # Pin de Chocolatey (misma política que el motor): un release nuevo
+          # de Node no debe romper el job sin cambios en el repo.
+          name: Set up Node via choco (pinned << pipeline.parameters.node_version >>)
+          command: |
+            Write-Host "[STEP] Set up Node via choco (pinned << pipeline.parameters.node_version >>) - INICIO"
+            choco install nodejs-lts -y --version=<< pipeline.parameters.node_version >>
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "[STEP] Set up Node via choco (pinned << pipeline.parameters.node_version >>) - FIN"
+      - restore_cache:
+          keys:
+            - npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+      - run:
+          # refreshenv no está disponible en el shell de CircleCI: se invoca
+          # npm por la ruta de instalación de Chocolatey.
+          name: Install dev deps from lockfile (npm ci)
+          command: |
+            Write-Host "[STEP] Install dev deps from lockfile (npm ci) - INICIO"
+            $env:Path = "C:\Program Files\nodejs;" + $env:Path
+            npm ci
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "[STEP] Install dev deps from lockfile (npm ci) - FIN"
+      - save_cache:
+          key: npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+          paths:
+            - ~\AppData\Local\npm-cache
+      - run:
+          name: Typecheck (tsc --noEmit)
+          command: |
+            Write-Host "[STEP] Typecheck (tsc --noEmit) - INICIO"
+            $env:Path = "C:\Program Files\nodejs;" + $env:Path
+            npm run typecheck
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "[STEP] Typecheck (tsc --noEmit) - FIN"
+      - run:
+          name: Check dist/ is in sync with src/ (check-dist)
+          command: |
+            Write-Host "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
+            $env:Path = "C:\Program Files\nodejs;" + $env:Path
+            npm run check-dist
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+      - run:
+          name: Run node --test suite over tests/
+          command: |
+            Write-Host "[STEP] Run node --test suite over tests/ - INICIO"
+            $env:Path = "C:\Program Files\nodejs;" + $env:Path
+            npm test
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "[STEP] Run node --test suite over tests/ - FIN"
+
+  test-macos:
+    # Ejercita en macOS real la rama darwin de state-dir.ts (Application
+    # Support) y el subproceso de narrate-ctl con HOME redirigido. Mismo
+    # executor macOS que ya usa el motor (sin infraestructura nueva).
+    macos:
+      xcode: "26.4.0"
+    resource_class: m4pro.medium
+    steps:
+      - checkout
+      - run:
+          # Node desde el tarball oficial de nodejs.org, verificado por
+          # SHA-256 (espejo de la política del motor: pin determinista e
+          # independiente de la imagen de CI, sin Homebrew). Bump manual:
+          # tomar el hash darwin-arm64 de
+          # https://nodejs.org/dist/v<versión>/SHASUMS256.txt junto con el
+          # pipeline parameter node_version.
+          name: Set up Node from official tarball (pinned << pipeline.parameters.node_version >>, SHA-256 verified)
+          command: |
+            echo "[STEP] Set up Node from official tarball (pinned << pipeline.parameters.node_version >>) - INICIO"
+            curl -fsSLO "https://nodejs.org/dist/v<< pipeline.parameters.node_version >>/node-v<< pipeline.parameters.node_version >>-darwin-arm64.tar.gz"
+            echo "8c039d59f2fec6195e4281ad5b0d02b9a940897b4df7b849c6fb48be6787bba6  node-v<< pipeline.parameters.node_version >>-darwin-arm64.tar.gz" | shasum -a 256 -c -
+            tar -xzf "node-v<< pipeline.parameters.node_version >>-darwin-arm64.tar.gz" -C "$HOME"
+            echo "export PATH=\"$HOME/node-v<< pipeline.parameters.node_version >>-darwin-arm64/bin:\$PATH\"" >> "$BASH_ENV"
+            source "$BASH_ENV"
+            node --version
+            echo "[STEP] Set up Node from official tarball (pinned << pipeline.parameters.node_version >>) - FIN"
+      - restore_cache:
+          keys:
+            - npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+      - run:
+          name: Install dev deps from lockfile (npm ci)
+          command: |
+            echo "[STEP] Install dev deps from lockfile (npm ci) - INICIO"
+            npm ci
+            echo "[STEP] Install dev deps from lockfile (npm ci) - FIN"
+      - save_cache:
+          key: npm-v1-{{ arch }}-<< pipeline.parameters.node_version >>-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Typecheck (tsc --noEmit)
+          command: |
+            echo "[STEP] Typecheck (tsc --noEmit) - INICIO"
+            npm run typecheck
+            echo "[STEP] Typecheck (tsc --noEmit) - FIN"
+      - run:
+          name: Check dist/ is in sync with src/ (check-dist)
+          command: |
+            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
+            npm run check-dist
+            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+      - run:
+          name: Run node --test suite over tests/
+          command: |
+            echo "[STEP] Run node --test suite over tests/ - INICIO"
+            npm test
+            echo "[STEP] Run node --test suite over tests/ - FIN"
+
+workflows:
+  verify:
+    # Sin filtros de branches: corre en cada push a cualquier rama (incluido
+    # main y las ramas de PR). Sin filtro de tags: los tags no disparan nada
+    # (default de CircleCI), coherente con que el release del plugin no
+    # publica artefactos.
+    jobs:
+      - test-linux
+      - test-windows
+      - test-macos

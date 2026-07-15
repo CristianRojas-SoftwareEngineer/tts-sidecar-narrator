@@ -1,0 +1,70 @@
+// Utilidades compartidas por los tests: falsificar el SO, aislar variables de
+// entorno y crear directorios temporales. Cada helper devuelve una función de
+// restauración para no filtrar estado entre tests.
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+/**
+ * Redefine process.platform (os.platform() lo refleja). Permite ejercitar las
+ * tres ramas por SO de state-dir.ts y resolve-cli.ts en cualquier máquina.
+ */
+export function fakePlatform(platform: NodeJS.Platform): () => void {
+  const original = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    value: platform,
+    configurable: true,
+  });
+  return () => {
+    if (original) Object.defineProperty(process, "platform", original);
+  };
+}
+
+/** Fija (o borra, con undefined) variables de entorno y permite restaurarlas. */
+export function withEnv(
+  vars: Record<string, string | undefined>,
+): () => void {
+  const saved = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(vars)) {
+    saved.set(key, process.env[key]);
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  return () => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+}
+
+export function makeTempDir(prefix = "narrator-test-"): string {
+  return mkdtempSync(join(tmpdir(), prefix));
+}
+
+export function removeDir(dir: string): void {
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/**
+ * Aísla el state dir del plugin en un directorio temporal: falsifica Linux y
+ * apunta XDG_STATE_HOME al temporal, de modo que config.ts nunca toque el
+ * state dir real de la máquina, sea cual sea el SO anfitrión.
+ */
+export function isolateStateDir(): { dir: string; restore: () => void } {
+  const dir = makeTempDir();
+  const restorePlatform = fakePlatform("linux");
+  const restoreEnv = withEnv({
+    XDG_STATE_HOME: dir,
+    GEMINI_API_KEY: undefined,
+    OPENROUTER_API_KEY: undefined,
+  });
+  return {
+    dir,
+    restore: () => {
+      restoreEnv();
+      restorePlatform();
+      removeDir(dir);
+    },
+  };
+}
