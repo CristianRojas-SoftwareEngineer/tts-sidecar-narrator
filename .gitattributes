@@ -1,0 +1,5 @@
+# Checkout siempre con LF en todas las plataformas. Imprescindible para
+# check-dist: dist/ commiteado se compara byte a byte contra el output LF de
+# esbuild, y un checkout con CRLF (core.autocrlf en Windows, p. ej. el runner
+# de CircleCI) rompería la comparación sin que nada haya cambiado de verdad.
+* text=auto eol=lf
