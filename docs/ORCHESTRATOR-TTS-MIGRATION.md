@@ -9,6 +9,52 @@ Orchestrator ya probó en producción, para que, cuando se elimine toda la
 implementación TTS del Orchestrator (ver `tts-sidecar-legacy-removal-plan.md` en
 aquel repo), la narración quede **íntegra y sin regresiones** en este plugin.
 
+## Propósito
+
+Este documento es un **inventario y plan de migración de la narración por voz**
+del proyecto *EvolutiveX Agent Orchestrator* (también conocido como Smart Code
+Proxy) hacia este plugin, **`tts-sidecar-narrator`**. Está redactado para leerse
+de forma autónoma, sin necesidad de conocer la historia de la sesión en la que se
+creó.
+
+### Antecedentes
+
+- **`tts-sidecar-narrator`** es un plugin de Claude Code que narra por voz la
+  actividad de la sesión. No contiene el motor de síntesis: se apoya en
+  [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar),
+  un motor de voz externo al que invoca mediante su CLI (`tts-sidecar speak`).
+- **EvolutiveX Agent Orchestrator** (Smart Code Proxy) es un proyecto distinto que
+  gestiona la experiencia de usuario, los hooks y los eventos de workflow de
+  Claude Code. Históricamente **incorporaba su propia lógica de narración TTS**
+  embebida: sus propios proveedores LLM, prompts, extracción de contexto del
+  transcript y cableado de eventos.
+
+### Por qué existe este documento
+
+Como parte de la separación de responsabilidades entre ambos proyectos, el
+Orchestrator está eliminando **toda** su implementación de TTS (ver
+`tts-sidecar-legacy-removal-plan.md` en aquel repo) y delegando la narración por
+completo a este plugin. Antes de borrar ese código conviene **rescatar la lógica
+de generación de mensajes que el Orchestrator ya probó en producción**, para que la
+migración no pierda funcionalidad ni introduzca regresiones.
+
+Concretamente, este documento responde dos preguntas sobre el estado actual del
+Orchestrator:
+
+1. ¿Qué eventos hook de Claude Code disparan la narración por voz?
+2. ¿Qué prompts de sistema y de usuario asignaba cada LLM (Gemini, OpenRouter) a
+   cada generación de mensaje conversacional?
+
+…y a partir de ahí determina **qué debe absorber todavía este plugin** para quedar
+como único responsable de la narración.
+
+### Qué se migra y qué no
+
+Solo se migra la **lógica de generación de texto** (prompts, contexto del
+transcript, textos de fallback y eventos). La capa de audio —el motor TTS-Sidecar
+y su integración vía CLI, daemon y health-check— ya está resuelta en este plugin y
+no se toca.
+
 > **Hecho fundacional:** el motor de síntesis de voz es
 > [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar).
 > Este plugin es quien integra ese motor con Claude Code vía hooks, de forma
@@ -16,6 +62,31 @@ aquel repo), la narración quede **íntegra y sin regresiones** en este plugin.
 > (`tts-sidecar speak --daemon`, daemon, health-check, instalación) **ya está
 > resuelta en este plugin** y NO se migra. Lo que se migra es exclusivamente la
 > **lógica de generación de texto** (prompts, contexto, fallbacks, eventos).
+
+## Tabla de contenido
+
+- [Propósito](#propósito)
+- [1. Alcance y límites](#1-alcance-y-límites)
+  - [1.1 Qué ya está cubierto por este plugin (no migrar)](#11-qué-ya-está-cubierto-por-este-plugin-no-migrar)
+  - [1.2 Qué se migra (lógica probada del Orchestrator)](#12-qué-se-migra-lógica-probada-del-orchestrator)
+  - [1.3 Qué NO se migra (infra del Orchestrator, ajena a la voz)](#13-qué-no-se-migra-infra-del-orchestrator-ajena-a-la-voz)
+- [2. Hallazgo 1 — Eventos hook que generan TTS en el Orchestrator](#2-hallazgo-1--eventos-hook-que-generan-tts-en-el-orchestrator)
+- [3. Hallazgo 2 — Prompts de sistema y de usuario por generación LLM](#3-hallazgo-2--prompts-de-sistema-y-de-usuario-por-generación-llm)
+  - [3.1 System prompt — modo `prompt` (evento `UserPromptSubmit`)](#31-system-prompt--modo-prompt-evento-userpromptsubmit)
+  - [3.2 System prompt — modo `summary`](#32-system-prompt--modo-summary)
+  - [3.3 Construcción del "user prompt" (idéntica en ambos providers)](#33-construcción-del-user-prompt-idéntica-en-ambos-providers)
+  - [3.4 Textos de fallback por evento](#34-textos-de-fallback-por-evento)
+  - [3.5 Extracción de contexto del transcript](#35-extracción-de-contexto-del-transcript)
+  - [3.6 Modelos y endpoints que usaba el Orchestrator (provenientes)](#36-modelos-y-endpoints-que-usaba-el-orchestrator-provenientes)
+- [4. Brechas: qué debe absorber este plugin](#4-brechas-qué-debe-absorber-este-plugin)
+- [5. Decisiones pendientes](#5-decisiones-pendientes)
+  - [5.1 `SubagentStop` / `StopFailure` — ¿narrarlos en este plugin?](#51-subagentstop--stopfailure--narrarlos-en-este-plugin)
+  - [5.2 Rutas/archivos en la voz](#52-rutasarchivos-en-la-voz)
+  - [5.3 Contexto de `UserPromptSubmit`](#53-contexto-de-userpromptsubmit)
+  - [5.4 Modelos y formato de OpenRouter](#54-modelos-y-formato-de-openrouter)
+- [6. Plan de migración recomendado (orden)](#6-plan-de-migración-recomendado-orden)
+- [7. Referencias (archivos fuente en el Orchestrator)](#7-referencias-archivos-fuente-en-el-orchestrator)
+- [8. Referencias (archivos de este plugin a modificar)](#8-referencias-archivos-de-este-plugin-a-modificar)
 
 ---
 
