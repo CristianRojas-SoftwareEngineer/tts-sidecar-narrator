@@ -79,18 +79,26 @@ no se toca.
   - [3.5 Extracción de contexto del transcript](#35-extracción-de-contexto-del-transcript)
   - [3.6 Modelos y endpoints que usaba el Orchestrator (provenientes)](#36-modelos-y-endpoints-que-usaba-el-orchestrator-provenientes)
 - [4. Brechas: qué debe absorber este plugin](#4-brechas-qué-debe-absorber-este-plugin)
-- [5. Decisiones pendientes](#5-decisiones-pendientes)
+- [5. Decisiones de absorción (resueltas)](#5-decisiones-de-absorción-resueltas)
   - [5.1 `SubagentStop` / `StopFailure` — ¿narrarlos en este plugin?](#51-subagentstop--stopfailure--narrarlos-en-este-plugin)
   - [5.2 Rutas/archivos en la voz](#52-rutasarchivos-en-la-voz)
   - [5.3 Contexto de `UserPromptSubmit`](#53-contexto-de-userpromptsubmit)
-  - [5.4 Modelos y formato de OpenRouter](#54-modelos-y-formato-de-openrouter)
-- [6. Plan de migración recomendado (orden)](#6-plan-de-migración-recomendado-orden)
+  - [5.4 Modelos y formato de LLM — DECIDIDO](#54-modelos-y-formato-de-llm--decidido)
+- [6. Plan de absorción (Fase 1, orden)](#6-plan-de-absorción-fase-1-orden)
 - [7. Referencias (archivos fuente en el Orchestrator)](#7-referencias-archivos-fuente-en-el-orchestrator)
 - [8. Referencias (archivos de este plugin a modificar)](#8-referencias-archivos-de-este-plugin-a-modificar)
+- [9. Criterio de absorción completa (cierre de la Fase 1)](#9-criterio-de-absorción-completa-cierre-de-la-fase-1)
 
 ---
 
 ## 1. Alcance y límites
+
+> **Alcance de este documento (Fase 1):** este plan cubre **exclusivamente la
+> absorción** de la lógica e inteligencia de construcción de mensajes conversacionales
+> en este plugin. La **eliminación** de la lógica TTS en el Orchestrator (Fase 2) es
+> responsabilidad de un plan distinto, en el repositorio del Orchestrator, que se
+> ejecutará con posterioridad. Aquí no se borra nada del Orchestrator; solo se
+> absorbe su comportamiento probado para que la Fase 2 pueda eliminarlo sin pérdida.
 
 ### 1.1 Qué ya está cubierto por este plugin (no migrar)
 
@@ -270,35 +278,37 @@ eliminar el TTS del Orchestrator.
 |---|-----------------------------------------|-------------------------------------------------|-------------------------------------------------|---------------------------------------------------------|
 | 1 | Evento `SubagentStop`                   | voz `summary` + toast                           | no registrado / no narrado                       | añadir hook + rama `summary` en `build-message.ts`      |
 | 2 | Evento `StopFailure`                    | voz `summary` + toast                           | no registrado / no narrado                       | añadir hook + rama `summary` en `build-message.ts`      |
-| 3 | System prompt `summary`                 | sin prohibir rutas; 1ª persona                  | prohíbe "archivos, rutas, comandos"              | alinear con el del Orchestrator (conservar rutas)       |
+| 3 | System prompt `summary`                 | sin prohibir rutas; 1ª persona                  | prohíbe "archivos, rutas, comandos"              | **Decidido:** adoptar el prompt del Orchestrator y quitar la prohibición de rutas (§5.2)       |
 | 4 | System prompt `prompt`                  | tríada explícita ("tres mensajes…")             | genérico ("contexto breve…")                     | adoptar el prompt probado del Orchestrator              |
 | 5 | Contexto `UserPromptSubmit`             | tríada `(prevUser,lastAssistant,currentPrompt)` | solo última línea del transcript                 | implementar `extractUserPromptSubmitContext` + usar `event.prompt` |
 | 6 | User prompt (roles)                     | mapeo por rol + `[Sistema]:` + `¿Qué pasó…?`    | todo colapsado en un string                      | conservar estructura de roles en `buildUserContent`     |
-| 7 | Fallback `SubagentStop`                 | `El subagente completó su trabajo.`             | ausente                                          | añadir a `local-builder.ts` (`STATIC_BY_EVENT`)         |
-| 8 | Fallback `StopFailure`                  | `Ocurrió un error durante la ejecución.`        | ausente                                          | añadir a `local-builder.ts` (`STATIC_BY_EVENT`)         |
-| 9 | Modelo Gemini                           | `gemini-3.1-flash-lite`                         | `gemini-2.0-flash`                               | decidir (5.4)                                            |
-|10 | Modelo/endpoint OpenRouter             | `poolside/laguna-xs-2.1:free` vía `/api/v1/messages` | `llama-3.3-70b-instruct:free` vía `/api/v1/chat/completions` | decidir (5.4)                            |
+| 7 | Fallback `SubagentStop`                 | `El subagente completó su trabajo.`             | ausente                                          | **Decidido:** portar texto exacto a `STATIC_BY_EVENT` (§5, §6 paso 5)         |
+| 8 | Fallback `StopFailure`                  | `Ocurrió un error durante la ejecución.`        | ausente                                          | **Decidido:** portar texto exacto a `STATIC_BY_EVENT` (§5, §6 paso 5)         |
+| 9 | Modelo Gemini                           | `gemini-3.1-flash-lite`                         | `gemini-2.0-flash`                               | **Decidido:** adoptar `gemini-3.1-flash-lite` (§5.4) |
+|10 | Modelo/endpoint OpenRouter             | `poolside/laguna-xs-2.1:free` vía `/api/v1/messages` | `llama-3.3-70b-instruct:free` vía `/api/v1/chat/completions` | **Decidido:** adoptar `poolside/laguna-xs-2.1:free` vía `/api/v1/messages` (formato Anthropic) (§5.4) |
+|11 | Normalización de texto                  | `normalize-speech-text`: whitelist sin `()'"-`, sin truncar | `sanitize.ts`: conserva `()'"-`, trunca 2 frases/320 chars | **Decidido:** portar comportamiento a `sanitize.ts` + test de equivalencia (§6 paso 4) |
 
-Lo que el plugin **ya tiene** y no requiere cambio: `Notification` (notice),
-`SessionStart` (health-check), saneamiento que preserva rutas en backticks
-(`sanitize.ts`), cadena de fallback local, configuración por env/`config.json`,
-e integración con el motor vía CLI.
+Lo que el plugin **ya tiene**: `Notification` (notice; funcionalidad propia del
+plugin, no legacy migrada — ver §9), `SessionStart` (health-check), saneamiento
+que preserva rutas en backticks, cadena de fallback local, configuración por
+env/`config.json`, e integración con el motor vía CLI. El `sanitize.ts` se
+**modificará** para portar la normalización del Orchestrator (§4 fila 11, §6 paso 4).
 
 ---
 
-## 5. Decisiones pendientes
+## 5. Decisiones de absorción (resueltas)
 
 ### 5.1 `SubagentStop` / `StopFailure` — ¿narrarlos en este plugin?
 El Orchestrator los narra. Para "funcionalidad legacy íntegra" deben añadirse a
 `hooks/hooks.json` y a `build-message.ts` (modo `summary`). Requiere que el payload
 de esos hooks traiga `transcript_path` (lo trae en el Orchestrator).
 
-### 5.2 Rutas/archivos en la voz
+### 5.2 Rutas/archivos en la voz — DECIDIDO
 El Orchestrator (y el commit `c73ed75` de este plugin) preservan rutas; el
-`SUMMARY_SYSTEM_PROMPT` actual de este plugin las prohíbe. **Recomendado:** quitar
-la prohibición en el prompt de resumen para alinearse con la intención de
-conservar rutas, apoyándose en que `sanitize.ts` ya pronuncia el contenido de
-backticks.
+`SUMMARY_SYSTEM_PROMPT` actual de este plugin las prohíbe. **Decisión de absorción:**
+alinear con el Orchestrator — se quita la frase "ni menciones nombres de archivos,
+rutas o comandos" del prompt de resumen, para conservar rutas en la voz. Esto
+cierra la fila 3 de la §4 y el paso 1 de la §6.
 
 ### 5.3 Contexto de `UserPromptSubmit`
 Recomendado adoptar la tríada curada del Orchestrator: usar `event.prompt` del
@@ -306,39 +316,47 @@ payload como `currentPrompt`, y enriquecer con `prevUser`/`lastAssistant` del
 transcript (como ya hace `readTranscriptTail`, pero conservando los tres como
 mensajes con rol en vez de colapsarlos).
 
-### 5.4 Modelos y formato de OpenRouter
-El Orchestrator probó `poolside/laguna-xs-2.1:free` vía la API de Messages de
-Anthropic (`/api/v1/messages`). Este plugin usa `llama-3.3-70b-instruct:free` vía
-chat/completions. Opciones:
-- (a) **Migrar tal cual** los modelos/endpoints del Orchestrator (máxima fidelidad
-  a lo probado), o
-- (b) **Mantener** los del plugin si se validan como equivalentes, documentando
-  que la lógica de prompts/contexto es lo que realmente se migra.
-
-La decisión afecta solo a `message/gemini-provider.ts` y
-`message/openrouter-provider.ts`; el resto de la migración es independiente.
+### 5.4 Modelos y formato de LLM — DECIDIDO
+El Orchestrator probó `gemini-3.1-flash-lite` (Gemini) y `poolside/laguna-xs-2.1:free`
+vía la API de Messages de Anthropic (`/api/v1/messages`, formato Anthropic con
+campo `system`). **Decisión de absorción:** adoptar **ambos** modelos del
+Orchestrator para máxima fidelidad a lo probado (cierra filas 9 y 10 de la §4 y el
+paso 7 de la §6). Ello implica, en `message/openrouter-provider.ts`, cambiar el
+endpoint a `/api/v1/messages` y el body al formato Anthropic (`system` + `messages`),
+no el de chat/completions del plugin actual. El resto de la migración es
+independiente de esta decisión.
 
 ---
 
-## 6. Plan de migración recomendado (orden)
+## 6. Plan de absorción (Fase 1, orden)
 
 1. **Prompts (3.1–3.2):** reemplazar `SUMMARY_SYSTEM_PROMPT` y `PROMPT_SYSTEM_PROMPT`
    en `src/message/prompts.ts` por los del Orchestrator; quitar la prohibición de
-   rutas en el de resumen (5.2).
+   rutas en el de resumen (decisión §5.2).
 2. **Contexto `UserPromptSubmit` (3.5, 5.3):** en `build-message.ts`, construir la
-   tríada `(prevUser, lastAssistant, currentPrompt)` usando `event.prompt` y el
-   transcript; pasarla a los providers conservando roles.
-3. **User prompt por rol (3.3, 6):** ajustar `buildUserContent` en
+   tríada `(prevUser, lastAssistant, currentPrompt)` usando `event.prompt` del
+   payload (autoritativo) y el transcript; pasarla a los providers conservando roles.
+3. **User prompt por rol (3.3):** ajustar `buildUserContent` en
    `provider-chain.ts` para mapear roles, prefijar `[Sistema]:` y anexar
    `¿Qué pasó en este turno?` si el último no es `user`.
-4. **Fallbacks (3.4):** añadir `SubagentStop` y `StopFailure` a `STATIC_BY_EVENT` en
-   `local-builder.ts` (y alinear wording de `UserPromptSubmit`/`Stop` si se desea).
-5. **Eventos (2, 4):** registrar `SubagentStop` y `StopFailure` en `hooks/hooks.json`
+4. **Normalización (fila 11):** portar el comportamiento de `normalize-speech-text.ts`
+   a `src/message/sanitize.ts` — whitelist sin `()'"-` y sin truncamiento de frases —
+   y añadir un test de equivalencia que bloquee el resultado.
+5. **Fallbacks (3.4):** portar el mapa exacto de `composeFallbackText` a
+   `STATIC_BY_EVENT` en `local-builder.ts`: `UserPromptSubmit` → `Solicitud recibida.
+   Procesando con Claude.`, `Stop` → `El asistente terminó su turno.`,
+   `SubagentStop` → `El subagente completó su trabajo.`, `StopFailure` → `Ocurrió un
+   error durante la ejecución.`, y `default` → `Procesando.` (decisión §5).
+6. **Eventos (2, 4):** registrar `SubagentStop` y `StopFailure` en `hooks/hooks.json`
    y añadir sus ramas (modo `summary`) en `build-message.ts`.
-6. **Modelos/endpoints (3.6, 5.4):** aplicar la decisión de la sección 5.4 en
-   `gemini-provider.ts` / `openrouter-provider.ts`.
-7. **Verificar:** `npm run typecheck`, `npm run build`, `npm run check-dist`,
-   `npm test`; añadir tests para la tríada y los dos nuevos eventos.
+7. **Modelos/endpoints (3.6, 5.4):** en `gemini-provider.ts` adoptar
+   `gemini-3.1-flash-lite`; en `openrouter-provider.ts` adoptar
+   `poolside/laguna-xs-2.1:free` vía `/api/v1/messages` (formato Anthropic).
+8. **Verificar y caracterizar:** `npm run typecheck`, `npm run build`,
+   `npm run check-dist`, `npm test`; añadir tests para la tríada y los dos nuevos
+   eventos, y **tests de caracterización** que fijen las salidas exactas del
+   Orchestrator (prompts enviados, mapeo de roles, strings de fallback,
+   normalización) antes de la Fase 2. Ver [§9](#9-criterio-de-absorción-completa).
 
 ---
 
@@ -351,7 +369,7 @@ La decisión afecta solo a `message/gemini-provider.ts` y
 - `src/2-services/tts/tts-text-provider-chain.ts` — cadena Gemini→OpenRouter.
 - `src/2-services/tts/transcript-extractor.service.ts` — extracción de contexto.
 - `src/1-domain/ports/{ITtsTextProvider,ITTSService,IContextExtractor}.ts` — puertos.
-- `src/1-domain/services/tts/normalize-speech-text.ts` — saneamiento (contraparte de `sanitize.ts`).
+- `src/1-domain/services/tts/normalize-speech-text.ts` — comportamiento de saneamiento que se portará a `sanitize.ts` (ver §4 fila 11, §6 paso 4).
 - `src/4-api/config/env.config.ts`, `src/1-domain/types/config.types.ts` — `TTS_ENABLED`, `TTS_CONTEXT_N`.
 - `src/4-api/composition-root.ts` — orden de la cadena y fuente de claves.
 - `openspec/changes/archive/2026-06-09--c00050-tts-hooks/specs/tts-hooks.md` — spec de comportamiento.
@@ -364,4 +382,28 @@ La decisión afecta solo a `message/gemini-provider.ts` y
 - `src/message/local-builder.ts` — `STATIC_BY_EVENT` (fallbacks).
 - `src/message/{gemini,openrouter}-provider.ts` — modelos/endpoints (decisión 5.4).
 - `hooks/hooks.json` — registro de `SubagentStop` / `StopFailure`.
-- `src/message/sanitize.ts` — ya preserva rutas (sin cambio, salvo alinear con 5.2).
+- `src/message/sanitize.ts` — portará el comportamiento de `normalize-speech-text` (whitelist sin `()'"-`, sin truncar; ver §4 fila 11, §6 paso 4).
+
+---
+
+## 9. Criterio de absorción completa (cierre de la Fase 1)
+
+La Fase 1 se considera completa —y la Fase 2 (eliminación en el Orchestrator)
+puede ejecutarse sin riesgo de perder inteligencia— cuando se cumplan las
+siguientes condiciones:
+
+1. **Brechas cerradas:** los 11 renglones de la tabla de la §4 están resueltos con
+   las decisiones de la §5 (rutas, normalización, fallbacks exactos, modelos,
+   contexto en tríada, mapeo de roles, eventos `SubagentStop`/`StopFailure`).
+2. **Caracterización:** el plugin tiene tests que reproducen las salidas exactas
+   del Orchestrator para cada evento y modo —prompts de sistema enviados, mapeo de
+   roles del user prompt, textos de fallback y comportamiento de normalización—.
+   Estos fixtures deben capturarse del Orchestrator **antes** de que la Fase 2 borre
+   su código TTS, pues una vez eliminado solo quedarían en el historial de git.
+3. **Verificación local en verde:** `typecheck`, `build`, `check-dist` y la suite
+   de tests del plugin pasan tras los cambios.
+
+> **Nota sobre `Notification`:** este plugin ya narra `Notification`, pero en el
+> Orchestrator `Notification` era **solo toast, nunca voz**. Por tanto es
+> funcionalidad **propia del plugin**, no lógica legacy migrada. La Fase 2 no debe
+> asumir que aquí se "migró" algo desde `Notification` del Orchestrator.
