@@ -1,28 +1,31 @@
 // La barrera de saneamiento antes de narrar o de enviar texto a un LLM externo:
-// verifica que efectivamente quita lo que dice quitar.
+// verifica que efectivamente quita lo que dice quitar. Comportamiento portado de
+// normalize-speech-text del Orchestrator (§4 fila 11): whitelist SIN
+// paréntesis/comillas/guiones y SIN truncamiento de oraciones.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  toPlainText,
-  firstSentences,
-  sanitizeForSpeech,
-} from "../src/message/sanitize.js";
+import { toPlainText, sanitizeForSpeech } from "../src/message/sanitize.js";
 
-test("toPlainText elimina bloques de código cercados y su contenido", () => {
+test("toPlainText quita delimitadores de bloque y conserva el contenido", () => {
   const input = "Antes.\n```js\nconst clave = \"secreto\";\n```\nDespués.";
   const out = toPlainText(input);
-  assert.equal(out, "Antes. Después.");
-  assert.ok(!out.includes("secreto"));
+  assert.equal(out, "Antes. js const clave \"secreto\"; Después.");
+  assert.ok(!out.includes("```"), "sin delimitadores");
+  assert.ok(out.includes("secreto"), "contenido conservado (ruta pronunciable)");
 });
 
-test("toPlainText elimina bloques cercados con virgulillas", () => {
-  assert.equal(toPlainText("Uno ~~~\ncódigo\n~~~ dos"), "Uno dos");
+test("toPlainText quita delimitadores de virgulillas y conserva el contenido", () => {
+  const out = toPlainText("Uno ~~~\ncódigo\n~~~ dos");
+  assert.equal(out, "Uno código dos");
+  assert.ok(!out.includes("~~~"));
 });
 
-test("toPlainText elimina código en línea con su contenido", () => {
+test("toPlainText conserva el contenido de código en línea (rutas pronunciables)", () => {
+  // Las comillas invertidas se quitan; el texto interior (ruta/comando) se conserva.
+  // Los guiones se mantienen (decisión del producto) y la barra / sí se elimina.
   const out = toPlainText("Ejecuta `rm -rf /tmp/x` ahora.");
-  assert.ok(!out.includes("rm"));
-  assert.equal(out, "Ejecuta ahora.");
+  assert.ok(!out.includes("`"));
+  assert.equal(out, "Ejecuta rm -rf tmp x ahora.");
 });
 
 test("toPlainText conserva el texto de enlaces y descarta la URL", () => {
@@ -64,52 +67,47 @@ test("toPlainText reemplaza símbolos no narrables y colapsa espacios", () => {
   assert.equal(out, "a b c d");
 });
 
+test("toPlainText conserva paréntesis, comillas y guiones", () => {
+  // Paréntesis, comillas y guiones se conservan (decisión del producto).
+  const input = "a(b)c'd-e\"f";
+  const out = toPlainText(input);
+  assert.equal(out, input);
+  assert.ok(out.includes("(") && out.includes(")"));
+  assert.ok(out.includes("'") && out.includes('"') && out.includes("-"));
+});
+
 test("toPlainText tolera entrada vacía y valores nulos", () => {
   assert.equal(toPlainText(""), "");
   // La firma exige string, pero el código defiende contra null en runtime.
   assert.equal(toPlainText(null as unknown as string), "");
 });
 
-test("firstSentences devuelve las primeras oraciones pedidas", () => {
-  const text = "Primera. Segunda! Tercera? Cuarta.";
-  assert.equal(firstSentences(text, 2), "Primera. Segunda!");
-  assert.equal(firstSentences(text, 3), "Primera. Segunda! Tercera?");
-});
-
-test("firstSentences devuelve el texto tal cual si no hay oraciones", () => {
-  assert.equal(firstSentences(""), "");
-});
-
-test("firstSentences incluye una oración final sin puntuación de cierre", () => {
-  assert.equal(firstSentences("Una. Dos sin punto", 2), "Una. Dos sin punto");
-});
+// --- sanitizeForSpeech: pipeline completo, SIN truncamiento ---
 
 test("sanitizeForSpeech devuelve cadena vacía si no queda nada utilizable", () => {
   assert.equal(sanitizeForSpeech(""), "");
-  assert.equal(sanitizeForSpeech("```\nsolo código\n```"), "");
   assert.equal(sanitizeForSpeech("@#$%^&*"), "");
 });
 
-test("sanitizeForSpeech limita a las oraciones pedidas", () => {
-  const out = sanitizeForSpeech("Uno. Dos. Tres. Cuatro.", 2);
-  assert.equal(out, "Uno. Dos.");
+test("sanitizeForSpeech conserva TODAS las oraciones (sin truncar a 2)", () => {
+  const out = sanitizeForSpeech("Uno. Dos. Tres. Cuatro. Cinco.");
+  assert.equal(out, "Uno. Dos. Tres. Cuatro. Cinco.");
 });
 
-test("sanitizeForSpeech recorta a 320 caracteres sin partir palabras", () => {
-  const palabra = "palabra";
-  const larga = (palabra + " ").repeat(100).trim() + ".";
-  const out = sanitizeForSpeech(larga, 1);
-  assert.ok(out.length <= 320);
-  // El recorte cae en un límite de palabra: no deja un fragmento de "palabra".
-  const last = out.split(" ").at(-1);
-  assert.equal(last, palabra);
+test("sanitizeForSpeech NO recorta a 320 caracteres (fidelidad al Orchestrator)", () => {
+  const larga = ("palabra ".repeat(200) + "fin.").trim();
+  const out = sanitizeForSpeech(larga);
+  assert.ok(out.length > 320, `esperado >320, fue ${out.length}`);
+  assert.ok(out.endsWith("fin."));
 });
 
-test("sanitizeForSpeech integra el pipeline completo", () => {
+test("sanitizeForSpeech integra el pipeline completo sin truncar", () => {
   const input =
     "# Resultado\nSe corrigió el **bug** en `config.ts`. Ver [detalles](https://x.dev). Tercera oración.";
-  assert.equal(
-    sanitizeForSpeech(input),
-    "Resultado Se corrigió el bug en . Ver detalles.",
-  );
+  const out = sanitizeForSpeech(input);
+  assert.ok(!out.includes("**"), "sin énfasis");
+  assert.ok(!out.includes("`"), "sin backticks");
+  assert.ok(out.includes("config.ts"), "ruta conservada");
+  assert.ok(out.includes("bug"), "texto de énfasis conservado");
+  assert.ok(out.includes("Tercera oración"), "sin truncamiento de oraciones");
 });

@@ -1,9 +1,10 @@
 // Normalización del texto para voz: convierte texto potencialmente con markdown,
 // código y símbolos en texto plano apto para leerse en voz alta. Se aplica tanto
 // a la salida del LLM (los modelos free no siempre obedecen el formato) como al
-// constructor local.
-
-const MAX_CHARS = 320;
+// constructor local. Basado en normalize-speech-text del Orchestrator (§4 fila
+// 11) y SIN truncamiento de oraciones, pero con una desviación deliberada del
+// producto: paréntesis, comillas y guiones se CONSERVAN (no mutilar la frase;
+// si molestan al leerse, se eliminan después).
 
 /** Limpia markdown/código/símbolos y colapsa espacios. No recorta oraciones. */
 export function toPlainText(input: string): string {
@@ -27,7 +28,9 @@ export function toPlainText(input: string): string {
   // Énfasis y tachado.
   t = t.replace(/[*_~]{1,3}/g, "");
   // Símbolos que no se leen bien; se conservan letras, dígitos, espacios,
-  // acentos/ñ/ü y puntuación básica del español.
+  // acentos/ñ/ü, puntuación básica del español, paréntesis, comillas y guiones
+  // (decisión del producto: se conservan para no mutilar la frase; si molestan
+  // al leerse, se eliminan después).
   t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!()'"-]/gu, " ");
   // Colapsar espacios y saltos de línea.
   t = t.replace(/\s+/g, " ").trim();
@@ -35,27 +38,11 @@ export function toPlainText(input: string): string {
   return t;
 }
 
-/** Devuelve las primeras `max` oraciones del texto plano. */
-export function firstSentences(text: string, max = 2): string {
-  const parts = text.match(/[^.!?]+[.!?]*/g);
-  if (!parts) return text;
-  return parts
-    .slice(0, max)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /**
- * Pipeline completo para voz: texto plano → primeras 1-2 oraciones → recorte a
- * un largo narrable. Devuelve "" si no queda nada utilizable.
+ * Pipeline completo para voz: texto plano, sin truncar (fidelidad a lo probado
+ * en el Orchestrator). Devuelve "" si no queda nada utilizable.
  */
-export function sanitizeForSpeech(input: string, maxSentences = 2): string {
+export function sanitizeForSpeech(input: string): string {
   const plain = toPlainText(input);
-  if (!plain) return "";
-  let out = firstSentences(plain, maxSentences);
-  if (out.length > MAX_CHARS) {
-    out = out.slice(0, MAX_CHARS).replace(/\s+\S*$/, "").trim();
-  }
-  return out;
+  return plain ? plain.replace(/\s+/g, " ").trim() : "";
 }

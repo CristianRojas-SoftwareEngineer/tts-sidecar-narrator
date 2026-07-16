@@ -6,7 +6,12 @@
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import type { Config } from "../lib/config.js";
 import type { HookPayload } from "../lib/hook-payload.js";
-import { runChain, type GenerationInput, type TextProvider } from "./provider-chain.js";
+import {
+  runChain,
+  type GenerationInput,
+  type SessionMessage,
+  type TextProvider,
+} from "./provider-chain.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { OpenRouterProvider } from "./openrouter-provider.js";
 import { buildLocalSummary, buildNotice, staticForEvent } from "./local-builder.js";
@@ -30,7 +35,8 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
     return buildPromptMessage(payload, cfg);
   }
 
-  // Modo summary (Stop y cualquier otro evento con texto del asistente).
+  // Modo summary (Stop, SubagentStop, StopFailure y cualquier otro evento
+  // con texto del asistente). SubagentStop/StopFailure caen aquí naturalmente.
   const primary = (payload.last_assistant_message ?? "").trim();
 
   if (cfg.messageMode === "llm") {
@@ -39,7 +45,7 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
       const input: GenerationInput = {
         mode: "summary",
         text: primary,
-        transcript: readTranscriptTail(payload.transcript_path),
+        messages: readTranscriptMessages(payload.transcript_path),
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -59,21 +65,32 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
 
 /**
  * Mensaje para UserPromptSubmit: responde al prompt actual como asistente de voz.
- * Usa LLM si está disponible, de lo contrario fallback local o estático.
+ * Construye la tríada curada del Orchestrator (§5.3): petición previa del usuario,
+ * última respuesta del asistente y petición actual (esta última, fiable, del
+ * payload). Usa LLM si está disponible; de lo contrario fallback local o estático.
  */
 async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<string> {
-  // Extraer el prompt actual del transcript (última línea del archivo).
-  const transcript = readTranscriptTail(payload.transcript_path);
-  const promptText = transcript.length > 0 ? transcript[transcript.length - 1].replace(/^usuario: /, "") : "";
+  // Tríada: prompt actual del payload (fiable) enriquecido con el hilo previo.
+  const transcript = readTranscriptMessages(payload.transcript_path);
+  const prevUser = lastOfRole(transcript, "user");
+  const lastAssistant = lastOfRole(transcript, "assistant");
+  const currentPrompt =
+    (payload.prompt ?? "").trim() ||
+    (transcript.length ? transcript[transcript.length - 1].content : "");
 
-  // En modo LLM, generar respuesta breve al prompt.
+  const messages: SessionMessage[] = [];
+  if (prevUser) messages.push({ role: "user", content: prevUser });
+  if (lastAssistant) messages.push({ role: "assistant", content: lastAssistant });
+  messages.push({ role: "user", content: currentPrompt });
+
+  // En modo LLM, generar respuesta breve a la tríada.
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
     if (providers.length > 0) {
       const input: GenerationInput = {
         mode: "prompt",
-        text: promptText,
-        transcript: readTranscriptTail(payload.transcript_path),
+        text: currentPrompt,
+        messages,
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -84,11 +101,19 @@ async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<st
   }
 
   // Degradación local: usar el prompt como texto primario.
-  const localSummary = buildLocalSummary(promptText);
+  const localSummary = buildLocalSummary(currentPrompt);
   if (localSummary) return localSummary;
 
   // Último recurso: estático.
   return staticForEvent("UserPromptSubmit");
+}
+
+/** Último mensaje del rol indicado en la lista, o undefined si no hay. */
+function lastOfRole(messages: SessionMessage[], role: SessionMessage["role"]): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === role) return messages[i].content;
+  }
+  return undefined;
 }
 
 /** Providers en orden de prioridad; se omite el que no tenga key. */
@@ -101,10 +126,11 @@ function buildProviders(cfg: Config): TextProvider[] {
 
 /**
  * Lee los últimos mensajes del transcript JSONL como enriquecimiento opcional.
- * Best-effort: cualquier fallo devuelve []. Solo lee la cola del archivo para
- * acotar el I/O; descarta líneas malformadas.
+ * Devuelve `SessionMessage[]` con rol preservado (user/assistant/system), no
+ * texto plano. Best-effort: cualquier fallo devuelve []. Solo lee la cola del
+ * archivo para acotar el I/O; descarta líneas malformadas.
  */
-function readTranscriptTail(transcriptPath: string | undefined): string[] {
+function readTranscriptMessages(transcriptPath: string | undefined): SessionMessage[] {
   if (!transcriptPath) return [];
   let fd: number | undefined;
   try {
@@ -121,7 +147,7 @@ function readTranscriptTail(transcriptPath: string | undefined): string[] {
     const lines = chunk.split("\n");
     if (start > 0) lines.shift();
 
-    const messages: string[] = [];
+    const messages: SessionMessage[] = [];
     for (const line of lines) {
       const entry = extractMessage(line);
       if (entry) messages.push(entry);
@@ -140,8 +166,8 @@ function readTranscriptTail(transcriptPath: string | undefined): string[] {
   }
 }
 
-/** Extrae "rol: texto" de una línea JSONL del transcript, o null si no aplica. */
-function extractMessage(line: string): string | null {
+/** Extrae `{role, content}` de una línea JSONL del transcript, o null si no aplica. */
+function extractMessage(line: string): SessionMessage | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
   try {
@@ -151,13 +177,12 @@ function extractMessage(line: string): string | null {
       message?: { role?: string; content?: unknown };
     };
     const role = obj.message?.role ?? obj.role ?? obj.type;
-    if (role !== "user" && role !== "assistant") return null;
+    if (role !== "user" && role !== "assistant" && role !== "system") return null;
 
     const text = extractText(obj.message?.content);
     if (!text) return null;
 
-    const label = role === "user" ? "usuario" : "asistente";
-    return `${label}: ${text}`;
+    return { role: role as SessionMessage["role"], content: text };
   } catch {
     return null;
   }

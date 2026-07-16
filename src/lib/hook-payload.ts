@@ -9,6 +9,8 @@ export interface HookPayload {
   last_assistant_message?: string;
   /** Presente en Notification: aviso ya redactado y corto. */
   message?: string;
+  /** Presente en UserPromptSubmit: la petición actual del usuario (fiable). */
+  prompt?: string;
 }
 
 /** Parseo tolerante: nunca lanza; ante entrada inválida devuelve un objeto vacío. */

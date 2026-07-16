@@ -10,9 +10,9 @@ import {
 } from "./provider-chain.js";
 import { systemPromptFor } from "./prompts.js";
 
-// Modelo Flash del nivel gratuito. Verificar que sigue vigente si Gemini cambia
-// su catálogo (bloqueador menor anotado en el diseño).
-const MODEL = "gemini-2.0-flash";
+// Modelo del Orchestrator (§5.4): gemini-3.1-flash-lite, probado en
+// producción. Verificar vigencia si Gemini cambia su catálogo.
+const MODEL = "gemini-3.1-flash-lite";
 const ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -33,9 +33,10 @@ export class GeminiProvider implements TextProvider {
       systemInstruction: {
         parts: [{ text: systemPromptFor(input.mode) }],
       },
-      contents: [
-        { role: "user", parts: [{ text: buildUserContent(input) }] },
-      ],
+      contents: buildUserContent(input.messages).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0.7,

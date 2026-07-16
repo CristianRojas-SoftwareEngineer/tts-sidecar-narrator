@@ -1,6 +1,6 @@
 // Proveedor de fallback: OpenRouter con modelos :free vía fetch nativo, sin SDK.
-// Endpoint OpenAI-compatible (chat/completions). Absorbe los 429 y caídas de
-// Gemini gracias a sus límites más holgados.
+// Formato Anthropic Messages (/api/v1/messages), igual que el Orchestrator (§5.4),
+// para máxima fidelidad con lo probado. Absorbe los 429 y caídas de Gemini.
 import {
   buildUserContent,
   MAX_OUTPUT_TOKENS,
@@ -10,14 +10,14 @@ import {
 } from "./provider-chain.js";
 import { systemPromptFor } from "./prompts.js";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const ENDPOINT = "https://openrouter.ai/api/v1/messages";
 
-// Modelo gratuito. Verificar disponibilidad si OpenRouter cambia su catálogo
-// :free (bloqueador menor anotado en el diseño).
-const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+// Modelo del Orchestrator (§5.4): poolside/laguna-xs-2.1:free. Verificar
+// disponibilidad si OpenRouter cambia su catálogo :free.
+const MODEL = "poolside/laguna-xs-2.1:free";
 
 interface OpenRouterResponse {
-  choices?: Array<{ message?: { content?: string } }>;
+  content?: Array<{ type?: string; text?: string }>;
 }
 
 export class OpenRouterProvider implements TextProvider {
@@ -27,14 +27,12 @@ export class OpenRouterProvider implements TextProvider {
   async generate(input: GenerationInput): Promise<string> {
     if (!this.apiKey) throw new Error("OpenRouter: sin API key");
 
+    const messages = buildUserContent(input.messages);
     const body = {
       model: MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: systemPromptFor(input.mode) },
-        { role: "user", content: buildUserContent(input) },
-      ],
+      system: systemPromptFor(input.mode),
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
     };
 
     const res = await fetch(ENDPOINT, {
@@ -51,7 +49,11 @@ export class OpenRouterProvider implements TextProvider {
     if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`);
 
     const data = (await res.json()) as OpenRouterResponse;
-    const text = (data.choices?.[0]?.message?.content ?? "").trim();
+    const text = (data.content ?? [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("")
+      .trim();
 
     if (!text) throw new Error("OpenRouter devolvió respuesta vacía");
     return text;

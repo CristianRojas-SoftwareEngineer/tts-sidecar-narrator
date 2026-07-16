@@ -1,18 +1,25 @@
 // El corazón del «costo cero con degradación local»: el orden de fallback y
-// que ningún fallo de un proveedor se propague al llamante.
+// que ningún fallo de un proveedor se propague al llamante. Además, el mapeo
+// de roles de buildUserContent (§3.3 del plan).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   runChain,
   buildUserContent,
   type GenerationInput,
+  type SessionMessage,
   type TextProvider,
 } from "../src/message/provider-chain.js";
+
+const MESSAGES: SessionMessage[] = [
+  { role: "user", content: "Hola" },
+  { role: "assistant", content: "Hola, ¿en qué ayudo?" },
+];
 
 const INPUT: GenerationInput = {
   mode: "summary",
   text: "Último mensaje.",
-  transcript: [],
+  messages: MESSAGES,
 };
 
 function provider(
@@ -86,30 +93,58 @@ test("runChain con lista vacía devuelve undefined", async () => {
 
 test("runChain recorta espacios del texto devuelto", async () => {
   const result = await runChain(
-    [provider("gemini", async () => "  con espacios  \n", [])],
+    [provider("gemini", async () => "  con espacios \n", [])],
     INPUT,
   );
   assert.equal(result, "con espacios");
 });
 
-test("buildUserContent sin transcript solo incluye el texto primario", () => {
-  const out = buildUserContent(INPUT);
-  assert.equal(out, "Último mensaje del asistente en este turno:\nÚltimo mensaje.");
+// --- buildUserContent (mapeo de roles §3.3) ---
+
+test("buildUserContent conserva user/assitant y aplana system a user con prefijo", () => {
+  const out = buildUserContent([
+    { role: "system", content: "regla" },
+    { role: "user", content: "hola" },
+    { role: "assistant", content: "hola" },
+  ]);
+  assert.deepEqual(out, [
+    { role: "user", content: "[Sistema]: regla" },
+    { role: "user", content: "hola" },
+    { role: "assistant", content: "hola" },
+    { role: "user", content: "¿Qué pasó en este turno?" },
+  ]);
 });
 
-test("buildUserContent antepone el contexto del transcript cuando existe", () => {
-  const out = buildUserContent({
-    ...INPUT,
-    transcript: ["usuario: hola", "asistente: hola"],
-  });
-  assert.equal(
-    out,
-    [
-      "Contexto reciente de la conversación:",
-      "usuario: hola\nasistente: hola",
-      "",
-      "Último mensaje del asistente en este turno:",
-      "Último mensaje.",
-    ].join("\n"),
-  );
+test("buildUserContent anexa ¿Qué pasó en este turno? si el último no es user", () => {
+  const out = buildUserContent([
+    { role: "user", content: "hola" },
+    { role: "assistant", content: "respuesta" },
+  ]);
+  assert.deepEqual(out, [
+    { role: "user", content: "hola" },
+    { role: "assistant", content: "respuesta" },
+    { role: "user", content: "¿Qué pasó en este turno?" },
+  ]);
+});
+
+test("buildUserContent no anexa nada si el último ya es user", () => {
+  const out = buildUserContent([
+    { role: "assistant", content: "respuesta" },
+    { role: "user", content: "hola" },
+  ]);
+  assert.equal(out.length, 2);
+  assert.equal(out[out.length - 1].role, "user");
+});
+
+test("buildUserContent filtra mensajes vacíos", () => {
+  const out = buildUserContent([
+    { role: "user", content: "  " },
+    { role: "user", content: "útil" },
+    { role: "assistant", content: "" },
+  ]);
+  assert.deepEqual(out, [{ role: "user", content: "útil" }]);
+});
+
+test("buildUserContent con lista vacía devuelve []", () => {
+  assert.deepEqual(buildUserContent([]), []);
 });

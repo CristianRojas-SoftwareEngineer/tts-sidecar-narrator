@@ -5,13 +5,15 @@
 import { sanitizeForSpeech } from "./sanitize.js";
 
 const STATIC_BY_EVENT: Record<string, string> = {
-  Stop: "El asistente terminó su turno",
-  UserPromptSubmit: "Petición recibida. Procesando con Claude.",
+  Stop: "El asistente terminó su turno.",
+  UserPromptSubmit: "Solicitud recibida. Procesando con Claude.",
+  SubagentStop: "El subagente completó su trabajo.",
+  StopFailure: "Ocurrió un error durante la ejecución.",
   Notification: "Claude necesita tu atención",
   SessionStart: "Sesión iniciada",
 };
 
-const STATIC_DEFAULT = "El asistente completó una acción";
+const STATIC_DEFAULT = "Procesando.";
 
 /** Resumen determinista del texto primario. Puede devolver "" si no hay prosa. */
 export function buildLocalSummary(text: string): string {

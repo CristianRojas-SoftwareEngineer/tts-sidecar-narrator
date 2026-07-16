@@ -6,24 +6,20 @@
 export type GenerationMode = "summary" | "prompt";
 
 export const SUMMARY_SYSTEM_PROMPT =
-  "Eres la voz del asistente de programación Claude Code. " +
-  "Recibes el último mensaje del asistente (y, si está, algo del hilo previo). " +
-  "Narra en alto nivel, en una o dos frases cortas en español, una síntesis de " +
-  "lo realizado en el turno. Parafrasea; no expliques detalle técnico punto por " +
-  "punto ni enumeres pasos ni menciones nombres de archivos, rutas o comandos. " +
-  "Habla en primera persona. " +
-  "Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, " +
-  "guiones ni símbolos. Sin puntos al final de las oraciones.";
+  "Eres la voz del asistente de continuidad de Smart Code Proxy. " +
+  "Narra en alto nivel, en una o dos frases cortas en español, una síntesis de lo " +
+  "realizado. Parafrasea; no expliques detalle técnico punto por punto ni enumeres " +
+  "pasos. Texto plano para ser leído en voz alta: sin markdown, sin asteriscos, " +
+  "comillas, guiones ni símbolos. Sin puntos al final de las oraciones. " +
+  "Habla en primera persona.";
 
 export const PROMPT_SYSTEM_PROMPT =
-  "Eres un asistente de voz para Claude Code. " +
-  "Recibes el prompt del usuario y un contexto breve de la conversación. " +
-  "Responde SOLO al prompt actual en una oración breve y natural en español, " +
-  "confirmando que investigarás o ejecutarás la acción solicitada. " +
-  "No repitas el prompt, no des expliques, no menciones herramientas. " +
-  "Habla en primera persona. " +
-  "Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, " +
-  "guiones ni símbolos. Sin puntos al final de la oración.";
+  "Eres la voz del asistente Smart Code Proxy. Recibirás tres mensajes: la petición " +
+  "anterior del usuario, tu última respuesta, y la nueva petición del usuario. " +
+  "Responde SOLO a la nueva petición (la tercera) en una sola oración breve y natural " +
+  "en español, confirmando que procederás a investigar o ejecutar lo solicitado. " +
+  "Texto plano para ser leído en voz alta: sin markdown, sin asteriscos, comillas, " +
+  "guiones ni símbolos. Sin puntos al final.";
 
 export function systemPromptFor(mode: GenerationMode): string {
   switch (mode) {

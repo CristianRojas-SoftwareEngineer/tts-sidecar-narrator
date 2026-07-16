@@ -8,33 +8,40 @@ import {
   buildNotice,
 } from "../src/message/local-builder.js";
 
-test("buildLocalSummary resume prosa normal", () => {
+test("buildLocalSummary conserva TODAS las oraciones (sin truncar)", () => {
   assert.equal(
     buildLocalSummary("Se corrigió el error. Los tests pasan. Queda pendiente el CI."),
-    "Se corrigió el error. Los tests pasan.",
+    "Se corrigió el error. Los tests pasan. Queda pendiente el CI.",
   );
 });
 
-test("buildLocalSummary devuelve vacío si no hay prosa utilizable", () => {
+test("buildLocalSummary devuelve vacío solo si no queda prosa", () => {
   assert.equal(buildLocalSummary(""), "");
-  assert.equal(buildLocalSummary("```\nsolo un bloque de código\n```"), "");
+  // El contenido de un bloque de código se conserva (ruta pronunciable).
+  assert.equal(
+    buildLocalSummary("```\nsolo un bloque de código\n```"),
+    "solo un bloque de código",
+  );
 });
 
 test("staticForEvent conoce los eventos con texto propio", () => {
-  assert.equal(staticForEvent("Stop"), "El asistente terminó su turno");
+  assert.equal(staticForEvent("Stop"), "El asistente terminó su turno.");
+  assert.equal(staticForEvent("UserPromptSubmit"), "Solicitud recibida. Procesando con Claude.");
+  assert.equal(staticForEvent("SubagentStop"), "El subagente completó su trabajo.");
+  assert.equal(staticForEvent("StopFailure"), "Ocurrió un error durante la ejecución.");
   assert.equal(staticForEvent("Notification"), "Claude necesita tu atención");
   assert.equal(staticForEvent("SessionStart"), "Sesión iniciada");
 });
 
 test("staticForEvent cae al texto por defecto ante eventos desconocidos", () => {
-  assert.equal(staticForEvent("SubagentStop"), "El asistente completó una acción");
-  assert.equal(staticForEvent(undefined), "El asistente completó una acción");
+  assert.equal(staticForEvent("SubagentStop_inexistente"), "Procesando.");
+  assert.equal(staticForEvent(undefined), "Procesando.");
 });
 
 test("buildNotice limpia el mensaje para voz", () => {
   assert.equal(
     buildNotice("Claude necesita **permiso** para usar `Bash`"),
-    "Claude necesita permiso para usar",
+    "Claude necesita permiso para usar Bash",
   );
 });
 

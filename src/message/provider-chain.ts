@@ -4,12 +4,18 @@
 // de esta cadena, en build-message) garantiza que siempre haya algo que narrar.
 import type { GenerationMode } from "./prompts.js";
 
+/** Mensaje estructurado del transcript/conversación, con rol preservado. */
+export interface SessionMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
 export interface GenerationInput {
   mode: GenerationMode;
-  /** Fuente primaria: last_assistant_message del payload. */
+  /** Fuente primaria: last_assistant_message del payload (fallback local). */
   text: string;
-  /** Enriquecimiento opcional: últimos mensajes del transcript. */
-  transcript: string[];
+  /** Enriquecimiento: últimos mensajes del transcript con rol preservado. */
+  messages: SessionMessage[];
 }
 
 export interface TextProvider {
@@ -41,15 +47,25 @@ export async function runChain(
   return undefined;
 }
 
-/** Construye el prompt de usuario combinando transcript (contexto) + texto primario. */
-export function buildUserContent(input: GenerationInput): string {
-  const parts: string[] = [];
-  if (input.transcript.length > 0) {
-    parts.push("Contexto reciente de la conversación:");
-    parts.push(input.transcript.join("\n"));
-    parts.push("");
+/**
+ * Mapea la lista de mensajes a la estructura que reciben los providers,
+ * preservando los roles (§3.3 del plan de migración). Reglas:
+ * - `system` se aplana a `user` con prefijo `[Sistema]: ` (ni Gemini `contents`
+ *   ni Anthropic `messages` aceptan rol `system` dentro del array; el prefijo
+ *   conserva el significado, igual que en el Orchestrator).
+ * - `assistant`/`user` se conservan tal cual.
+ * - Si el último mensaje no es `user`, se anexa `¿Qué pasó en este turno?`.
+ */
+export function buildUserContent(messages: SessionMessage[]): SessionMessage[] {
+  const out: SessionMessage[] = messages
+    .filter((m) => m.content && m.content.trim().length > 0)
+    .map((m) =>
+      m.role === "system"
+        ? { role: "user", content: `[Sistema]: ${m.content}` }
+        : m,
+    );
+  if (out.length > 0 && out[out.length - 1].role !== "user") {
+    out.push({ role: "user", content: "¿Qué pasó en este turno?" });
   }
-  parts.push("Último mensaje del asistente en este turno:");
-  parts.push(input.text);
-  return parts.join("\n");
+  return out;
 }

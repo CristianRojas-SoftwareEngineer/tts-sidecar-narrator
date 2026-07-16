@@ -160,21 +160,19 @@ async function runChain(providers, input) {
   }
   return void 0;
 }
-function buildUserContent(input) {
-  const parts = [];
-  if (input.transcript.length > 0) {
-    parts.push("Contexto reciente de la conversaci\xF3n:");
-    parts.push(input.transcript.join("\n"));
-    parts.push("");
+function buildUserContent(messages) {
+  const out = messages.filter((m) => m.content && m.content.trim().length > 0).map(
+    (m) => m.role === "system" ? { role: "user", content: `[Sistema]: ${m.content}` } : m
+  );
+  if (out.length > 0 && out[out.length - 1].role !== "user") {
+    out.push({ role: "user", content: "\xBFQu\xE9 pas\xF3 en este turno?" });
   }
-  parts.push("\xDAltimo mensaje del asistente en este turno:");
-  parts.push(input.text);
-  return parts.join("\n");
+  return out;
 }
 
 // src/message/prompts.ts
-var SUMMARY_SYSTEM_PROMPT = "Eres la voz del asistente de programaci\xF3n Claude Code. Recibes el \xFAltimo mensaje del asistente (y, si est\xE1, algo del hilo previo). Narra en alto nivel, en una o dos frases cortas en espa\xF1ol, una s\xEDntesis de lo realizado en el turno. Parafrasea; no expliques detalle t\xE9cnico punto por punto ni enumeres pasos ni menciones nombres de archivos, rutas o comandos. Habla en primera persona. Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de las oraciones.";
-var PROMPT_SYSTEM_PROMPT = "Eres un asistente de voz para Claude Code. Recibes el prompt del usuario y un contexto breve de la conversaci\xF3n. Responde SOLO al prompt actual en una oraci\xF3n breve y natural en espa\xF1ol, confirmando que investigar\xE1s o ejecutar\xE1s la acci\xF3n solicitada. No repitas el prompt, no des expliques, no menciones herramientas. Habla en primera persona. Texto plano para leerse en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de la oraci\xF3n.";
+var SUMMARY_SYSTEM_PROMPT = "Eres la voz del asistente de continuidad de Smart Code Proxy. Narra en alto nivel, en una o dos frases cortas en espa\xF1ol, una s\xEDntesis de lo realizado. Parafrasea; no expliques detalle t\xE9cnico punto por punto ni enumeres pasos. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de las oraciones. Habla en primera persona.";
+var PROMPT_SYSTEM_PROMPT = "Eres la voz del asistente Smart Code Proxy. Recibir\xE1s tres mensajes: la petici\xF3n anterior del usuario, tu \xFAltima respuesta, y la nueva petici\xF3n del usuario. Responde SOLO a la nueva petici\xF3n (la tercera) en una sola oraci\xF3n breve y natural en espa\xF1ol, confirmando que proceder\xE1s a investigar o ejecutar lo solicitado. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final.";
 function systemPromptFor(mode) {
   switch (mode) {
     case "summary":
@@ -185,7 +183,7 @@ function systemPromptFor(mode) {
 }
 
 // src/message/gemini-provider.ts
-var MODEL = "gemini-2.0-flash";
+var MODEL = "gemini-3.1-flash-lite";
 var ENDPOINT = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 var GeminiProvider = class {
   constructor(apiKey) {
@@ -198,9 +196,10 @@ var GeminiProvider = class {
       systemInstruction: {
         parts: [{ text: systemPromptFor(input.mode) }]
       },
-      contents: [
-        { role: "user", parts: [{ text: buildUserContent(input) }] }
-      ],
+      contents: buildUserContent(input.messages).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }]
+      })),
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0.7,
@@ -225,8 +224,8 @@ var GeminiProvider = class {
 };
 
 // src/message/openrouter-provider.ts
-var ENDPOINT2 = "https://openrouter.ai/api/v1/chat/completions";
-var MODEL2 = "meta-llama/llama-3.3-70b-instruct:free";
+var ENDPOINT2 = "https://openrouter.ai/api/v1/messages";
+var MODEL2 = "poolside/laguna-xs-2.1:free";
 var OpenRouterProvider = class {
   constructor(apiKey) {
     this.apiKey = apiKey;
@@ -234,14 +233,12 @@ var OpenRouterProvider = class {
   name = "openrouter";
   async generate(input) {
     if (!this.apiKey) throw new Error("OpenRouter: sin API key");
+    const messages = buildUserContent(input.messages);
     const body = {
       model: MODEL2,
       max_tokens: MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: systemPromptFor(input.mode) },
-        { role: "user", content: buildUserContent(input) }
-      ]
+      system: systemPromptFor(input.mode),
+      messages: messages.map((m) => ({ role: m.role, content: m.content }))
     };
     const res = await fetch(ENDPOINT2, {
       method: "POST",
@@ -255,14 +252,13 @@ var OpenRouterProvider = class {
     });
     if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`);
     const data = await res.json();
-    const text = (data.choices?.[0]?.message?.content ?? "").trim();
+    const text = (data.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim();
     if (!text) throw new Error("OpenRouter devolvi\xF3 respuesta vac\xEDa");
     return text;
   }
 };
 
 // src/message/sanitize.ts
-var MAX_CHARS = 320;
 function toPlainText(input) {
   let t = input ?? "";
   t = t.replace(/```([\s\S]*?)```/g, "$1");
@@ -275,33 +271,25 @@ function toPlainText(input) {
   t = t.replace(/^\s{0,3}[-*+]\s+/gm, "");
   t = t.replace(/^\s{0,3}\d+[.)]\s+/gm, "");
   t = t.replace(/[*_~]{1,3}/g, "");
-  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!()'"-]/gu, " ");
+  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!]/gu, " ");
   t = t.replace(/\s+/g, " ").trim();
   return t;
 }
-function firstSentences(text, max = 2) {
-  const parts = text.match(/[^.!?]+[.!?]*/g);
-  if (!parts) return text;
-  return parts.slice(0, max).join(" ").replace(/\s+/g, " ").trim();
-}
-function sanitizeForSpeech(input, maxSentences = 2) {
+function sanitizeForSpeech(input) {
   const plain = toPlainText(input);
-  if (!plain) return "";
-  let out = firstSentences(plain, maxSentences);
-  if (out.length > MAX_CHARS) {
-    out = out.slice(0, MAX_CHARS).replace(/\s+\S*$/, "").trim();
-  }
-  return out;
+  return plain ? plain.replace(/\s+/g, " ").trim() : "";
 }
 
 // src/message/local-builder.ts
 var STATIC_BY_EVENT = {
-  Stop: "El asistente termin\xF3 su turno",
-  UserPromptSubmit: "Petici\xF3n recibida. Procesando con Claude.",
+  Stop: "El asistente termin\xF3 su turno.",
+  UserPromptSubmit: "Solicitud recibida. Procesando con Claude.",
+  SubagentStop: "El subagente complet\xF3 su trabajo.",
+  StopFailure: "Ocurri\xF3 un error durante la ejecuci\xF3n.",
   Notification: "Claude necesita tu atenci\xF3n",
   SessionStart: "Sesi\xF3n iniciada"
 };
-var STATIC_DEFAULT = "El asistente complet\xF3 una acci\xF3n";
+var STATIC_DEFAULT = "Procesando.";
 function buildLocalSummary(text) {
   return sanitizeForSpeech(text);
 }
@@ -331,7 +319,7 @@ async function buildMessage(payload, cfg) {
       const input = {
         mode: "summary",
         text: primary,
-        transcript: readTranscriptTail(payload.transcript_path)
+        messages: readTranscriptMessages(payload.transcript_path)
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -345,15 +333,21 @@ async function buildMessage(payload, cfg) {
   return staticForEvent(event);
 }
 async function buildPromptMessage(payload, cfg) {
-  const transcript = readTranscriptTail(payload.transcript_path);
-  const promptText = transcript.length > 0 ? transcript[transcript.length - 1].replace(/^usuario: /, "") : "";
+  const transcript = readTranscriptMessages(payload.transcript_path);
+  const prevUser = lastOfRole(transcript, "user");
+  const lastAssistant = lastOfRole(transcript, "assistant");
+  const currentPrompt = (payload.prompt ?? "").trim() || (transcript.length ? transcript[transcript.length - 1].content : "");
+  const messages = [];
+  if (prevUser) messages.push({ role: "user", content: prevUser });
+  if (lastAssistant) messages.push({ role: "assistant", content: lastAssistant });
+  messages.push({ role: "user", content: currentPrompt });
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
     if (providers.length > 0) {
       const input = {
         mode: "prompt",
-        text: promptText,
-        transcript: readTranscriptTail(payload.transcript_path)
+        text: currentPrompt,
+        messages
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -362,9 +356,15 @@ async function buildPromptMessage(payload, cfg) {
       }
     }
   }
-  const localSummary = buildLocalSummary(promptText);
+  const localSummary = buildLocalSummary(currentPrompt);
   if (localSummary) return localSummary;
   return staticForEvent("UserPromptSubmit");
+}
+function lastOfRole(messages, role) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === role) return messages[i].content;
+  }
+  return void 0;
 }
 function buildProviders(cfg) {
   const providers = [];
@@ -372,7 +372,7 @@ function buildProviders(cfg) {
   if (cfg.openRouterApiKey) providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
   return providers;
 }
-function readTranscriptTail(transcriptPath) {
+function readTranscriptMessages(transcriptPath) {
   if (!transcriptPath) return [];
   let fd;
   try {
@@ -409,11 +409,10 @@ function extractMessage(line) {
   try {
     const obj = JSON.parse(trimmed);
     const role = obj.message?.role ?? obj.role ?? obj.type;
-    if (role !== "user" && role !== "assistant") return null;
+    if (role !== "user" && role !== "assistant" && role !== "system") return null;
     const text = extractText(obj.message?.content);
     if (!text) return null;
-    const label = role === "user" ? "usuario" : "asistente";
-    return `${label}: ${text}`;
+    return { role, content: text };
   } catch {
     return null;
   }
