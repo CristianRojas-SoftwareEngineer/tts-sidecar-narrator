@@ -19,11 +19,11 @@ Claude Code resuelve las versiones desde los tags del repo.
   - [Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
   - [Después del tag](#después-del-tag)
   - [Bitácora del primer lanzamiento conjunto](#bitácora-del-primer-lanzamiento-conjunto)
-    - [Fase 0 — Poner en verde el repo del plugin ✅ completada](#fase-0--poner-en-verde-el-repo-del-plugin)
-    - [Fase 1 — Release del motor publicado ✅ completada](#fase-1--release-del-motor-publicado)
-    - [Fase 2 — Smoke test contra el motor publicado ⏳ pendiente](#fase-2--smoke-test-contra-el-motor-publicado)
-    - [Fase 3 — Cortar el release del plugin ⏳ pendiente](#fase-3--cortar-el-release-del-plugin)
-    - [Fase 4 — Verificación posterior al corte ⏳ pendiente](#fase-4--verificación-posterior-al-corte)
+    - [Fase 0 — Poner en verde el repo del plugin ✅ completada](#fase-0--poner-en-verde-el-repo-del-plugin--completada)
+    - [Fase 1 — Release del motor publicado ✅ completada](#fase-1--release-del-motor-publicado--completada)
+    - [Fase 2 — Smoke test contra el motor publicado ⏳ pendiente](#fase-2--smoke-test-contra-el-motor-publicado--pendiente)
+    - [Fase 3 — Cortar el release del plugin ⏳ pendiente](#fase-3--cortar-el-release-del-plugin--pendiente)
+    - [Fase 4 — Verificación posterior al corte ⏳ pendiente](#fase-4--verificación-posterior-al-corte--pendiente)
 
 ## Modelo de versionado
 
@@ -149,15 +149,6 @@ que el corte parta de una base verde.
    verde. Cada job corre la misma secuencia:
    `npm ci && npm run typecheck && npm run check-dist && npm test`.
 
-**Aprendizaje registrado (fallo real de plataforma).** El primer intento falló
-solo en Windows: el runner de CircleCI hace checkout con `core.autocrlf`, que
-convierte a CRLF los saltos LF del `dist/` commiteado; como `check-dist` compara
-byte a byte la recompilación de `src/` (LF) contra el `dist/` en disco (CRLF),
-rompía sin que nada hubiera cambiado. Se corrigió fijando `* text=auto eol=lf`
-en `.gitattributes` (que tiene prioridad sobre `core.autocrlf`) y el pipeline #3
-pasó los tres jobs en verde. Detalle completo en
-[`RELEASE-READINESS.md`](RELEASE-READINESS.md).
-
 ### Fase 1 — Release del motor publicado ✅ completada
 
 El plugin se verifica contra la **última versión publicada del motor**, no
@@ -207,14 +198,42 @@ de desarrollo del motor):
    cd tts-sidecar-narrator
    claude --plugin-dir .
    ```
-3. **Verificar, de forma audible**, cada superficie del contrato:
-   - narración al final de un turno en modo `local` (sin claves configuradas):
-     debe oírse una locución corta en español;
-   - narración en modo `llm` (con clave configurada): misma señal audible, pero
-     el texto lo construye la cadena LLM;
-   - `narrate-ctl status` reporta el estado sin exponer claves;
-   - al quitar el motor del `PATH`, el aviso de `SessionStart` aparece y la
-     sesión **no** se bloquea (degradación silenciosa).
+3. **Verificar, de forma audible, cada superficie del contrato**. Para cada
+   ítem, deja el entorno en la condición indicada, dispara la narración y
+   escucha el resultado (los comandos `narrate-ctl` se resuelven a
+   `dist/narrate-ctl.js`):
+
+   - **Fin de turno en modo `local`** (sin claves):
+     1. Selecciona el modo y confirma el estado:
+        ```bash
+        narrate-ctl mode local
+        narrate-ctl status      # enabled: true, modo local, daemon running
+        ```
+        Si el daemon no está `running`, arráncalo: `tts-sidecar daemon start`.
+     2. Termina un turno normal en la sesión (p. ej. pregunta algo simple). El
+        hook `Stop` debe disparar una locución corta en español **sin** claves.
+        Para no depender del hook puedes forzarla con `narrate-ctl say "prueba
+        local"`.
+   - **Modo `llm`** (con clave de proveedor):
+     1. Define la clave en el entorno de la sesión, p. ej.
+        `GEMINI_API_KEY=...` o `OPENROUTER_API_KEY=...` (tienen precedencia
+        sobre `config.json`); o edítala en `config.json` del state dir. **Sin
+        clave, `llm` degrada a `local`**, así que la clave es obligatoria para
+        este ítem.
+     2. Cambia el modo: `narrate-ctl mode llm`.
+     3. Termina un turno y escucha: la locución suena, pero la construye la
+        cadena LLM (más elaborada). Confirma en `worker.log` (su ruta la da
+        `narrate-ctl status`) que se usó el proveedor y no la ruta local.
+   - **`narrate-ctl status` no expone claves**:
+     1. Ejecuta `narrate-ctl status` con y sin clave de proveedor definida.
+     2. El resultado debe mostrar modo/estado/rutas, pero **nunca** los valores
+        de `GEMINI_API_KEY` / `OPENROUTER_API_KEY` ni de `config.json`.
+   - **Aviso de `SessionStart` sin motor en el `PATH`**:
+     1. Quita temporalmente el binario del `PATH` (renombra `tts-sidecar` o
+        arranca la sesión con un `PATH` recortado).
+     2. Abre una sesión nueva (dispara `SessionStart`). Debe aparecer el aviso
+        de que falta el CLI/modelo y la sesión **no** se bloquea: puedes seguir
+        trabajando (degradación silenciosa).
 
 Esta fase requiere verificación humana (audible) y no puede automatizarse por
 completo; es la única fase que el usuario debe ejecutar personalmente. La
