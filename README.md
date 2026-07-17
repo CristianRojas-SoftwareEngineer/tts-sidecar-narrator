@@ -17,7 +17,7 @@ no el texto en bruto del asistente, sino una locución procesada, en español.
 - **Controlable**: activa/desactiva la narración sin desinstalar.
 
 > Este repositorio es la fuente de verdad del plugin. El documento de diseño
-> original (`docs/CLAUDE-CODE-PLUGIN.md`, en el repo de TTS-Sidecar) sirvió de
+> original (`TTS-Sidecar/docs/CLAUDE-CODE-PLUGIN.md`, en el repo del motor) sirvió de
 > especificación inicial y hoy es solo un puntero histórico a este repo.
 
 ## Tabla de contenidos
@@ -32,8 +32,8 @@ no el texto en bruto del asistente, sino una locución procesada, en español.
 
 ## Prerequisitos
 
-1. **TTS-Sidecar ≥ v0.7.2** instalado (instalador nativo o
-   `uv tool install tts-sidecar`) y aprovisionado — v0.7.2 es la versión del
+1. **TTS-Sidecar ≥ v0.7.5** instalado (instalador nativo o
+   `uv tool install tts-sidecar`) y aprovisionado — v0.7.5 es la versión del
    motor contra la que este plugin fue verificado; versiones anteriores pueden
    funcionar pero no están cubiertas por el contrato de
    [`docs/INTEGRATION.md`](docs/INTEGRATION.md):

@@ -21,7 +21,7 @@ y el proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 ## [Unreleased]
 
 Primera versión pública, lanzada en conjunto con el primer release público del
-motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.2** (el número final se
+motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.5** (el número final se
 fija en el corte sincronizado; ver
 [docs/RELEASING.md](docs/RELEASING.md)).
 
@@ -45,7 +45,7 @@ fija en el corte sincronizado; ver
   `status`/`say`; `status` nunca imprime el valor de una clave.
 - **Comando de instalación guiada** (`/tts-sidecar-narrator:install`) y
   **skill de configuración** (`/tts-sidecar-narrator:narrate`).
-- **Suite de tests** (`node --test`, sin dependencias nuevas): 81 tests sobre
+- **Suite de tests** (`node --test`, sin dependencias nuevas): 95 tests sobre
   saneamiento, constructor local, cadena de providers, configuración y
   precedencia de claves, parseo del payload de hooks, resolución del state
   dir y del CLI en los tres SO, contrato de los providers con `fetch`

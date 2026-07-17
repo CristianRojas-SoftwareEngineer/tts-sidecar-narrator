@@ -271,7 +271,7 @@ function toPlainText(input) {
   t = t.replace(/^\s{0,3}[-*+]\s+/gm, "");
   t = t.replace(/^\s{0,3}\d+[.)]\s+/gm, "");
   t = t.replace(/[*_~]{1,3}/g, "");
-  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!]/gu, " ");
+  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!()'"-]/gu, " ");
   t = t.replace(/\s+/g, " ").trim();
   return t;
 }

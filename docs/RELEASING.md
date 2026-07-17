@@ -11,12 +11,19 @@ Claude Code resuelve las versiones desde los tags del repo.
 
 ## Tabla de contenidos
 
-- [Modelo de versionado](#modelo-de-versionado)
-- [Prerequisitos del corte](#prerequisitos-del-corte)
-- [Checklist de release](#checklist-de-release)
-- [Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
-- [Después del tag](#después-del-tag)
-- [Bitácora del primer lanzamiento conjunto](#bitácora-del-primer-lanzamiento-conjunto)
+- [Proceso de release](#proceso-de-release)
+  - [Tabla de contenidos](#tabla-de-contenidos)
+  - [Modelo de versionado](#modelo-de-versionado)
+  - [Prerequisitos del corte](#prerequisitos-del-corte)
+  - [Checklist de release](#checklist-de-release)
+  - [Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
+  - [Después del tag](#después-del-tag)
+  - [Bitácora del primer lanzamiento conjunto](#bitácora-del-primer-lanzamiento-conjunto)
+    - [Fase 0 — Poner en verde el repo del plugin ✅ completada](#fase-0--poner-en-verde-el-repo-del-plugin)
+    - [Fase 1 — Release del motor publicado ✅ completada](#fase-1--release-del-motor-publicado)
+    - [Fase 2 — Smoke test contra el motor publicado ⏳ pendiente](#fase-2--smoke-test-contra-el-motor-publicado)
+    - [Fase 3 — Cortar el release del plugin ⏳ pendiente](#fase-3--cortar-el-release-del-plugin)
+    - [Fase 4 — Verificación posterior al corte ⏳ pendiente](#fase-4--verificación-posterior-al-corte)
 
 ## Modelo de versionado
 
@@ -63,7 +70,8 @@ En orden; cada paso asume el anterior.
    [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos sobre el motor») debe
    ser la que efectivamente se usó en el smoke test del paso 6.
 5. **Verificar referencias cruzadas en ambos repos**: el motor referencia al
-   plugin en `docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md`;
+   plugin en `docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md` (del
+   repo del motor);
    el plugin referencia al motor en `docs/INTEGRATION.md` y el README. Ambos
    lados deben apuntar a las versiones etiquetadas (o al menos no
    contradecirlas). Esta verificación vive aquí y no en el checklist del
@@ -130,78 +138,132 @@ El procedimiento consta de cuatro fases, ejecutadas en este orden:
 
 ### Fase 0 — Poner en verde el repo del plugin ✅ completada
 
-1. Push de los commits pendientes (tests, CI, documentación) a `origin/main`.
-2. Activar el proyecto en CircleCI (`follow` vía API, ya que aún no estaba
-   registrado) y disparar el primer pipeline.
-3. Verificar la triple puerta (`test-linux`/`test-windows`/`test-macos`) en
-   verde.
+Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para
+que el corte parta de una base verde.
 
-Durante la verificación apareció un fallo real de plataforma: el runner de
-Windows de CircleCI hace checkout con `core.autocrlf`, convirtiendo a CRLF los
-saltos de línea LF de `dist/` commiteado, lo que rompía `check-dist` (compara
-`dist/` byte a byte contra la recompilación de `src/`) sin que nada hubiera
-cambiado de verdad. Se corrigió fijando `* text=auto eol=lf` en
-`.gitattributes`. El siguiente pipeline (#3) pasó los tres jobs en verde.
-Detalle completo en [`RELEASE-READINESS.md`](RELEASE-READINESS.md).
+1. **Push de los commits pendientes** (tests, CI, documentación) a `origin/main`
+   (`git push origin main`).
+2. **Registrar el proyecto en CircleCI**: como el repo aún no estaba seguido, se
+   activó vía API (`follow`) y se disparó el primer pipeline sobre `main`.
+3. **Verificar la triple puerta** `test-linux`/`test-windows`/`test-macos` en
+   verde. Cada job corre la misma secuencia:
+   `npm ci && npm run typecheck && npm run check-dist && npm test`.
 
-### Fase 1 — Cortar el release del motor ✅ completada
+**Aprendizaje registrado (fallo real de plataforma).** El primer intento falló
+solo en Windows: el runner de CircleCI hace checkout con `core.autocrlf`, que
+convierte a CRLF los saltos LF del `dist/` commiteado; como `check-dist` compara
+byte a byte la recompilación de `src/` (LF) contra el `dist/` en disco (CRLF),
+rompía sin que nada hubiera cambiado. Se corrigió fijando `* text=auto eol=lf`
+en `.gitattributes` (que tiene prioridad sobre `core.autocrlf`) y el pipeline #3
+pasó los tres jobs en verde. Detalle completo en
+[`RELEASE-READINESS.md`](RELEASE-READINESS.md).
 
-Siguiendo el checklist del propio [`RELEASING.md` de TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/RELEASING.md):
+### Fase 1 — Release del motor publicado ✅ completada
 
-1. Se eligió `v0.7.3` como versión: un release **de documentación**, sin
-   cambios de contrato ni de comportamiento del CLI respecto a `v0.7.2` — el
-   motor ya tenía commits de documentación sin publicar, entre ellos la
-   contraparte de integración con este plugin (`NARRATION-INTEGRATION.md`).
-2. Bump de `__version__` a `0.7.3`, regeneración de `SOURCE-OFFER.md` (oferta
-   de fuente GPLv3 §6) y corte de la sección `[0.7.3]` del `CHANGELOG.md`,
-   anunciando el lanzamiento de este plugin.
-3. Suite local (`pytest`, 572 casos) en verde antes y después del bump.
-4. Commit, tag anotado `v0.7.3` y push de `main` + tag.
-5. El pipeline `build-all` de CircleCI (disparado solo por tags `v*`) corrió
-   automáticamente: triple puerta de tests, smoke tests de instaladores,
-   4 builds nativos, `publish-release`, `publish-pypi` y `publish-metadata`.
-   Terminó en verde (14/14 jobs).
-6. Verificación post-publicación: el GitHub Release `v0.7.3` expone los 5
-   assets esperados (instalador Windows, AppImage x86_64 y arm64, `.dmg`
-   arm64, `SHA256SUMS.txt`), sus notas incluyen el enlace de oferta de fuente
-   GPLv3 al tarball del tag, y `pip index versions tts-sidecar` confirma
-   `0.7.3` como versión publicada en PyPI.
+El plugin se verifica contra la **última versión publicada del motor**, no
+contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la
+sección de sincronización). Al momento del corte, esa versión es
+[`v0.7.5`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.5)
+(2026-07-17):
+
+1. `v0.7.5` es una **corrección de robustez de empaquetado** (PyInstaller): fija
+   `--add-data` como fuente única de las voces de fábrica en el bundle. No hay
+   cambios de contrato ni de comportamiento del CLI respecto a `v0.7.4`/`v0.7.3`
+   —los artefactos son funcionalmente equivalentes—, de modo que el contrato que
+   este plugin declara compatible se mantiene intacto. La contraparte de
+   integración del motor con este plugin (`NARRATION-INTEGRATION.md`) ya venía
+   publicada desde `v0.7.3`, así que el plugin llega al lanzamiento con el motor
+   ya etiquetado por delante.
+2. El pipeline `build-all` de CircleCI (disparado solo por tags `v*`) construyó
+   y publicó los artefactos automáticamente (triple puerta de tests, builds
+   nativos y los jobs de publicación a GitHub Releases y PyPI).
+3. Verificación post-publicación (externa, comprobable) — hecha sin clonar el
+   motor:
+   ```bash
+   gh release view v0.7.5 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
+   pip index versions tts-sidecar   # 0.7.5 debe figurar como la más reciente
+   ```
+   El GitHub Release `v0.7.5` expone los 5 assets esperados (instalador Windows
+   `tts-sidecar-0.7.5-x86_64-setup.exe`, AppImage x86_64 y arm64, `.dmg`
+   arm64 y `SHA256SUMS.txt`), sus notas incluyen el enlace de oferta de fuente
+   GPLv3 §6 al tarball del tag, y PyPI confirma `0.7.5` como versión publicada.
 
 ### Fase 2 — Smoke test contra el motor publicado ⏳ pendiente
 
 Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de
-arriba, ejecutado contra los artefactos reales de `v0.7.3` (no contra el árbol
+arriba, ejecutado contra los artefactos reales de `v0.7.5` (no contra el árbol
 de desarrollo del motor):
 
-1. Instalar TTS-Sidecar `v0.7.3` desde un canal publicado (instalador nativo o
-   `uv tool install tts-sidecar==0.7.3`) y correr `tts-sidecar setup`.
-2. Clonar `tts-sidecar-narrator` en un directorio limpio y cargarlo en una
-   sesión real de Claude Code (`claude --plugin-dir .`).
-3. Verificar, de forma audible:
-   - narración al final de un turno en modo `local` (sin claves);
-   - narración en modo `llm` (con clave configurada);
+1. **Instalar el motor publicado** y aprovisionarlo:
+   ```bash
+   uv tool install "tts-sidecar==0.7.5"   # o el instalador nativo del SO
+   tts-sidecar version                    # debe imprimir 0.7.5
+   tts-sidecar setup                      # descarga el modelo es-mx-latam
+   ```
+2. **Clonar el plugin en un directorio limpio** (no el árbol de desarrollo) y
+   cargarlo en una sesión real de Claude Code:
+   ```bash
+   git clone https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator
+   cd tts-sidecar-narrator
+   claude --plugin-dir .
+   ```
+3. **Verificar, de forma audible**, cada superficie del contrato:
+   - narración al final de un turno en modo `local` (sin claves configuradas):
+     debe oírse una locución corta en español;
+   - narración en modo `llm` (con clave configurada): misma señal audible, pero
+     el texto lo construye la cadena LLM;
    - `narrate-ctl status` reporta el estado sin exponer claves;
-   - el aviso de `SessionStart` cuando el motor no está en el `PATH`.
+   - al quitar el motor del `PATH`, el aviso de `SessionStart` aparece y la
+     sesión **no** se bloquea (degradación silenciosa).
 
 Esta fase requiere verificación humana (audible) y no puede automatizarse por
-completo; es la única fase que el usuario debe ejecutar personalmente.
+completo; es la única fase que el usuario debe ejecutar personalmente. La
+porción no audible (que `narrate-ctl status` no filtra claves y que
+`health-check` avisa sin bloquear) ya quedó pre-verificada en local; ver
+[`RELEASE-READINESS.md`](RELEASE-READINESS.md).
 
 ### Fase 3 — Cortar el release del plugin ⏳ pendiente
 
-Una vez confirmado el smoke test de la Fase 2:
+Una vez confirmado el smoke test de la Fase 2, se ejecuta el
+[Checklist de release](#checklist-de-release) completo con los números de este
+lanzamiento:
 
-1. Actualizar la versión mínima del motor declarada en el README y en
-   [`docs/INTEGRATION.md`](INTEGRATION.md) a `v0.7.3` (la que efectivamente se
-   verificó, no `v0.7.2` como estaba hasta ahora).
-2. Correr el [Checklist de release](#checklist-de-release) completo: bump
-   doble de versión, corte de la sección `[0.1.0]` del `CHANGELOG.md` con la
-   versión del motor verificada, `npm run build && npm run check-dist && npm
-   run typecheck && npm test`, commit, tag `v0.1.0`, push.
+1. **Confirmar la versión mínima del motor** declarada en el README
+   («Prerequisitos») y en [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos
+   sobre el motor»): debe ser `v0.7.5`, la verificada en la Fase 2.
+2. **Bump de versión doble** a `0.1.0` en `package.json` **y**
+   `.claude-plugin/plugin.json` (los dos números deben coincidir).
+3. **Cortar el changelog**: renombrar `## [Unreleased]` a
+   `## [0.1.0] — AAAA-MM-DD` dejando declarada la verificación contra
+   TTS-Sidecar v0.7.5, crear una nueva `## [Unreleased]` vacía encima y
+   actualizar las referencias de enlaces del pie.
+4. **Regenerar y verificar `dist/`**, y commitearlo junto con el bump:
+   ```bash
+   npm run build && npm run check-dist && npm run typecheck && npm test
+   ```
+5. **Verificar las referencias cruzadas** con el motor
+   (`docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md`, del lado del
+   motor; README y `docs/INTEGRATION.md` del lado del plugin).
+6. **Commit, tag y push** — punto de no retorno, a partir del cual el
+   marketplace resuelve exactamente ese estado:
+   ```bash
+   git commit -m "release: v0.1.0"
+   git tag v0.1.0
+   git push origin main v0.1.0
+   ```
 
 ### Fase 4 — Verificación posterior al corte ⏳ pendiente
 
-Los pasos de [Después del tag](#después-del-tag) de arriba: confirmar que
-`/plugin marketplace add` + `/plugin install` resuelven `v0.1.0` en una
-máquina limpia, revisar que el enlace desde el changelog del motor a este
-plugin sigue siendo válido, y decidir si `docs/RELEASE-READINESS.md` se
-archiva o se convierte en el roadmap de la siguiente versión.
+Los pasos de [Después del tag](#después-del-tag), ejecutados sobre el tag ya
+publicado:
+
+1. **Resolución desde una máquina limpia**: en una instalación de Claude Code
+   sin este plugin, `/plugin marketplace add` (apuntando a este repo) seguido de
+   `/plugin install tts-sidecar-narrator` debe resolver e instalar `v0.1.0` —el
+   estado exacto del tag, no la punta de `main`.
+2. **Enlace desde el motor**: si la entrada del `CHANGELOG.md` del motor
+   menciona la disponibilidad del plugin, confirmar que el enlace apunta al tag
+   correcto.
+3. **Cierre del registro vivo**: decidir si `docs/RELEASE-READINESS.md` se
+   archiva o se convierte en el roadmap de la versión siguiente y —una vez
+   rodado el proceso— archivar esta bitácora.

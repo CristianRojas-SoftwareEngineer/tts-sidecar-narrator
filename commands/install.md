@@ -84,7 +84,7 @@ Elige el canal automáticamente, en este orden:
    - **Linux**: correr `install-linux.sh` (instala el AppImage e integra el PATH)
      o descargar el AppImage y hacerlo ejecutable.
 
-Tras instalar por cualquier vía, **verifica**: `tts-sidecar --version`. Si el
+Tras instalar por cualquier vía, **verifica**: `tts-sidecar version`. Si el
 comando no se encuentra, probablemente el PATH aún no se recargó: indica al
 usuario abrir una terminal nueva (o reiniciar Claude Code) y reanuda.
 
