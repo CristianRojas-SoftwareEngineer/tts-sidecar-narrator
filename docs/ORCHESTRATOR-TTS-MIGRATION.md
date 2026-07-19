@@ -1,21 +1,12 @@
 # Migración de la lógica TTS legacy del Agent Orchestrator a este plugin
 
-Este documento es el **inventario y plan de migración** de la funcionalidad de
-narración por voz que hoy vive en el repositorio *EvolutiveX Agent Orchestrator*
-(Smart Code Proxy) hacia este plugin **`tts-sidecar-narrator`**.
+Este documento es el **inventario y plan de migración** de la funcionalidad de narración por voz que hoy vive en el repositorio *EvolutiveX Agent Orchestrator* (Smart Code Proxy) hacia este plugin **`tts-sidecar-narrator`**.
 
-El objetivo es extraer la lógica de generación de mensajes conversacionales que el
-Orchestrator ya probó en producción, para que, cuando se elimine toda la
-implementación TTS del Orchestrator (ver `tts-sidecar-legacy-removal-plan.md` en
-aquel repo), la narración quede **íntegra y sin regresiones** en este plugin.
+El objetivo es extraer la lógica de generación de mensajes conversacionales que el Orchestrator ya probó en producción, para que, cuando se elimine toda la implementación TTS del Orchestrator (ver `tts-sidecar-legacy-removal-plan.md` en aquel repo), la narración quede **íntegra y sin regresiones** en este plugin.
 
 ## Propósito
 
-Este documento es un **inventario y plan de migración de la narración por voz**
-del proyecto *EvolutiveX Agent Orchestrator* (también conocido como Smart Code
-Proxy) hacia este plugin, **`tts-sidecar-narrator`**. Está redactado para leerse
-de forma autónoma, sin necesidad de conocer la historia de la sesión en la que se
-creó.
+Este documento es un **inventario y plan de migración de la narración por voz** del proyecto *EvolutiveX Agent Orchestrator* (también conocido como Smart Code Proxy) hacia este plugin, **`tts-sidecar-narrator`**. Está redactado para leerse de forma autónoma, sin necesidad de conocer la historia de la sesión en la que se creó.
 
 ### Antecedentes
 
@@ -31,12 +22,7 @@ creó.
 
 ### Por qué existe este documento
 
-Como parte de la separación de responsabilidades entre ambos proyectos, el
-Orchestrator está eliminando **toda** su implementación de TTS (ver
-`tts-sidecar-legacy-removal-plan.md` en aquel repo) y delegando la narración por
-completo a este plugin. Antes de borrar ese código conviene **rescatar la lógica
-de generación de mensajes que el Orchestrator ya probó en producción**, para que la
-migración no pierda funcionalidad ni introduzca regresiones.
+Como parte de la separación de responsabilidades entre ambos proyectos, el Orchestrator está eliminando **toda** su implementación de TTS (ver `tts-sidecar-legacy-removal-plan.md` en aquel repo) y delegando la narración por completo a este plugin. Antes de borrar ese código conviene **rescatar la lógica de generación de mensajes que el Orchestrator ya probó en producción**, para que la migración no pierda funcionalidad ni introduzca regresiones.
 
 Concretamente, este documento responde dos preguntas sobre el estado actual del
 Orchestrator:
@@ -134,8 +120,7 @@ La lógica de generación de mensajes que hoy implementa el Orchestrator en
 
 ## 2. Hallazgo 1 — Eventos hook que generan TTS en el Orchestrator
 
-Fuente: `configs/hooks.json` + `src/3-operations/audit-hook-event.handler.ts`
-(métodos `speakAsync`, `announceStop`).
+Fuente: `configs/hooks.json` + `src/3-operations/audit-hook-event.handler.ts` (métodos `speakAsync`, `announceStop`).
 
 El Orchestrator registra muchos hooks, pero **solo cuatro** disparan síntesis de
 voz. El resto solo emiten un toast de escritorio.
@@ -167,10 +152,7 @@ aún falta absorber (ver sección 4).
 
 ## 3. Hallazgo 2 — Prompts de sistema y de usuario por generación LLM
 
-Fuente: `src/2-services/tts/gemini-tts-text-provider.ts` y
-`src/2-services/tts/openrouter-tts-text-provider.ts`. **Ambos providers usan
-textualmente los mismos dos system prompts** (uno por modo); la única diferencia
-entre providers es el modelo, el endpoint y el formato del body.
+Fuente: `src/2-services/tts/gemini-tts-text-provider.ts` y `src/2-services/tts/openrouter-tts-text-provider.ts`. **Ambos providers usan textualmente los mismos dos system prompts** (uno por modo); la única diferencia entre providers es el modelo, el endpoint y el formato del body.
 
 ### 3.1 System prompt — modo `prompt` (evento `UserPromptSubmit`)
 
@@ -216,8 +198,7 @@ conserva la estructura de roles.
 
 ### 3.4 Textos de fallback por evento
 
-Fuente: `composeFallbackText()` en `audit-hook-event.handler.ts`. Se usan cuando
-no hay provider o la cadena LLM falla entera.
+Fuente: `composeFallbackText()` en `audit-hook-event.handler.ts`. Se usan cuando no hay provider o la cadena LLM falla entera.
 
 | Evento            | Texto de fallback (Orchestrator)                  |
 |-------------------|---------------------------------------------------|
@@ -317,14 +298,7 @@ transcript (como ya hace `readTranscriptTail`, pero conservando los tres como
 mensajes con rol en vez de colapsarlos).
 
 ### 5.4 Modelos y formato de LLM — DECIDIDO
-El Orchestrator probó `gemini-3.1-flash-lite` (Gemini) y `poolside/laguna-xs-2.1:free`
-vía la API de Messages de Anthropic (`/api/v1/messages`, formato Anthropic con
-campo `system`). **Decisión de absorción:** adoptar **ambos** modelos del
-Orchestrator para máxima fidelidad a lo probado (cierra filas 9 y 10 de la §4 y el
-paso 7 de la §6). Ello implica, en `message/openrouter-provider.ts`, cambiar el
-endpoint a `/api/v1/messages` y el body al formato Anthropic (`system` + `messages`),
-no el de chat/completions del plugin actual. El resto de la migración es
-independiente de esta decisión.
+El Orchestrator probó `gemini-3.1-flash-lite` (Gemini) y `poolside/laguna-xs-2.1:free` vía la API de Messages de Anthropic (`/api/v1/messages`, formato Anthropic con campo `system`). **Decisión de absorción:** adoptar **ambos** modelos del Orchestrator para máxima fidelidad a lo probado (cierra filas 9 y 10 de la §4 y el paso 7 de la §6). Ello implica, en `message/openrouter-provider.ts`, cambiar el endpoint a `/api/v1/messages` y el body al formato Anthropic (`system` + `messages`), no el de chat/completions del plugin actual. El resto de la migración es independiente de esta decisión.
 
 ---
 
@@ -388,20 +362,11 @@ independiente de esta decisión.
 
 ## 9. Criterio de absorción completa (cierre de la Fase 1)
 
-La Fase 1 se considera completa —y la Fase 2 (eliminación en el Orchestrator)
-puede ejecutarse sin riesgo de perder inteligencia— cuando se cumplan las
-siguientes condiciones:
+La Fase 1 se considera completa —y la Fase 2 (eliminación en el Orchestrator) puede ejecutarse sin riesgo de perder inteligencia— cuando se cumplan las siguientes condiciones:
 
-1. **Brechas cerradas:** los 11 renglones de la tabla de la §4 están resueltos con
-   las decisiones de la §5 (rutas, normalización, fallbacks exactos, modelos,
-   contexto en tríada, mapeo de roles, eventos `SubagentStop`/`StopFailure`).
-2. **Caracterización:** el plugin tiene tests que reproducen las salidas exactas
-   del Orchestrator para cada evento y modo —prompts de sistema enviados, mapeo de
-   roles del user prompt, textos de fallback y comportamiento de normalización—.
-   Estos fixtures deben capturarse del Orchestrator **antes** de que la Fase 2 borre
-   su código TTS, pues una vez eliminado solo quedarían en el historial de git.
-3. **Verificación local en verde:** `typecheck`, `build`, `check-dist` y la suite
-   de tests del plugin pasan tras los cambios.
+1. **Brechas cerradas:** los 11 renglones de la tabla de la §4 están resueltos con las decisiones de la §5 (rutas, normalización, fallbacks exactos, modelos, contexto en tríada, mapeo de roles, eventos `SubagentStop`/`StopFailure`).
+2. **Caracterización:** el plugin tiene tests que reproducen las salidas exactas del Orchestrator para cada evento y modo —prompts de sistema enviados, mapeo de roles del user prompt, textos de fallback y comportamiento de normalización—. Estos fixtures deben capturarse del Orchestrator **antes** de que la Fase 2 borre su código TTS, pues una vez eliminado solo quedarían en el historial de git.
+3. **Verificación local en verde:** `npm run typecheck`, `npm run build`, `npm run check-dist` y la suite de tests del plugin pasan tras los cambios.
 
 > **Nota sobre `Notification`:** este plugin ya narra `Notification`, pero en el
 > Orchestrator `Notification` era **solo toast, nunca voz**. Por tanto es

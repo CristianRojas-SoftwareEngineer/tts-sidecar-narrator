@@ -1,10 +1,8 @@
 # Integración con TTS-Sidecar
 
-Este documento describe la integración de `tts-sidecar-narrator` con el motor de
-síntesis **TTS-Sidecar**, desde la perspectiva del **plugin (el consumidor)**.
+Este documento describe la integración de `tts-sidecar-narrator` con el motor de síntesis **TTS-Sidecar**, desde la perspectiva del **plugin (el consumidor)**.
 
-La contraparte, escrita desde la perspectiva del motor, está en el repositorio de
-TTS-Sidecar:
+La contraparte, escrita desde la perspectiva del motor, está en el repositorio de TTS-Sidecar:
 [docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
 
 ## Tabla de contenidos
@@ -19,25 +17,18 @@ TTS-Sidecar:
 
 ## Rol en el sistema de narración
 
-El sistema de narración por voz tiene dos componentes con repositorios y ciclos
-de vida independientes:
+El sistema de narración por voz tiene dos componentes con repositorios y ciclos de vida independientes:
 
 | Componente | Repositorio | Rol |
 |------------|-------------|-----|
 | **tts-sidecar-narrator** (este) | `tts-sidecar-narrator` | **Cliente**: detecta eventos de la sesión de Claude Code, construye un mensaje corto y pide su síntesis. |
 | **TTS-Sidecar** | [`TTS-Sidecar`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar) | **Motor**: sintetiza voz 100 % offline y expone una CLI pública. |
 
-El plugin **depende** de TTS-Sidecar; TTS-Sidecar **no** conoce ni depende del
-plugin. La relación es unidireccional.
+El plugin **depende** de TTS-Sidecar; TTS-Sidecar **no** conoce ni depende del plugin. La relación es unidireccional.
 
 ## Contrato: solo la CLI pública
 
-El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
-interfaz de línea de comandos. El plugin **no** importa el paquete Python
-`tts_sidecar`, no comparte código ni necesita el árbol fuente del motor — es un
-consumidor externo idéntico a cualquier script de usuario. Esto mantiene ambos
-proyectos desacoplados: mientras la CLI sea estable, cada uno evoluciona a su
-ritmo.
+El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su interfaz de línea de comandos. El plugin **no** importa el paquete Python `tts_sidecar`, no comparte código ni necesita el árbol fuente del motor — es un consumidor externo idéntico a cualquier script de usuario. Esto mantiene ambos proyectos desacoplados: mientras la CLI sea estable, cada uno evoluciona a su ritmo.
 
 ## Superficies del CLI que consume
 
@@ -57,8 +48,7 @@ ritmo.
   (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía
   `systemMessage` y no hace nada más.
 
-La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH`
-(honrando `PATHEXT` en Windows).
+La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH` (honrando `PATHEXT` en Windows).
 
 ## Requisitos sobre el motor
 
@@ -76,16 +66,8 @@ El comando `/tts-sidecar-narrator:install` del plugin guía ambos pasos.
 
 ## Degradación y no intrusión
 
-Si el CLI no está en el `PATH`, el modelo no está en caché, o el daemon no
-responde, el plugin **degrada en silencio**: no reproduce audio, no bloquea ni
-retrasa el turno de Claude Code, y (solo en `SessionStart`) emite un aviso
-informativo. La ausencia del motor nunca es un error para el usuario de Claude
-Code.
+Si el CLI no está en el `PATH`, el modelo no está en caché, o el daemon no responde, el plugin **degrada en silencio**: no reproduce audio, no bloquea ni retrasa el turno de Claude Code, y (solo en `SessionStart`) emite un aviso informativo. La ausencia del motor nunca es un error para el usuario de Claude Code.
 
 ## Estabilidad del contrato
 
-El plugin asume estables los flags y el esquema JSON de las cuatro superficies de
-arriba. Si una versión de TTS-Sidecar cambia, por ejemplo, el `name` del check
-del modelo en `doctor --json`, o el campo `running` de `daemon status --json`, la
-integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar;
-su contraparte formal vive en el documento de integración del motor.
+El plugin asume estables los flags y el esquema JSON de las cuatro superficies de arriba. Si una versión de TTS-Sidecar cambia, por ejemplo, el `name` del check del modelo en `doctor --json`, o el campo `running` de `daemon status --json`, la integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar; su contraparte formal vive en el documento de integración del motor.

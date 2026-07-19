@@ -1,13 +1,6 @@
 # Proceso de release
 
-Cómo se corta y publica una versión de `tts-sidecar-narrator`. El proceso es
-deliberadamente más simple que el del motor
-([TTS-Sidecar/docs/RELEASING.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/RELEASING.md)):
-aquí no hay CI de publicación, artefactos nativos ni PyPI — el plugin se
-distribuye clonando el repo con `dist/` commiteado, y **el release es un tag de
-git precedido por este checklist**. El CI de CircleCI corre en cada push como
-verificación continua (no participa del corte); el marketplace de plugins de
-Claude Code resuelve las versiones desde los tags del repo.
+Cómo se corta y publica una versión de `tts-sidecar-narrator`. El proceso es deliberadamente más simple que el del motor ([TTS-Sidecar/docs/RELEASING.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/RELEASING.md)): aquí no hay CI de publicación, artefactos nativos ni PyPI — el plugin se distribuye clonando el repo con `dist/` commiteado, y **el release es un tag de git precedido por este checklist**. El CI de CircleCI corre en cada push como verificación continua (no participa del corte); el marketplace de plugins de Claude Code resuelve las versiones desde los tags del repo.
 
 ## Tabla de contenidos
 
@@ -96,9 +89,7 @@ En orden; cada paso asume el anterior.
 
 ## Sincronización con un release del motor
 
-Cuando el release del plugin acompaña a un release del motor (como el primer
-lanzamiento público conjunto), el orden importa — **primero el motor, después
-el plugin**:
+Cuando el release del plugin acompaña a un release del motor (como el primer lanzamiento público conjunto), el orden importa — **primero el motor, después el plugin**:
 
 1. El motor corta su tag; su pipeline de CircleCI construye y publica los
    artefactos (binarios nativos + PyPI) automáticamente.
@@ -111,9 +102,7 @@ el plugin**:
    verificada declarada en README, `docs/INTEGRATION.md` y la entrada del
    `CHANGELOG.md`.
 
-Si el release del plugin **no** acompaña a uno del motor (una corrección
-propia), basta el checklist normal: el smoke test se corre contra la última
-versión publicada del motor, que sigue siendo la declarada como mínima.
+Si el release del plugin **no** acompaña a uno del motor (una corrección propia), basta el checklist normal: el smoke test se corre contra la última versión publicada del motor, que sigue siendo la declarada como mínima.
 
 ## Después del tag
 
@@ -126,22 +115,13 @@ versión publicada del motor, que sigue siendo la declarada como mínima.
 
 ## Runbook del primer lanzamiento conjunto
 
-Runbook ejecutable del primer lanzamiento público sincronizado entre este plugin
-y TTS-Sidecar. Es la aplicación práctica de la sección
-[Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
-de arriba: en lugar de pasos genéricos, cada fase lista los **comandos
-concretos** (PowerShell 7 sobre Windows 11) y la **comprobación** de cada paso.
-Sirve a la vez de registro vivo del procedimiento real (nombres de versión,
-fechas y estado), y se conserva como referencia hasta que el proceso quede
-rodado y se archive.
+Runbook ejecutable del primer lanzamiento público sincronizado entre este plugin y TTS-Sidecar. Es la aplicación práctica de la sección [Sincronización con un release del motor](#sincronización-con-un-release-del-motor) de arriba: en lugar de pasos genéricos, cada fase lista los **comandos concretos** (PowerShell 7 sobre Windows 11) y la **comprobación** de cada paso. Sirve a la vez de registro vivo del procedimiento real (nombres de versión, fechas y estado), y se conserva como referencia hasta que el proceso quede rodado y se archive.
 
 El procedimiento consta de cinco fases, ejecutadas en este orden:
 
 ### Convenciones y variables (aplican a todas las fases)
 
-Todos los comandos asumen PowerShell 7 (`pwsh`) en Windows 11. Estas variables y
-el atajo se reutilizan en varias fases; defínelos una vez por sesión de
-PowerShell:
+Todos los comandos asumen PowerShell 7 (`pwsh`) en Windows 11. Estas variables y el atajo se reutilizan en varias fases; defínelos una vez por sesión de PowerShell:
 
 ```powershell
 # Árbol de desarrollo del plugin (Fases 0 y 3: CI y corte del release).
@@ -176,8 +156,7 @@ Notas de contrato que el runbook asume (verificado en código fuente):
 
 ### Fase 0 — Poner en verde el repo del plugin ✅ completada
 
-Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para
-que el corte parta de una base verde.
+Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para que el corte parta de una base verde.
 
 1. **Push de los commits pendientes** (tests, CI, documentación) a `origin/main`:
    ```powershell
@@ -225,11 +204,7 @@ que el corte parta de una base verde.
 
 ### Fase 1 — Release del motor publicado ✅ completada
 
-El plugin se verifica contra la **última versión publicada del motor**, no
-contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la
-sección de sincronización). Al momento del corte, esa versión es
-[`v0.7.5`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.5)
-(2026-07-17):
+El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la sección de sincronización). Al momento del corte, esa versión es [`v0.7.5`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.5) (2026-07-17):
 
 1. `v0.7.5` es una **corrección de robustez de empaquetado** (PyInstaller): fija
    `--add-data` como fuente única de las voces de fábrica en el bundle. No hay
@@ -259,12 +234,7 @@ sección de sincronización). Al momento del corte, esa versión es
 
 ### Fase 2 — Smoke test contra el motor publicado ⏳ pendiente
 
-Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de
-arriba, ejecutado contra los artefactos reales de `v0.7.5` (no contra el árbol
-de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el
-usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su
-comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de
-[Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
+Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de arriba, ejecutado contra los artefactos reales de `v0.7.5` (no contra el árbol de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de [Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
 
 #### Paso 1 — Instalar y aprovisionar el motor publicado
 
@@ -298,8 +268,7 @@ tts-sidecar daemon status --json | ConvertFrom-Json | ForEach-Object { $_.runnin
 
 #### Paso 3 — Clonar el plugin en un directorio limpio
 
-No uses el árbol de desarrollo para el E2E: clona una copia fresca (en este
-runbook, al `Desktop`, ya preparado en fases previas).
+No uses el árbol de desarrollo para el E2E: clona una copia fresca (en este runbook, al `Desktop`, ya preparado en fases previas).
 
 ```powershell
 # Si el clon limpio ya existe en $PLUGIN_E2E, omite esto.
@@ -312,8 +281,7 @@ Test-Path "$PLUGIN_E2E\dist\narrate-ctl.js"   # debe ser True
 
 #### Paso 4 — Comprobación base (sin sesión de Claude)
 
-Valida el pipeline TTS + daemon de forma aislada, antes de involucrar los hooks.
-No requiere claves.
+Valida el pipeline TTS + daemon de forma aislada, antes de involucrar los hooks. No requiere claves.
 
 ```powershell
 narrate-ctl on                        # activa la narración
@@ -328,9 +296,7 @@ narrate-ctl say "Prueba de audio local"   # emite una locución
 
 #### Paso 5 — Verificación por superficie del contrato (audible)
 
-Cada ítem deja el entorno en la condición indicada, dispara la narración y
-**escucha** el resultado. Para cada ítem se abre Claude Code con el plugin
-cargado desde el clon limpio:
+Cada ítem deja el entorno en la condición indicada, dispara la narración y **escucha** el resultado. Para cada ítem se abre Claude Code con el plugin cargado desde el clon limpio:
 
 ```powershell
 # Lanzar Claude Code con el plugin del clon limpio (lo ejecutas por ítem,
@@ -411,18 +377,11 @@ claude --plugin-dir $PLUGIN_E2E
                  ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
      ```
 
-Esta fase requiere verificación humana (audible) y no se automatiza por
-completo; es la única que el usuario ejecuta personalmente. La porción no audible
-(que `narrate-ctl status` no filtra claves y que `health-check` avisa sin
-bloquear) ya quedó pre-verificada en local; ver
-[`RELEASE-READINESS.md`](RELEASE-READINESS.md).
+Esta fase requiere verificación humana (audible) y no se automatiza por completo; es la única que el usuario ejecuta personalmente. La porción no audible (que `narrate-ctl status` no filtra claves y que `health-check` avisa sin bloquear) ya quedó pre-verificada en local; ver [`RELEASE-READINESS.md`](RELEASE-READINESS.md).
 
 ### Fase 3 — Cortar el release del plugin ⏳ pendiente
 
-Una vez confirmado el smoke test de la Fase 2, se ejecuta el
-[Checklist de release](#checklist-de-release) completo con los números de este
-lanzamiento. Se corre en el **árbol de desarrollo** (no en el clon del E2E), de
-modo que el `dist/` commiteado sea el que resuelve el marketplace.
+Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de release](#checklist-de-release) completo con los números de este lanzamiento. Se corre en el **árbol de desarrollo** (no en el clon del E2E), de modo que el `dist/` commiteado sea el que resuelve el marketplace.
 
 1. **Confirmar la versión mínima del motor** declarada en el README
    («Prerequisitos») y en [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos
@@ -488,8 +447,7 @@ modo que el `dist/` commiteado sea el que resuelve el marketplace.
 
 ### Fase 4 — Verificación posterior al corte ⏳ pendiente
 
-Los pasos de [Después del tag](#después-del-tag), ejecutados sobre el tag ya
-publicado:
+Los pasos de [Después del tag](#después-del-tag), ejecutados sobre el tag ya publicado:
 
 1. **Resolución desde una máquina limpia**: en una instalación de Claude Code
    sin este plugin, resolver e instalar exactamente `v0.1.0` (el estado del tag,

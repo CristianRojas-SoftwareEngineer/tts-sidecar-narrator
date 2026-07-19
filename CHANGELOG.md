@@ -1,10 +1,8 @@
 # Changelog
 
-Todos los cambios notables de `tts-sidecar-narrator` se documentan en este
-archivo.
+Todos los cambios notables de `tts-sidecar-narrator` se documentan en este archivo.
 
-El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
-y el proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
+El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 > **Nota sobre el versionado**: este plugin y su motor,
 > [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar),
@@ -20,10 +18,7 @@ y el proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-Primera versión pública, lanzada en conjunto con el primer release público del
-motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.5** (el número final se
-fija en el corte sincronizado; ver
-[docs/RELEASING.md](docs/RELEASING.md)).
+Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.5** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
 
 ### Añadido
 

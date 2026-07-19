@@ -1,20 +1,8 @@
 # Preparación del primer release, sincronizado con TTS-Sidecar
 
-Este documento registra **todo lo necesario** para cortar el primer release
-público de `tts-sidecar-narrator`, **lanzado en conjunto con el primer release
-público de su proyecto hermano**,
-[TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar).
-Cada proyecto conserva su control de versiones independiente, propio de la
-historia de desarrollo de cada uno: lo que se sincroniza es el **lanzamiento**,
-no los números de versión. La vara de preparación es que el plugin llegue a ese
-lanzamiento con una cobertura de tests y documentación **equiparable** a la del
-motor — equiparable respecto de la superficie propia de cada proyecto, no en
-cantidad (ver la primera sección).
+Este documento registra **todo lo necesario** para cortar el primer release público de `tts-sidecar-narrator`, **lanzado en conjunto con el primer release público de su proyecto hermano**, [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar). Cada proyecto conserva su control de versiones independiente, propio de la historia de desarrollo de cada uno: lo que se sincroniza es el **lanzamiento**, no los números de versión. La vara de preparación es que el plugin llegue a ese lanzamiento con una cobertura de tests y documentación **equiparable** a la del motor — equiparable respecto de la superficie propia de cada proyecto, no en cantidad (ver la primera sección).
 
-Es el registro vivo del estado de preparación (el análogo, a escala de plugin,
-del `docs/ROADMAP.md` del motor): cada sección describe una brecha, su
-justificación y la decisión recomendada. Una vez cortado el release, este
-documento se archiva o se convierte en el roadmap de la versión siguiente.
+Es el registro vivo del estado de preparación (el análogo, a escala de plugin, del `docs/ROADMAP.md` del motor): cada sección describe una brecha, su justificación y la decisión recomendada. Una vez cortado el release, este documento se archiva o se convierte en el roadmap de la versión siguiente.
 
 ## Tabla de contenidos
 
@@ -68,14 +56,7 @@ Lo que ya existe y está en buen estado:
   sección de este documento).
 - Licencia (GPL-3.0-or-later) y atribución de autoría presentes.
 
-Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero
-CI**, **documentación de release/seguridad incompleta**, y **sincronización con
-el motor sin definir**. Las tres primeras están **cerradas** (suite de 95 tests
-con `node --test`, pipeline de CircleCI con triple puerta por SO, y
-`SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión
-mínima del motor declarada). La cuarta — el corte sincronizado en sí — queda
-pendiente por diseño: depende de que el motor publique su release (ver el
-checklist consolidado, bloques 4–6).
+Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 95 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — queda pendiente por diseño: depende de que el motor publique su release (ver el checklist consolidado, bloques 4–6).
 
 ## Testing
 
@@ -85,18 +66,9 @@ cubre la tabla de priorización completa de abajo. Las ramas por SO de
 `process.platform` (además de correr sobre los tres SO reales en CI). El
 razonamiento original de la brecha se conserva a continuación.
 
-Para un plugin que orquesta hooks,
-un worker desacoplado y una cadena de providers LLM externos, el riesgo de una
-regresión silenciosa es real: un cambio en `provider-chain.ts` o `sanitize.ts`
-podría filtrar contenido no saneado a un tercero, o romper el fallback
-Gemini → OpenRouter → local sin que nada lo detecte hasta producción.
+Para un plugin que orquesta hooks, un worker desacoplado y una cadena de providers LLM externos, el riesgo de una regresión silenciosa es real: un cambio en `provider-chain.ts` o `sanitize.ts` podría filtrar contenido no saneado a un tercero, o romper el fallback Gemini → OpenRouter → local sin que nada lo detecte hasta producción.
 
-**Decisión de framework**: el corredor nativo de Node (`node --test`), sin
-dependencia nueva. Está alineado con el principio del plugin de no exigir
-runtime extra (README, «Sin prerequisitos de runtime»), el proyecto ya compila
-con `esbuild` y los tests pueden correr sobre el output compilado o vía
-`tsx`/compilación previa sin agregar un framework. Vitest/Jest quedan
-descartados salvo que el volumen de tests haga que su DX pague la dependencia.
+**Decisión de framework**: el corredor nativo de Node (`node --test`), sin dependencia nueva. Está alineado con el principio del plugin de no exigir runtime extra (README, «Sin prerequisitos de runtime»), el proyecto ya compila con `esbuild` y los tests pueden correr sobre el output compilado o vía `tsx`/compilación previa sin agregar un framework. Vitest/Jest quedan descartados salvo que el volumen de tests haga que su DX pague la dependencia.
 
 Priorización, de mayor a menor retorno por esfuerzo (lo puro y determinista
 primero; lo que requiere mocks de red o de sistema de archivos después):
@@ -113,68 +85,26 @@ primero; lo que requiere mocks de red o de sistema de archivos después):
 | `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Con `fetch` mockeado: parseo de la respuesta, manejo de HTTP no-ok, respuesta vacía → error | Adaptadores delgados; basta un test de contrato por provider con `fetch` mockeado (Node ≥ 18 lo permite sin red real) |
 | `src/narrate-ctl.ts` | Cada subcomando (`on`/`off`/`mode`/`status`/`say`) con `config.ts` real sobre un state dir temporal; que `status` jamás imprime el valor de una clave | Es la superficie que invoca la skill; el test de `status` además fija por contrato la garantía de no-exposición de credenciales |
 
-Los módulos que quedan fuera a propósito: `narrate-hook.ts`, `narrate-worker.ts`,
-`daemon.ts` y `spawn.ts` son orquestación de procesos cuyo test unitario exigiría
-mockear `child_process` completo con poco retorno; su verificación queda cubierta
-por el smoke test manual pre-release (ver checklist) y por los tests de las
-piezas puras que orquestan.
+Los módulos que quedan fuera a propósito: `narrate-hook.ts`, `narrate-worker.ts`, `daemon.ts` y `spawn.ts` son orquestación de procesos cuyo test unitario exigiría mockear `child_process` completo con poco retorno; su verificación queda cubierta por el smoke test manual pre-release (ver checklist) y por los tests de las piezas puras que orquestan.
 
 ## CI (y por qué no CD)
 
-**Estado: implementado** — pipeline en [`.circleci/config.yml`](../.circleci/config.yml)
-según la recomendación de abajo, con Node fijado por pipeline parameter y la
-imagen/instaladores pineados (digest de `cimg/node`, Chocolatey, tarball
-oficial con SHA-256) siguiendo la política de pins del motor. El razonamiento
-original de la brecha se conserva a continuación.
+**Estado: implementado** — pipeline en [`.circleci/config.yml`](../.circleci/config.yml) según la recomendación de abajo, con Node fijado por pipeline parameter y la imagen/instaladores pineados (digest de `cimg/node`, Chocolatey, tarball oficial con SHA-256) siguiendo la política de pins del motor. El razonamiento original de la brecha se conserva a continuación.
 
 Antes no existía ningún workflow: `typecheck`, `build` y `check-dist` eran
 responsabilidad manual del autor antes de cada commit.
 
-**Por qué el CI es necesario aquí y no solo deseable**: el plugin se distribuye
-con `dist/` commiteado — el artefacto que ejecutan los usuarios es el que está
-en git, no el que produce un build local. Eso crea un modo de fallo silencioso
-que no existe en proyectos que publican a un registry: editar `src/`, olvidar
-`npm run build`, commitear, y todos los usuarios ejecutan código viejo mientras
-el fuente dice otra cosa. `check-dist` detecta exactamente eso, pero el paso
-que se olvida (correr el build) es el mismo que se olvidaría al correr el
-check. Un guard manual no protege contra el olvido que lo motiva; uno
-automático sí.
+**Por qué el CI es necesario aquí y no solo deseable**: el plugin se distribuye con `dist/` commiteado — el artefacto que ejecutan los usuarios es el que está en git, no el que produce un build local. Eso crea un modo de fallo silencioso que no existe en proyectos que publican a un registry: editar `src/`, olvidar `npm run build`, commitear, y todos los usuarios ejecutan código viejo mientras el fuente dice otra cosa. `check-dist` detecta exactamente eso, pero el paso que se olvida (correr el build) es el mismo que se olvidaría al correr el check. Un guard manual no protege contra el olvido que lo motiva; uno automático sí.
 
-**Recomendación**: **CircleCI, el mismo proveedor que TTS-Sidecar**, para que
-ambos repos compartan plataforma, convenciones y experiencia operativa (el
-know-how de mantener el `.circleci/config.yml` del motor aplica directo). Un
-workflow con tres jobs de test espejando la nomenclatura del motor —
-`test-linux` (Docker `cimg/node`), `test-windows` (orb `win/server-2022`) y
-`test-macos` (executor macOS, mismo que ya usa el motor) — que corran
-`npm ci && npm run typecheck && npm run check-dist && npm test`. La triple
-puerta por SO es la única forma realista de ejercitar las ramas por SO de
-`state-dir.ts` y `resolve-cli.ts` sin tener esas máquinas. No requiere
-secretos: los tests de providers mockean `fetch`, nunca llaman a las APIs
-reales.
+**Recomendación**: **CircleCI, el mismo proveedor que TTS-Sidecar**, para que ambos repos compartan plataforma, convenciones y experiencia operativa (el know-how de mantener el `.circleci/config.yml` del motor aplica directo). Un workflow con tres jobs de test espejando la nomenclatura del motor — `test-linux` (Docker `cimg/node`), `test-windows` (orb `win/server-2022`) y `test-macos` (executor macOS, mismo que ya usa el motor) — que corran `npm ci && npm run typecheck && npm run check-dist && npm test`. La triple puerta por SO es la única forma realista de ejercitar las ramas por SO de `state-dir.ts` y `resolve-cli.ts` sin tener esas máquinas. No requiere secretos: los tests de providers mockean `fetch`, nunca llaman a las APIs reales.
 
-**Diferencia deliberada con el pipeline del motor — el disparador**: el
-CircleCI de TTS-Sidecar corre **solo en tags `v*`** (todos sus jobs declaran
-`branches: ignore`) porque su pipeline existe para construir y publicar
-artefactos (4 builds nativos + PyPI). El plugin no publica artefactos — su
-«build» ya vive commiteado — así que su workflow invierte el filtro: corre **en
-cada push/PR a `main`** como verificación continua, y no necesita jobs de
-build ni de publicación. Por lo mismo, **CD queda fuera de alcance**: no hay
-registry ni pipeline de despliegue que automatizar; el release es un tag de
-git precedido por un checklist manual, y eso se documenta en
-`docs/RELEASING.md` (ver siguiente sección), no se automatiza.
+**Diferencia deliberada con el pipeline del motor — el disparador**: el CircleCI de TTS-Sidecar corre **solo en tags `v*`** (todos sus jobs declaran `branches: ignore`) porque su pipeline existe para construir y publicar artefactos (4 builds nativos + PyPI). El plugin no publica artefactos — su «build» ya vive commiteado — así que su workflow invierte el filtro: corre **en cada push/PR a `main`** como verificación continua, y no necesita jobs de build ni de publicación. Por lo mismo, **CD queda fuera de alcance**: no hay registry ni pipeline de despliegue que automatizar; el release es un tag de git precedido por un checklist manual, y eso se documenta en `docs/RELEASING.md` (ver siguiente sección), no se automatiza.
 
 ## Documentación
 
-**Estado: implementado** — las tres piezas están escritas según las
-especificaciones de abajo: [`SECURITY.md`](../SECURITY.md) (con la nota de
-Windows/ACL), [`CHANGELOG.md`](../CHANGELOG.md) (sección `[Unreleased]` lista
-para cortarse a `[0.1.0]` en el release, con la nota de convergencia en
-v1.0.0) y [`docs/RELEASING.md`](RELEASING.md); la versión mínima del motor
-(v0.7.5) quedó declarada en el README y `docs/INTEGRATION.md`.
+**Estado: implementado** — las tres piezas están escritas según las especificaciones de abajo: [`SECURITY.md`](../SECURITY.md) (con la nota de Windows/ACL), [`CHANGELOG.md`](../CHANGELOG.md) (sección `[Unreleased]` lista para cortarse a `[0.1.0]` en el release, con la nota de convergencia en v1.0.0) y [`docs/RELEASING.md`](RELEASING.md); la versión mínima del motor (v0.7.5) quedó declarada en el README y `docs/INTEGRATION.md`.
 
-Comparado con la cobertura documental del motor (`SECURITY.md`, `CHANGELOG.md`,
-`docs/RELEASING.md`, `docs/GOAL.md`/`ROADMAP.md`), al plugin le faltaban tres
-piezas — y una decisión explícita de no replicar una cuarta:
+Comparado con la cobertura documental del motor (`SECURITY.md`, `CHANGELOG.md`, `docs/RELEASING.md`, `docs/GOAL.md`/`ROADMAP.md`), al plugin le faltaban tres piezas — y una decisión explícita de no replicar una cuarta:
 
 - **`SECURITY.md`** en la raíz, espejo estructural del del motor (versiones
   soportadas, canal privado de reporte vía GitHub Security Advisories, modelo
@@ -217,16 +147,7 @@ piezas — y una decisión explícita de no replicar una cuarta:
 
 ## Sincronización con el release de TTS-Sidecar
 
-Lo que se sincroniza es el **lanzamiento público conjunto**: el primer release
-público de cada proyecto sale a la vez, pero cada uno con el número que le
-corresponde según su propia historia de desarrollo — los ciclos de vida y el
-versionado son independientes por diseño (`docs/INTEGRATION.md`, «Estabilidad
-del contrato»). Que el motor llegue al lanzamiento con varios tags `0.x`
-acumulados y el plugin con su primer tag no es una asimetría a corregir en este
-lanzamiento: es el reflejo fiel de cuánto desarrollo lleva cada uno, y solo
-convergerá cuando el motor alcance `v1.0.0` (ver
-[Versionado](#versionado)). Sincronizar significa coordinar el corte y
-verificar el contrato entre las dos versiones publicadas. Concretamente:
+Lo que se sincroniza es el **lanzamiento público conjunto**: el primer release público de cada proyecto sale a la vez, pero cada uno con el número que le corresponde según su propia historia de desarrollo — los ciclos de vida y el versionado son independientes por diseño (`docs/INTEGRATION.md`, «Estabilidad del contrato»). Que el motor llegue al lanzamiento con varios tags `0.x` acumulados y el plugin con su primer tag no es una asimetría a corregir en este lanzamiento: es el reflejo fiel de cuánto desarrollo lleva cada uno, y solo convergerá cuando el motor alcance `v1.0.0` (ver [Versionado](#versionado)). Sincronizar significa coordinar el corte y verificar el contrato entre las dos versiones publicadas. Concretamente:
 
 - **Versión mínima del motor declarada**: el plugin debe declarar en
   `docs/INTEGRATION.md` («Requisitos sobre el motor») y en el README **contra
@@ -260,30 +181,11 @@ verificar el contrato entre las dos versiones publicadas. Concretamente:
 
 ## Versionado
 
-El repo sigue en `0.1.0` sin tags; el motor va en `v0.7.5`. Esa disparidad es
-correcta y esperada: cada número refleja la historia de desarrollo de su
-proyecto, y así seguirá siendo después del lanzamiento conjunto.
-Recomendación para el primer tag del plugin: **`v0.1.0`**, no `v1.0.0` — el
-motor comunica estado pre-1.0 y el plugin, que existe hace menos y tiene menos
-rodaje, no debería comunicar más estabilidad que su dependencia. Lo que une a
-ambos proyectos es la declaración explícita de compatibilidad de la sección
-anterior, no el número de versión.
+El repo sigue en `0.1.0` sin tags; el motor va en `v0.7.5`. Esa disparidad es correcta y esperada: cada número refleja la historia de desarrollo de su proyecto, y así seguirá siendo después del lanzamiento conjunto. Recomendación para el primer tag del plugin: **`v0.1.0`**, no `v1.0.0` — el motor comunica estado pre-1.0 y el plugin, que existe hace menos y tiene menos rodaje, no debería comunicar más estabilidad que su dependencia. Lo que une a ambos proyectos es la declaración explícita de compatibilidad de la sección anterior, no el número de versión.
 
-**Convergencia planificada en v1.0.0**: la disparidad de números es temporal
-por decisión, no por accidente. Durante el tramo pre-1.0 el plugin publica sus
-propias versiones intermedias (`v0.2.0`, `v0.3.0`, …) al ritmo que dicten sus
-correcciones y mejoras, sin relación con los números del motor. Cuando
-TTS-Sidecar alcance su `v1.0.0`, el plugin **avanzará desde la versión que
-haya alcanzado hasta ese momento directamente a `v1.0.0`**, en un release que
-acumule las correcciones implementadas hasta entonces. A partir de ese punto
-ambos proyectos comunican madurez estable con el mismo número mayor. Este plan
-debe quedar registrado también en el `CHANGELOG.md` del plugin (nota en la
-entrada inicial) para que ese salto final de numeración (de la `0.x` alcanzada
-a `1.0.0`) tenga explicación pública y no parezca un error de versionado.
+**Convergencia planificada en v1.0.0**: la disparidad de números es temporal por decisión, no por accidente. Durante el tramo pre-1.0 el plugin publica sus propias versiones intermedias (`v0.2.0`, `v0.3.0`, …) al ritmo que dicten sus correcciones y mejoras, sin relación con los números del motor. Cuando TTS-Sidecar alcance su `v1.0.0`, el plugin **avanzará desde la versión que haya alcanzado hasta ese momento directamente a `v1.0.0`**, en un release que acumule las correcciones implementadas hasta entonces. A partir de ese punto ambos proyectos comunican madurez estable con el mismo número mayor. Este plan debe quedar registrado también en el `CHANGELOG.md` del plugin (nota en la entrada inicial) para que ese salto final de numeración (de la `0.x` alcanzada a `1.0.0`) tenga explicación pública y no parezca un error de versionado.
 
-El tag se corta una vez cerradas las brechas de testing/CI/documentación de
-arriba, para que el marketplace resuelva una versión fija en vez de la punta de
-`main`.
+El tag se corta una vez cerradas las brechas de testing/CI/documentación de arriba, para que el marketplace resuelva una versión fija en vez de la punta de `main`.
 
 ## Checklist consolidado del release
 
@@ -328,12 +230,7 @@ El orden importa: cada bloque habilita al siguiente.
 
 ## Gestión de API keys — nota de transparencia
 
-El diseño actual ya sigue buenas prácticas y **no requiere `.env`/`.env.example`**:
-el plugin se distribuye clonando el repo (`dist/` commiteado), así que un
-`.env` en la raíz viviría dentro del árbol compartido por todos los usuarios
-del clon y se pisaría en cada actualización — el lugar correcto para el
-secreto de cada usuario es fuera del repo, igual que `TTS-Sidecar` resuelve su
-`data_root()`.
+El diseño actual ya sigue buenas prácticas y **no requiere `.env`/`.env.example`**: el plugin se distribuye clonando el repo (`dist/` commiteado), así que un `.env` en la raíz viviría dentro del árbol compartido por todos los usuarios del clon y se pisaría en cada actualización — el lugar correcto para el secreto de cada usuario es fuera del repo, igual que `TTS-Sidecar` resuelve su `data_root()`.
 
 Resumen del diseño (`src/lib/config.ts`, `src/lib/state-dir.ts`):
 
@@ -349,14 +246,4 @@ Resumen del diseño (`src/lib/config.ts`, `src/lib/state-dir.ts`):
 - `narrate-ctl.js status` nunca imprime el valor de la clave, solo si está
   configurada.
 
-Brecha identificada (no es una vulnerabilidad, es una omisión de
-documentación): el `0600` es **no-op en Windows** (el comentario en el código
-ya lo advierte), y ni el README ni ningún doc explican qué protege realmente al
-usuario de Windows en ese caso — en la práctica, las ACL por defecto del perfil
-de usuario sobre `%LOCALAPPDATA%` (no accesible a otras cuentas locales sin
-privilegios elevados), pero eso hoy es tribal knowledge en un comentario de
-código, no algo que el usuario pueda leer. La resolución de esta brecha queda
-absorbida por el `SECURITY.md` de la sección [Documentación](#documentación):
-una frase explícita en su modelo de amenaza, y opcionalmente una advertencia en
-el `status` o en el README de que en Windows la protección depende de las ACL
-del perfil, no de un permiso de archivo explícito.
+Brecha identificada (no es una vulnerabilidad, es una omisión de documentación): el `0600` es **no-op en Windows** (el comentario en el código ya lo advierte), y ni el README ni ningún doc explican qué protege realmente al usuario de Windows en ese caso — en la práctica, las ACL por defecto del perfil de usuario sobre `%LOCALAPPDATA%` (no accesible a otras cuentas locales sin privilegios elevados), pero eso hoy es tribal knowledge en un comentario de código, no algo que el usuario pueda leer. La resolución de esta brecha queda absorbida por el `SECURITY.md` de la sección [Documentación](#documentación): una frase explícita en su modelo de amenaza, y opcionalmente una advertencia en el `status` o en el README de que en Windows la protección depende de las ACL del perfil, no de un permiso de archivo explícito.

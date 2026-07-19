@@ -1,10 +1,6 @@
 # tts-sidecar-narrator
 
-Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la
-actividad de la sesión usando
-[TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar). Al final de
-cada turno (y en avisos relevantes) escuchas un mensaje conversacional corto —
-no el texto en bruto del asistente, sino una locución procesada, en español.
+Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la actividad de la sesión usando [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar). Al final de cada turno (y en avisos relevantes) escuchas un mensaje conversacional corto — no el texto en bruto del asistente, sino una locución procesada, en español.
 
 - **Automático**: disparado por hooks; sin intervención del modelo ni tuya.
 - **No intrusivo**: nunca bloquea ni retrasa el turno; falla en silencio si
@@ -48,9 +44,7 @@ no el texto en bruto del asistente, sino una locución procesada, en español.
 
    Sin keys, el plugin funciona en modo **local** (determinista, 100 % offline).
 
-Node.js ya está presente por ser el runtime de Claude Code; los scripts se
-distribuyen compilados en `dist/`, así que **no hay `npm install` ni build** en
-tu máquina.
+Node.js ya está presente por ser el runtime de Claude Code; los scripts se distribuyen compilados en `dist/`, así que **no hay `npm install` ni build** en tu máquina.
 
 ## Instalación
 
@@ -70,8 +64,7 @@ El flujo para el usuario final es de **dos pasos**:
    /tts-sidecar-narrator:install
    ```
 
-Durante el desarrollo, el plugin se carga apuntando al directorio del repo (no
-persiste; hay que pasarlo en cada arranque):
+Durante el desarrollo, el plugin se carga apuntando al directorio del repo (no persiste; hay que pasarlo en cada arranque):
 
 ```bash
 claude --plugin-dir .
@@ -102,15 +95,11 @@ El estado vive en `config.json` dentro del *state dir* por SO:
 - Las variables de entorno `GEMINI_API_KEY` y `OPENROUTER_API_KEY` **tienen
   precedencia** sobre el archivo.
 
-El archivo se crea con permisos restrictivos (0600 en POSIX) por contener
-credenciales. La skill opcional (`/tts-sidecar-narrator:narrate`) guía la
-configuración y expone los toggles.
+El archivo se crea con permisos restrictivos (0600 en POSIX) por contener credenciales. La skill opcional (`/tts-sidecar-narrator:narrate`) guía la configuración y expone los toggles.
 
 ## Privacidad
 
-El modo `llm` envía contenido de la sesión (mensajes del asistente, extracto del
-transcript) a un tercero (Google u OpenRouter). Es un cambio de postura respecto
-al motor TTS-Sidecar, que sintetiza 100 % offline. Por eso:
+El modo `llm` envía contenido de la sesión (mensajes del asistente, extracto del transcript) a un tercero (Google u OpenRouter). Es un cambio de postura respecto al motor TTS-Sidecar, que sintetiza 100 % offline. Por eso:
 
 1. El modo `llm` **solo se activa cuando configuras tus claves** — un opt-in
    explícito.
@@ -130,9 +119,7 @@ npm test          # suite de tests (node --test, sin framework externo)
 `dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS
 compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
 
-El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre
-`typecheck`, `check-dist` y la suite de tests en Linux, Windows y macOS en cada
-push — el mismo proveedor y nomenclatura de jobs que usa el motor.
+El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`, `check-dist` y la suite de tests en Linux, Windows y macOS en cada push — el mismo proveedor y nomenclatura de jobs que usa el motor.
 
 ## Documentación
 

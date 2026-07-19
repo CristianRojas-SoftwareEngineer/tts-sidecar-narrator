@@ -5,11 +5,7 @@ argument-hint: "(sin argumentos)"
 
 # Instalación guiada de TTS-Sidecar para la narración por voz
 
-Eres el asistente que guía al usuario para dejar operativo el plugin
-`tts-sidecar-narrator`: instalar el motor **TTS-Sidecar**, descargar su modelo,
-dejar el daemon listo y activar la narración. Ejecuta este procedimiento paso a
-paso con la herramienta de shell, **informando antes de cada acción** y pidiendo
-confirmación antes de descargar o instalar algo.
+Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidecar-narrator`: instalar el motor **TTS-Sidecar**, descargar su modelo, dejar el daemon listo y activar la narración. Ejecuta este procedimiento paso a paso con la herramienta de shell, **informando antes de cada acción** y pidiendo confirmación antes de descargar o instalar algo.
 
 ## Reglas de conducta (obligatorias)
 
@@ -47,15 +43,18 @@ Resume al usuario en una frase qué encontraste y qué vas a hacer.
 Elige el canal automáticamente, en este orden:
 
 1. **¿Está `uv`?** (`command -v uv` / `where uv`). Si sí:
-   ```
+
+   ```bash
    uv tool install tts-sidecar
    ```
+
    (si ya estaba instalado, `uv tool upgrade tts-sidecar`). Es el camino más
    simple y multiplataforma; `uv` provee su propio runtime, el usuario no
    necesita Python.
 
 2. **¿Está `pipx`?** (`command -v pipx`). Si sí:
-   ```
+
+   ```bash
    pipx install tts-sidecar
    ```
 
@@ -84,18 +83,15 @@ Elige el canal automáticamente, en este orden:
    - **Linux**: correr `install-linux.sh` (instala el AppImage e integra el PATH)
      o descargar el AppImage y hacerlo ejecutable.
 
-Tras instalar por cualquier vía, **verifica**: `tts-sidecar version`. Si el
-comando no se encuentra, probablemente el PATH aún no se recargó: indica al
-usuario abrir una terminal nueva (o reiniciar Claude Code) y reanuda.
+Tras instalar por cualquier vía, **verifica**: `tts-sidecar version`. Si el comando no se encuentra, probablemente el PATH aún no se recargó: indica al usuario abrir una terminal nueva (o reiniciar Claude Code) y reanuda.
 
 ## Paso 2 — Descargar el modelo de voz
 
-```
+```bash
 tts-sidecar setup
 ```
 
-Corre los chequeos de `doctor` y descarga el modelo `es-mx-latam` a la caché de
-HuggingFace **solo si falta** (idempotente). Advertencias a comunicar:
+Corre los chequeos de `doctor` y descarga el modelo `es-mx-latam` a la caché de HuggingFace **solo si falta** (idempotente). Advertencias a comunicar:
 
 - La descarga es **grande** (varios cientos de MB) y puede tardar.
 - El modelo puede estar **gated** en HuggingFace: si `setup` reporta un problema
@@ -104,28 +100,24 @@ HuggingFace **solo si falta** (idempotente). Advertencias a comunicar:
 
 ## Paso 3 — Dejar el daemon en marcha
 
-El plugin narra con `speak --daemon`, que **usa el daemon y falla si no está
-levantado** (no lo arranca solo). El daemon mantiene el modelo en memoria, así
-cada narración tarda segundos en vez de decenas.
+El plugin narra con `speak --daemon`, que **usa el daemon y falla si no está levantado** (no lo arranca solo). El daemon mantiene el modelo en memoria, así cada narración tarda segundos en vez de decenas.
 
-```
+```bash
 tts-sidecar daemon start
 tts-sidecar daemon status
 ```
 
-Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude
-Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual:
-el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión
-nueva (siempre que la narración esté activada y el modelo en caché). Este arranque
-durante la instalación es solo para dejarlo caliente ya mismo.
+Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual: el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión nueva (siempre que la narración esté activada y el modelo en caché). Este arranque durante la instalación es solo para dejarlo caliente ya mismo.
 
 ## Paso 4 — Activar la narración y, opcionalmente, el modo LLM
 
 1. Asegura que la narración está activa y revisa el estado:
-   ```
+
+   ```bash
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" on
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" status
    ```
+
 2. **Modo de mensajes** (pregunta al usuario su preferencia):
    - `local` (por defecto, 100 % offline, mensajes simples):
      `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" mode local`
@@ -143,9 +135,11 @@ durante la instalación es solo para dejarlo caliente ya mismo.
 1. Diagnóstico final: `tts-sidecar doctor --json`. Confirma que `failed` es 0
    (los `WARN`/`SKIP` no cuentan).
 2. Narración de prueba real (debe sonar audio):
-   ```
+
+   ```bash
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" say "La narración por voz quedó lista"
    ```
+
    Pregunta al usuario si escuchó la locución. Si no:
    - Reconfirma que el daemon está `running` (Paso 3).
    - Revisa `worker.log` en el state dir (`narrate-ctl.js status` da la ruta) por
@@ -153,10 +147,4 @@ durante la instalación es solo para dejarlo caliente ya mismo.
 
 ## Cierre
 
-Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de
-Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno,
-y al final de cada turno (`Stop`) y en los avisos (`Notification`) se genera y
-reproduce una locución corta. El daemon se relevanta solo en la primera sesión
-tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual.
-Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate`
-(`on`/`off`/`mode`/`status`/`say`).
+Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno, y al final de cada turno (`Stop`) y en los avisos (`Notification`) se genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`).

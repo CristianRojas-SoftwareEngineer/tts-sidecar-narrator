@@ -2,8 +2,7 @@
 
 ## Versiones soportadas
 
-`tts-sidecar-narrator` está en desarrollo activo pre-1.0. Solo la última
-versión publicada recibe correcciones de seguridad.
+`tts-sidecar-narrator` está en desarrollo activo pre-1.0. Solo la última versión publicada recibe correcciones de seguridad.
 
 | Versión | Soportada |
 |---------|-----------|
@@ -14,29 +13,20 @@ versión publicada recibe correcciones de seguridad.
 
 **No** reportes vulnerabilidades de seguridad en Issues públicos.
 
-Usa el canal privado de
-[**GitHub Security Advisories**](https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/security/advisories/new)
-para reportarlas de forma confidencial. Incluye:
+Usa el canal privado de [**GitHub Security Advisories**](https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/security/advisories/new) para reportarlas de forma confidencial. Incluye:
 
 - Una descripción de la vulnerabilidad y su impacto.
 - Pasos para reproducirla (versión del plugin, versión del motor, SO, evento
   de hook o comando que la dispara).
 - Cualquier mitigación conocida.
 
-Recibirás una respuesta inicial en un plazo razonable. Te pedimos no divulgar
-públicamente el problema hasta que exista una corrección disponible.
+Recibirás una respuesta inicial en un plazo razonable. Te pedimos no divulgar públicamente el problema hasta que exista una corrección disponible.
 
-Si la vulnerabilidad está en el motor de síntesis y no en el plugin, repórtala
-en el canal equivalente de
-[TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/security/advisories/new)
-(ver su [SECURITY.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/SECURITY.md)).
+Si la vulnerabilidad está en el motor de síntesis y no en el plugin, repórtala en el canal equivalente de [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/security/advisories/new) (ver su [SECURITY.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/SECURITY.md)).
 
 ## Modelo de amenaza
 
-El plugin es un cliente delgado que corre dentro de la sesión de Claude Code
-del propio usuario, con sus mismos privilegios. Su superficie es pequeña, pero
-maneja dos cosas sensibles: **credenciales de API** (opcionales) y **contenido
-de la sesión**. Estos son sus supuestos, explícitos:
+El plugin es un cliente delgado que corre dentro de la sesión de Claude Code del propio usuario, con sus mismos privilegios. Su superficie es pequeña, pero maneja dos cosas sensibles: **credenciales de API** (opcionales) y **contenido de la sesión**. Estos son sus supuestos, explícitos:
 
 ### Qué se persiste, dónde y con qué permisos
 
