@@ -18,7 +18,7 @@ Claude Code resuelve las versiones desde los tags del repo.
   - [Checklist de release](#checklist-de-release)
   - [Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
   - [Después del tag](#después-del-tag)
-  - [Bitácora del primer lanzamiento conjunto](#bitácora-del-primer-lanzamiento-conjunto)
+  - [Runbook del primer lanzamiento conjunto](#runbook-del-primer-lanzamiento-conjunto)
     - [Fase 0 — Poner en verde el repo del plugin ✅ completada](#fase-0--poner-en-verde-el-repo-del-plugin--completada)
     - [Fase 1 — Release del motor publicado ✅ completada](#fase-1--release-del-motor-publicado--completada)
     - [Fase 2 — Smoke test contra el motor publicado ⏳ pendiente](#fase-2--smoke-test-contra-el-motor-publicado--pendiente)
@@ -124,30 +124,104 @@ versión publicada del motor, que sigue siendo la declarada como mínima.
 - Revisar si `docs/RELEASE-READINESS.md` (el registro vivo de preparación)
   debe archivarse o convertirse en el roadmap de la versión siguiente.
 
-## Bitácora del primer lanzamiento conjunto
+## Runbook del primer lanzamiento conjunto
 
-Esta sección registra, en tiempo real, el procedimiento concreto que se está
-siguiendo para cortar el primer lanzamiento público sincronizado entre este
-plugin y TTS-Sidecar. Es la aplicación práctica de la sección
+Runbook ejecutable del primer lanzamiento público sincronizado entre este plugin
+y TTS-Sidecar. Es la aplicación práctica de la sección
 [Sincronización con un release del motor](#sincronización-con-un-release-del-motor)
-de arriba, con nombres de versión, fechas y estado real en lugar de pasos
-genéricos. Se conserva como referencia hasta que el proceso quede rodado y esta
-sección se archive.
+de arriba: en lugar de pasos genéricos, cada fase lista los **comandos
+concretos** (PowerShell 7 sobre Windows 11) y la **comprobación** de cada paso.
+Sirve a la vez de registro vivo del procedimiento real (nombres de versión,
+fechas y estado), y se conserva como referencia hasta que el proceso quede
+rodado y se archive.
 
-El procedimiento consta de cuatro fases, ejecutadas en este orden:
+El procedimiento consta de cinco fases, ejecutadas en este orden:
+
+### Convenciones y variables (aplican a todas las fases)
+
+Todos los comandos asumen PowerShell 7 (`pwsh`) en Windows 11. Estas variables y
+el atajo se reutilizan en varias fases; defínelos una vez por sesión de
+PowerShell:
+
+```powershell
+# Árbol de desarrollo del plugin (Fases 0 y 3: CI y corte del release).
+$PLUGIN_DEV = "C:\Users\Cristian\Desktop\Proyectos\Voices\tts-sidecar-narrator"
+
+# Clon limpio para el E2E (Fase 2), separado del árbol de desarrollo.
+$PLUGIN_E2E = "C:\Users\Cristian\Desktop\tts-sidecar-narrator"
+
+# State dir del plugin (Windows): %LOCALAPPDATA%\tts-sidecar-narrator.
+$STATE_DIR = "$env:LOCALAPPDATA\tts-sidecar-narrator"
+
+# (Opcional) Árbol del repo del motor, para las comprobaciones cruzadas de
+# Fases 3-4. Solo si lo tienes clonado localmente.
+$ENGINE_ROOT = "C:\Users\Cristian\Desktop\Proyectos\Voices\TTS-Sidecar"
+
+# Atajo para invocar la CLI de control compilada; apunta al clon del E2E,
+# que es donde se ejecuta la Fase 2.
+function narrate-ctl { node "$PLUGIN_E2E\dist\narrate-ctl.js" @args }
+```
+
+Notas de contrato que el runbook asume (verificado en código fuente):
+
+- `narrate-ctl status` **no** reporta el daemon; el estado del daemon se consulta
+  con `tts-sidecar daemon status --json`.
+- `narrate-ctl status` **nunca** imprime el valor de ninguna clave: solo muestra
+  `gemini key:   configurada|ausente` y `openrouter:   configurada|ausente`.
+- `narrate-ctl say` pasa el texto directo a `tts-sidecar speak --text ... --daemon`
+  (pipeline TTS + daemon); **no** ejercita la generación de mensaje (`local`/`llm`).
+- `worker.log` (en `$STATE_DIR`) registra **solo errores** de narración, no qué
+  proveedor se usó; la distinción `local` vs `llm` se verifica **por audible**
+  (ver Fase 2, ítems 2 y 3).
 
 ### Fase 0 — Poner en verde el repo del plugin ✅ completada
 
 Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para
 que el corte parta de una base verde.
 
-1. **Push de los commits pendientes** (tests, CI, documentación) a `origin/main`
-   (`git push origin main`).
-2. **Registrar el proyecto en CircleCI**: como el repo aún no estaba seguido, se
-   activó vía API (`follow`) y se disparó el primer pipeline sobre `main`.
+1. **Push de los commits pendientes** (tests, CI, documentación) a `origin/main`:
+   ```powershell
+   git -C $PLUGIN_DEV push origin main
+   # Comprobación: el push termina sin error y `git status` está limpio.
+   git -C $PLUGIN_DEV status --short   # debe estar vacío
+   ```
+2. **Registrar el proyecto en CircleCI** (solo la primera vez; el repo aún no
+   estaba seguido por CircleCI):
+   ```powershell
+   # Requiere CIRCLE_TOKEN con permiso en la org del proyecto.
+   $CIRCLE_TOKEN = "<tu-token-circleci>"
+   $REPO = "CristianRojas-SoftwareEngineer/tts-sidecar-narrator"
+   # 2a. Seguir el proyecto (follow) vía API.
+   Invoke-RestMethod -Method Post `
+     -Uri "https://circleci.com/api/v2/project/gh/$REPO/follow" `
+     -Headers @{ "Circle-Token" = $CIRCLE_TOKEN } | Out-Null
+   # 2b. Disparar el primer pipeline sobre main.
+   Invoke-RestMethod -Method Post `
+     -Uri "https://circleci.com/api/v2/project/gh/$REPO/pipeline" `
+     -Headers @{ "Circle-Token" = $CIRCLE_TOKEN } `
+     -ContentType "application/json" -Body '{"branch":"main"}' | Out-Null
+   # Comprobación: el proyecto aparece como seguido.
+   Invoke-RestMethod -Uri "https://circleci.com/api/v2/project/gh/$REPO" `
+     -Headers @{ "Circle-Token" = $CIRCLE_TOKEN }
+   ```
 3. **Verificar la triple puerta** `test-linux`/`test-windows`/`test-macos` en
-   verde. Cada job corre la misma secuencia:
+   verde. Cada job corre la misma secuencia
    `npm ci && npm run typecheck && npm run check-dist && npm test`.
+   ```powershell
+   # Comprobación: consultar el estado del último workflow sobre main.
+   $WF = (Invoke-RestMethod `
+       -Uri "https://circleci.com/api/v2/project/gh/$REPO/pipeline" `
+       -Headers @{ "Circle-Token" = $CIRCLE_TOKEN }).items[0].id
+   Invoke-RestMethod `
+     -Uri "https://circleci.com/api/v2/pipeline/$WF/workflow" `
+     -Headers @{ "Circle-Token" = $CIRCLE_TOKEN }
+   # Los tres jobs (test-linux / test-windows / test-macos) deben decir "success".
+   # Equivalente local (misma secuencia que el CI), para validar antes de mirar la UI:
+   Push-Location $PLUGIN_DEV
+   npm ci; npm run typecheck; npm run check-dist; npm test
+   Pop-Location
+   # Comprobación: el último comando (npm test) termina con 0 fallos.
+   ```
 
 ### Fase 1 — Release del motor publicado ✅ completada
 
@@ -170,105 +244,246 @@ sección de sincronización). Al momento del corte, esa versión es
    nativos y los jobs de publicación a GitHub Releases y PyPI).
 3. Verificación post-publicación (externa, comprobable) — hecha sin clonar el
    motor:
-   ```bash
+   ```powershell
+   # 3a. El GitHub Release v0.7.5 expone los 5 assets esperados:
+   #     instalador Windows tts-sidecar-0.7.5-x86_64-setup.exe,
+   #     AppImage x86_64 y arm64, .dmg arm64 y SHA256SUMS.txt.
+   #     Sus notas incluyen el enlace de oferta de fuente GPLv3 §6 al tarball.
    gh release view v0.7.5 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
-   pip index versions tts-sidecar   # 0.7.5 debe figurar como la más reciente
+   # Comprobación: la salida lista los 5 assets y el enlace GPLv3 §6.
+
+   # 3b. PyPI confirma 0.7.5 como versión publicada y más reciente.
+   pip index versions tts-sidecar
+   # Comprobación: "0.7.5" figura como la versión disponible más reciente.
    ```
-   El GitHub Release `v0.7.5` expone los 5 assets esperados (instalador Windows
-   `tts-sidecar-0.7.5-x86_64-setup.exe`, AppImage x86_64 y arm64, `.dmg`
-   arm64 y `SHA256SUMS.txt`), sus notas incluyen el enlace de oferta de fuente
-   GPLv3 §6 al tarball del tag, y PyPI confirma `0.7.5` como versión publicada.
 
 ### Fase 2 — Smoke test contra el motor publicado ⏳ pendiente
 
 Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de
 arriba, ejecutado contra los artefactos reales de `v0.7.5` (no contra el árbol
-de desarrollo del motor):
+de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el
+usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su
+comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de
+[Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
 
-1. **Instalar el motor publicado** y aprovisionarlo:
-   ```bash
-   uv tool install "tts-sidecar==0.7.5"   # o el instalador nativo del SO
-   tts-sidecar version                    # debe imprimir 0.7.5
-   tts-sidecar setup                      # descarga el modelo es-mx-latam
-   ```
-2. **Clonar el plugin en un directorio limpio** (no el árbol de desarrollo) y
-   cargarlo en una sesión real de Claude Code:
-   ```bash
-   git clone https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator
-   cd tts-sidecar-narrator
-   claude --plugin-dir .
-   ```
-3. **Verificar, de forma audible, cada superficie del contrato**. Para cada
-   ítem, deja el entorno en la condición indicada, dispara la narración y
-   escucha el resultado (los comandos `narrate-ctl` se resuelven a
-   `dist/narrate-ctl.js`):
+#### Paso 1 — Instalar y aprovisionar el motor publicado
 
-   - **Fin de turno en modo `local`** (sin claves):
-     1. Selecciona el modo y confirma el estado:
-        ```bash
-        narrate-ctl mode local
-        narrate-ctl status      # enabled: true, modo local, daemon running
-        ```
-        Si el daemon no está `running`, arráncalo: `tts-sidecar daemon start`.
-     2. Termina un turno normal en la sesión (p. ej. pregunta algo simple). El
-        hook `Stop` debe disparar una locución corta en español **sin** claves.
-        Para no depender del hook puedes forzarla con `narrate-ctl say "prueba
-        local"`.
-   - **Modo `llm`** (con clave de proveedor):
-     1. Define la clave en el entorno de la sesión, p. ej.
-        `GEMINI_API_KEY=...` o `OPENROUTER_API_KEY=...` (tienen precedencia
-        sobre `config.json`); o edítala en `config.json` del state dir. **Sin
-        clave, `llm` degrada a `local`**, así que la clave es obligatoria para
-        este ítem.
-     2. Cambia el modo: `narrate-ctl mode llm`.
-     3. Termina un turno y escucha: la locución suena, pero la construye la
-        cadena LLM (más elaborada). Confirma en `worker.log` (su ruta la da
-        `narrate-ctl status`) que se usó el proveedor y no la ruta local.
-   - **`narrate-ctl status` no expone claves**:
-     1. Ejecuta `narrate-ctl status` con y sin clave de proveedor definida.
-     2. El resultado debe mostrar modo/estado/rutas, pero **nunca** los valores
-        de `GEMINI_API_KEY` / `OPENROUTER_API_KEY` ni de `config.json`.
-   - **Aviso de `SessionStart` sin motor en el `PATH`**:
-     1. Quita temporalmente el binario del `PATH` (renombra `tts-sidecar` o
-        arranca la sesión con un `PATH` recortado).
-     2. Abre una sesión nueva (dispara `SessionStart`). Debe aparecer el aviso
-        de que falta el CLI/modelo y la sesión **no** se bloquea: puedes seguir
-        trabajando (degradación silenciosa).
+```powershell
+# 1a. Instalar el motor fijando la versión verificada (uv tool es opcional;
+#     también sirve el instalador nativo tts-sidecar-0.7.5-x86_64-setup.exe).
+uv tool install "tts-sidecar==0.7.5"
 
-Esta fase requiere verificación humana (audible) y no puede automatizarse por
-completo; es la única fase que el usuario debe ejecutar personalmente. La
-porción no audible (que `narrate-ctl status` no filtra claves y que
-`health-check` avisa sin bloquear) ya quedó pre-verificada en local; ver
+# 1b. Comprobación: el CLI resuelve y reporta 0.7.5.
+tts-sidecar version          # debe imprimir: 0.7.5
+
+# 1c. Aprovisionar el modelo es-mx-latam + Voice Encoder (descarga a la caché
+#     de HuggingFace; idempotente: salta si ya está). Puede tardar minutos.
+tts-sidecar setup
+
+# 1d. Comprobación: el modelo quedó en caché (doctor sin FAIL de modelo).
+tts-sidecar doctor --json | ConvertFrom-Json |
+  ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'FAIL' }
+#     La salida debe estar VACÍA (ningún FAIL). El check "Chatterbox model"
+#     debe decir PASS.
+```
+
+#### Paso 2 — Dejar el daemon en marcha
+
+```powershell
+tts-sidecar daemon start
+# Comprobación: el daemon queda running.
+tts-sidecar daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
+#     Debe imprimir: True
+```
+
+#### Paso 3 — Clonar el plugin en un directorio limpio
+
+No uses el árbol de desarrollo para el E2E: clona una copia fresca (en este
+runbook, al `Desktop`, ya preparado en fases previas).
+
+```powershell
+# Si el clon limpio ya existe en $PLUGIN_E2E, omite esto.
+if (-not (Test-Path $PLUGIN_E2E)) {
+  git clone https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator $PLUGIN_E2E
+}
+# Comprobación: el dist/ compilado existe (es lo que ejecutan los hooks).
+Test-Path "$PLUGIN_E2E\dist\narrate-ctl.js"   # debe ser True
+```
+
+#### Paso 4 — Comprobación base (sin sesión de Claude)
+
+Valida el pipeline TTS + daemon de forma aislada, antes de involucrar los hooks.
+No requiere claves.
+
+```powershell
+narrate-ctl on                        # activa la narración
+narrate-ctl mode local                # modo local (determinista, offline)
+narrate-ctl status                    # enabled: true, messageMode: local
+tts-sidecar daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
+#     Debe ser True (si no, `tts-sidecar daemon start`).
+narrate-ctl say "Prueba de audio local"   # emite una locución
+# Comprobación AUDIBLE: se escucha la frase en español. Si no suena, revisa
+# worker.log: Get-Content "$STATE_DIR\worker.log" -Tail 20
+```
+
+#### Paso 5 — Verificación por superficie del contrato (audible)
+
+Cada ítem deja el entorno en la condición indicada, dispara la narración y
+**escucha** el resultado. Para cada ítem se abre Claude Code con el plugin
+cargado desde el clon limpio:
+
+```powershell
+# Lanzar Claude Code con el plugin del clon limpio (lo ejecutas por ítem,
+# ajustando el entorno previo según corresponda).
+claude --plugin-dir $PLUGIN_E2E
+```
+
+- **(A) Fin de turno en modo `local` (sin claves):**
+  1. En la sesión de PowerShell previa a `claude` (sin definir claves), fija el
+     modo y confirma:
+     ```powershell
+     narrate-ctl mode local
+     narrate-ctl status        # enabled: true, messageMode: local
+     ```
+     Si el daemon no está `running`: `tts-sidecar daemon start`.
+  2. En la sesión de Claude, termina un turno normal (p. ej. pregunta algo
+     simple). El hook `Stop` debe disparar una locución corta en español **sin**
+     claves.
+  3. **Comprobación audible:** el texto narrado es el del asistente **limpio**
+     (sin markdown, sin bloques de código ni URLs — los elimina `sanitize`),
+     reproducido casi textualmente, no una paráfrasis. Para no depender del hook
+     puedes forzarla con `narrate-ctl say "<texto>"` desde PowerShell.
+
+- **(B) Modo `llm` (con clave de proveedor):**
+  1. Define la clave **en el entorno de la sesión de PowerShell** (tiene
+     precedencia sobre `config.json` y evita escribirla en el chat); o edítala
+     en `config.json` del state dir. **Sin clave, `llm` degrada a `local`**, así
+     que la clave es obligatoria para este ítem.
+     ```powershell
+     $env:GEMINI_API_KEY = "<tu-clave-gemini>"        # o $env:OPENROUTER_API_KEY
+     ```
+  2. Fija el modo y confirma que la clave se ve como "configurada" (nunca su valor):
+     ```powershell
+     narrate-ctl mode llm
+     narrate-ctl status        # gemini key: configurada  (o openrouter: configurada)
+     ```
+  3. Lanza Claude desde esa misma sesión de PowerShell
+     (`claude --plugin-dir $PLUGIN_E2E`) y termina un turno.
+  4. **Comprobación audible:** la locución suena **parafraseada** (cadena LLM, más
+     elaborada), no el eco limpio del asistente. Como `worker.log` no registra
+     qué proveedor corrió, la distinción `local`↔`llm` se confirma **por
+     audible**: si escuchas una paráfrasis, el proveedor se usó; si escuchas el
+     texto del asistente casi textual, cayó a `local` (revisa la clave).
+  5. Diagnóstico si no suena o suena como `local`:
+     ```powershell
+     Get-Content "$STATE_DIR\worker.log" -Tail 30   # solo errores de narración
+     ```
+
+- **(C) `narrate-ctl status` no expone claves:**
+  1. Ejecuta `narrate-ctl status` con y sin clave de proveedor definida:
+     ```powershell
+     $env:GEMINI_API_KEY = "<tu-clave-gemini>"
+     narrate-ctl status        # muestra "configurada", NO el valor
+     Remove-Item Env:\GEMINI_API_KEY
+     narrate-ctl status        # muestra "ausente"
+     ```
+  2. **Comprobación:** la salida muestra `enabled`, `messageMode`, `gemini key:
+     configurada|ausente`, `openrouter: configurada|ausente`, `config:` y
+     `state dir:`, pero **nunca** el valor de `GEMINI_API_KEY` /
+     `OPENROUTER_API_KEY` ni de `config.json`.
+
+- **(D) Aviso de `SessionStart` sin motor en el `PATH`:**
+  1. Quita el directorio del binario del `PATH` para la sesión (degradación
+     silenciosa; no borres nada):
+     ```powershell
+     $env:PATH = ($env:PATH -split ';' | Where-Object {
+       $_ -and ($_ -notmatch 'tts-sidecar') } ) -join ';'
+     # Comprobación: el binario ya no resuelve en esta sesión.
+     try { tts-sidecar version } catch { "PATH recortado: tts-sidecar ausente" }
+     ```
+  2. Abre una sesión nueva de Claude (`claude --plugin-dir $PLUGIN_E2E`) desde
+     esa sesión de PowerShell con `PATH` recortado. Debe aparecer el aviso de que
+     falta el CLI/modelo **y la sesión no se bloquea**: puedes seguir trabajando.
+  3. **Comprobación:** el aviso se muestra al iniciar y la sesión queda usable
+     (degradación silenciosa). Restaura el `PATH` para los ítems siguientes:
+     ```powershell
+     $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") +
+                 ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+     ```
+
+Esta fase requiere verificación humana (audible) y no se automatiza por
+completo; es la única que el usuario ejecuta personalmente. La porción no audible
+(que `narrate-ctl status` no filtra claves y que `health-check` avisa sin
+bloquear) ya quedó pre-verificada en local; ver
 [`RELEASE-READINESS.md`](RELEASE-READINESS.md).
 
 ### Fase 3 — Cortar el release del plugin ⏳ pendiente
 
 Una vez confirmado el smoke test de la Fase 2, se ejecuta el
 [Checklist de release](#checklist-de-release) completo con los números de este
-lanzamiento:
+lanzamiento. Se corre en el **árbol de desarrollo** (no en el clon del E2E), de
+modo que el `dist/` commiteado sea el que resuelve el marketplace.
 
 1. **Confirmar la versión mínima del motor** declarada en el README
    («Prerequisitos») y en [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos
    sobre el motor»): debe ser `v0.7.5`, la verificada en la Fase 2.
+   ```powershell
+   Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
+     -Pattern "v0\.7\.5"
+   # Comprobación: ambos archivos muestran la referencia a v0.7.5.
+   ```
 2. **Bump de versión doble** a `0.1.0` en `package.json` **y**
    `.claude-plugin/plugin.json` (los dos números deben coincidir).
+   ```powershell
+   $V = "0.1.0"
+   (Get-Content "$PLUGIN_DEV\package.json") `
+     -replace '(?<="version":\s*")[^"]+', $V | Set-Content "$PLUGIN_DEV\package.json"
+   (Get-Content "$PLUGIN_DEV\.claude-plugin\plugin.json") `
+     -replace '(?<="version":\s*")[^"]+', $V | Set-Content "$PLUGIN_DEV\.claude-plugin\plugin.json"
+   # Comprobación: ambos archivos reportan 0.1.0 y coinciden.
+   Select-String -Path "$PLUGIN_DEV\package.json","$PLUGIN_DEV\.claude-plugin\plugin.json" `
+     -Pattern '"version"'
+   ```
 3. **Cortar el changelog**: renombrar `## [Unreleased]` a
-   `## [0.1.0] — AAAA-MM-DD` dejando declarada la verificación contra
+   `## [0.1.0] — 2026-07-17` dejando declarada la verificación contra
    TTS-Sidecar v0.7.5, crear una nueva `## [Unreleased]` vacía encima y
-   actualizar las referencias de enlaces del pie.
+   actualizar las referencias de enlaces del pie. Edítalo en
+   `$PLUGIN_DEV\CHANGELOG.md`.
 4. **Regenerar y verificar `dist/`**, y commitearlo junto con el bump:
-   ```bash
-   npm run build && npm run check-dist && npm run typecheck && npm test
+   ```powershell
+   Push-Location $PLUGIN_DEV
+   npm run build          # recompila src/ -> dist/
+   npm run check-dist     # obligatorio: dist/ debe coincidir con src/
+   npm run typecheck
+   npm test
+   Pop-Location
+   # Comprobación: los cuatro comandos terminan sin error y `git status`
+   # muestra dist/ modificado (debe commitearse).
+   git -C $PLUGIN_DEV status --short
    ```
 5. **Verificar las referencias cruzadas** con el motor
    (`docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md`, del lado del
-   motor; README y `docs/INTEGRATION.md` del lado del plugin).
+   motor; README y `docs/INTEGRATION.md` del lado del plugin):
+   ```powershell
+   # Lado del plugin: las cuatro referencias apuntan a v0.7.5 / sin contradicción.
+   Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
+     -Pattern "v0\.7\.5"
+   # Lado del motor (si el repo del motor está clonado en $ENGINE_ROOT):
+   #   Get-Content "$ENGINE_ROOT\docs\NARRATION-INTEGRATION.md" -Tail 40
+   # Comprobación: ninguna referencia contradice el tag v0.7.5.
+   ```
 6. **Commit, tag y push** — punto de no retorno, a partir del cual el
    marketplace resuelve exactamente ese estado:
-   ```bash
+   ```powershell
+   Push-Location $PLUGIN_DEV
+   git add -A
    git commit -m "release: v0.1.0"
    git tag v0.1.0
    git push origin main v0.1.0
+   Pop-Location
+   # Comprobación: el tag existe local y remotamente.
+   git -C $PLUGIN_DEV tag --list v0.1.0
+   git -C $PLUGIN_DEV ls-remote --tags origin v0.1.0
    ```
 
 ### Fase 4 — Verificación posterior al corte ⏳ pendiente
@@ -277,12 +492,32 @@ Los pasos de [Después del tag](#después-del-tag), ejecutados sobre el tag ya
 publicado:
 
 1. **Resolución desde una máquina limpia**: en una instalación de Claude Code
-   sin este plugin, `/plugin marketplace add` (apuntando a este repo) seguido de
-   `/plugin install tts-sidecar-narrator` debe resolver e instalar `v0.1.0` —el
-   estado exacto del tag, no la punta de `main`.
+   sin este plugin, resolver e instalar exactamente `v0.1.0` (el estado del tag,
+   no la punta de `main`). Los dos primeros son **comandos de Claude Code**
+   (dentro de una sesión), el tercero es la comprobación desde PowerShell:
+   ```text
+   /plugin marketplace add CristianRojas-SoftwareEngineer/tts-sidecar-narrator
+   /plugin install tts-sidecar-narrator@tts-sidecar-narrator
+   ```
+   ```powershell
+   # Comprobación: el tag v0.1.0 está publicado (es lo que el marketplace resuelve).
+   git ls-remote --tags https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator v0.1.0
+   #     Debe listar la línea del tag refs/tags/v0.1.0.
+   ```
+   Tras `/plugin install`, verifica en la UI de plugins que la versión instalada
+   es `0.1.0`.
 2. **Enlace desde el motor**: si la entrada del `CHANGELOG.md` del motor
    menciona la disponibilidad del plugin, confirmar que el enlace apunta al tag
    correcto.
+   ```powershell
+   # Con el repo del motor clonado en $ENGINE_ROOT:
+   Select-String -Path "$ENGINE_ROOT\CHANGELOG.md" -Pattern "tts-sidecar-narrator"
+   # Comprobación: si hay mención, el enlace apunta a v0.1.0 (no a main ni a otro tag).
+   ```
 3. **Cierre del registro vivo**: decidir si `docs/RELEASE-READINESS.md` se
    archiva o se convierte en el roadmap de la versión siguiente y —una vez
-   rodado el proceso— archivar esta bitácora.
+   rodado el proceso— archivar este runbook.
+   ```powershell
+   # Ejemplo, si se decide archivar el registro vivo:
+   git -C $PLUGIN_DEV mv docs/RELEASE-READINESS.md docs/archive/RELEASE-READINESS-v0.1.0.md
+   ```
