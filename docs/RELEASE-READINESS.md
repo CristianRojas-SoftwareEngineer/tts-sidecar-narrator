@@ -47,7 +47,7 @@ Lo que ya existe y está en buen estado:
   sección de este documento).
 - Licencia (GPL-3.0-or-later) y atribución de autoría presentes.
 
-Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 95 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — queda pendiente por diseño: depende de que el motor publique su release (ver el checklist consolidado, bloques 4–6).
+Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 95 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — está definida y el motor ya publicó su release (TTS-Sidecar v0.7.5, 2026-07-17; ver `docs/RELEASING.md`, Fase 1 ✅). Lo que queda es ejecutar el smoke test del plugin contra los artefactos publicados del motor y luego cortar el release del plugin (ver el checklist consolidado, bloques 4–6).
 
 ## Testing
 
@@ -192,9 +192,10 @@ El orden importa: cada bloque habilita al siguiente.
    `CHANGELOG.md` (Keep a Changelog, sección `[Unreleased]` que se corta a
    `[0.1.0]` en el paso 5) y `docs/RELEASING.md` escritos; versión mínima del
    motor declarada en `docs/INTEGRATION.md` y README.
-4. **Sincronización** — el motor corta su release; smoke test del plugin
-   contra el motor **instalado desde los artefactos publicados**, en modo
-   `local` y `llm`; referencias cruzadas de ambos repos verificadas.
+4. **Sincronización** — el motor ya publicó su release (v0.7.5); falta el
+   smoke test del plugin contra el motor **instalado desde los artefactos
+   publicados**, en modo `local` y `llm`; referencias cruzadas de ambos repos
+   verificadas.
    *Pre-verificado en local (2026-07-15)*: la config de CircleCI valida con
    `circleci config validate`; las referencias cruzadas del motor
    (`docs/NARRATION-INTEGRATION.md`, `docs/CLAUDE-CODE-PLUGIN.md`, ambos del
