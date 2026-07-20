@@ -343,8 +343,8 @@ claude --plugin-dir $PLUGIN_E2E
      narrate-ctl mode llm
      narrate-ctl status        # gemini key: configurada  (o openrouter: configurada)
      ```
-  3. Lanza Claude desde esa misma sesión de PowerShell (`claude --plugin-dir $PLUGIN_E2E`) y repite **al menos** `UserPromptSubmit` y `Stop` (y, opcional, `SubagentStop`) terminando turnos normales.
-  4. **Comprobación audible:** la locución suena **parafraseada** (cadena LLM, más elaborada), no el eco limpio del evento. Como `worker.log` no registra qué proveedor corrió, la distinción `local`↔`llm` se confirma **por audible**: si escuchas una paráfrasis, el proveedor se usó; si escuchas el texto casi textual, cayó a `local` (revisa la clave). Verifica `UserPromptSubmit` y `Stop` en `llm`; `SubagentStop`/`StopFailure`/`Notification` ya se cubrieron en limpio en el ítem (A) y comparten el mismo constructor de mensaje, así que la paráfrasis en ellas es redundante salvo sospecha de bug.
+  3. Lanza Claude desde esa misma sesión de PowerShell (`claude --plugin-dir $PLUGIN_E2E`) y repite `UserPromptSubmit`, `Stop` y `SubagentStop` terminando turnos normales.
+  4. **Comprobación audible:** la locución suena **parafraseada** (cadena LLM, más elaborada), no el eco limpio del evento. Como `worker.log` no registra qué proveedor corrió, la distinción `local`↔`llm` se confirma **por audible**: si escuchas una paráfrasis, el proveedor se usó; si escuchas el texto casi textual, cayó a `local` (revisa la clave). Verifica `UserPromptSubmit` (ruta prompt), `Stop` (ruta summary) y `SubagentStop` (ruta summary con su propio texto de asistente) en `llm`; `StopFailure` y `Notification` ya se cubrieron en limpio en el ítem (A): `StopFailure` comparte la rama summary de `Stop` (redundante salvo sospecha de bug) y `Notification` no usa LLM por diseño (ver más abajo), así que no tienen paráfrasis que verificar.
   5. Diagnóstico si no suena o suena como `local`:
      ```powershell
      Get-Content "$STATE_DIR\worker.log" -Tail 30   # solo errores de narración
