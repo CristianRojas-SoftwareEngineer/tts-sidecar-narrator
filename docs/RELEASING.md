@@ -204,47 +204,51 @@ Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para 
 
 ### Fase 1 — Release del motor publicado ✅ completada
 
-El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la sección de sincronización). Al momento del corte, esa versión es [`v0.7.5`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.5) (2026-07-17):
+El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la sección de sincronización). Al momento del corte, esa versión es [`v0.7.6`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.6) (2026-07-20):
 
-1. `v0.7.5` es una **corrección de robustez de empaquetado** (PyInstaller): fija
-   `--add-data` como fuente única de las voces de fábrica en el bundle. No hay
-   cambios de contrato ni de comportamiento del CLI respecto a `v0.7.4`/`v0.7.3`
-   —los artefactos son funcionalmente equivalentes—, de modo que el contrato que
-   este plugin declara compatible se mantiene intacto. La contraparte de
-   integración del motor con este plugin (`NARRATION-INTEGRATION.md`) ya venía
-   publicada desde `v0.7.3`, así que el plugin llega al lanzamiento con el motor
-   ya etiquetado por delante.
+1. `v0.7.6` corrige la **ventana de consola visible del daemon en Windows**
+   (runtime en `daemon.py`): reemplaza `DETACHED_PROCESS | CREATE_NO_WINDOW`
+   —combinación inválida, porque `CREATE_NO_WINDOW` es ignorado por Windows
+   cuando va con `DETACHED_PROCESS`— por `CREATE_NO_WINDOW |
+   CREATE_NEW_PROCESS_GROUP`, que suprime la consola por completo (sin ventana ni
+   parpadeo) y aísla al daemon en su propio grupo de proceso. No hay cambios de
+   contrato ni de comportamiento del CLI respecto a `v0.7.5`/`v0.7.4` —los
+   artefactos son funcionalmente equivalentes en superficie de contrato—, de modo
+   que el contrato que este plugin declara compatible se mantiene intacto. La
+   contraparte de integración del motor con este plugin
+   (`NARRATION-INTEGRATION.md`) ya venía publicada desde `v0.7.3`, así que el
+   plugin llega al lanzamiento con el motor ya etiquetado por delante.
 2. El pipeline `build-all` de CircleCI (disparado solo por tags `v*`) construyó
    y publicó los artefactos automáticamente (triple puerta de tests, builds
    nativos y los jobs de publicación a GitHub Releases y PyPI).
 3. Verificación post-publicación (externa, comprobable) — hecha sin clonar el
    motor:
    ```powershell
-   # 3a. El GitHub Release v0.7.5 expone los 5 assets esperados:
-   #     instalador Windows tts-sidecar-0.7.5-x86_64-setup.exe,
+   # 3a. El GitHub Release v0.7.6 expone los 5 assets esperados:
+   #     instalador Windows tts-sidecar-0.7.6-x86_64-setup.exe,
    #     AppImage x86_64 y arm64, .dmg arm64 y SHA256SUMS.txt.
    #     Sus notas incluyen el enlace de oferta de fuente GPLv3 §6 al tarball.
-   gh release view v0.7.5 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
+   gh release view v0.7.6 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
    # Comprobación: la salida lista los 5 assets y el enlace GPLv3 §6.
 
-   # 3b. PyPI confirma 0.7.5 como versión publicada y más reciente.
+   # 3b. PyPI confirma 0.7.6 como versión publicada y más reciente.
    pip index versions tts-sidecar
-   # Comprobación: "0.7.5" figura como la versión disponible más reciente.
+   # Comprobación: "0.7.6" figura como la versión disponible más reciente.
    ```
 
 ### Fase 2 — Smoke test contra el motor publicado ⏳ pendiente
 
-Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de arriba, ejecutado contra los artefactos reales de `v0.7.5` (no contra el árbol de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de [Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
+Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de arriba, ejecutado contra los artefactos reales de `v0.7.6` (no contra el árbol de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de [Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
 
 #### Paso 1 — Instalar y aprovisionar el motor publicado
 
 ```powershell
 # 1a. Instalar el motor fijando la versión verificada (uv tool es opcional;
-#     también sirve el instalador nativo tts-sidecar-0.7.5-x86_64-setup.exe).
-uv tool install "tts-sidecar==0.7.5"
+#     también sirve el instalador nativo tts-sidecar-0.7.6-x86_64-setup.exe).
+uv tool install "tts-sidecar==0.7.6"
 
-# 1b. Comprobación: el CLI resuelve y reporta 0.7.5.
-tts-sidecar version          # debe imprimir: 0.7.5
+# 1b. Comprobación: el CLI resuelve y reporta 0.7.6.
+tts-sidecar version          # debe imprimir: 0.7.6
 
 # 1c. Aprovisionar el modelo es-mx-latam + Voice Encoder (descarga a la caché
 #     de HuggingFace; idempotente: salta si ya está). Puede tardar minutos.
@@ -385,11 +389,11 @@ Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de relea
 
 1. **Confirmar la versión mínima del motor** declarada en el README
    («Prerequisitos») y en [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos
-   sobre el motor»): debe ser `v0.7.5`, la verificada en la Fase 2.
+   sobre el motor»): debe ser `v0.7.6`, la verificada en la Fase 2.
    ```powershell
    Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
-     -Pattern "v0\.7\.5"
-   # Comprobación: ambos archivos muestran la referencia a v0.7.5.
+     -Pattern "v0\.7\.6"
+   # Comprobación: ambos archivos muestran la referencia a v0.7.6.
    ```
 2. **Bump de versión doble** a `0.1.0` en `package.json` **y**
    `.claude-plugin/plugin.json` (los dos números deben coincidir).
@@ -405,7 +409,7 @@ Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de relea
    ```
 3. **Cortar el changelog**: renombrar `## [Unreleased]` a
    `## [0.1.0] — 2026-07-17` dejando declarada la verificación contra
-   TTS-Sidecar v0.7.5, crear una nueva `## [Unreleased]` vacía encima y
+   TTS-Sidecar v0.7.6, crear una nueva `## [Unreleased]` vacía encima y
    actualizar las referencias de enlaces del pie. Edítalo en
    `$PLUGIN_DEV\CHANGELOG.md`.
 4. **Regenerar y verificar `dist/`**, y commitearlo junto con el bump:
@@ -424,12 +428,12 @@ Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de relea
    (`docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md`, del lado del
    motor; README y `docs/INTEGRATION.md` del lado del plugin):
    ```powershell
-   # Lado del plugin: las cuatro referencias apuntan a v0.7.5 / sin contradicción.
+   # Lado del plugin: las cuatro referencias apuntan a v0.7.6 / sin contradicción.
    Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
-     -Pattern "v0\.7\.5"
+     -Pattern "v0\.7\.6"
    # Lado del motor (si el repo del motor está clonado en $ENGINE_ROOT):
    #   Get-Content "$ENGINE_ROOT\docs\NARRATION-INTEGRATION.md" -Tail 40
-   # Comprobación: ninguna referencia contradice el tag v0.7.5.
+   # Comprobación: ninguna referencia contradice el tag v0.7.6.
    ```
 6. **Commit, tag y push** — punto de no retorno, a partir del cual el
    marketplace resuelve exactamente ese estado:
