@@ -30,77 +30,26 @@ El plugin es un cliente delgado que corre dentro de la sesión de Claude Code de
 
 ### Qué se persiste, dónde y con qué permisos
 
-- El único estado sensible es `config.json` en el *state dir* por SO
-  (`%LOCALAPPDATA%\tts-sidecar-narrator` en Windows,
-  `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator` en Linux,
-  `~/Library/Application Support/tts-sidecar-narrator` en macOS). Puede
-  contener las API keys de Gemini/OpenRouter si el usuario opta por el modo
-  `llm` vía archivo (las variables de entorno `GEMINI_API_KEY` /
-  `OPENROUTER_API_KEY` tienen precedencia y evitan persistir la clave).
-- En POSIX el archivo se escribe con permisos **`0600`** (solo el dueño lee y
-  escribe).
-- **En Windows, `0600` es un no-op**: el modo de archivo no existe en NTFS y
-  Node lo ignora. La protección real son las **ACL por defecto del perfil de
-  usuario** sobre `%LOCALAPPDATA%`: otras cuentas locales sin privilegios
-  elevados no pueden leer ese directorio. Es el mismo nivel de protección que
-  tienen las credenciales de la mayoría de las herramientas de escritorio en
-  Windows; si tu máquina comparte la misma cuenta de Windows entre varias
-  personas, esa frontera no existe — usa variables de entorno de sesión o el
-  modo `local`.
-- El resto del state dir (`worker.pid`, `payload.json`, `worker.log`) contiene
-  metadatos operativos y extractos del último payload de hook; vive bajo el
-  mismo directorio y las mismas protecciones.
+- El único estado sensible es `config.json` en el *state dir* por SO (`%LOCALAPPDATA%\tts-sidecar-narrator` en Windows, `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator` en Linux, `~/Library/Application Support/tts-sidecar-narrator` en macOS). Puede contener las API keys de Gemini/OpenRouter si el usuario opta por el modo `llm` vía archivo (las variables de entorno `GEMINI_API_KEY` / `OPENROUTER_API_KEY` tienen precedencia y evitan persistir la clave).
+- En POSIX el archivo se escribe con permisos **`0600`** (solo el dueño lee y escribe).
+- **En Windows, `0600` es un no-op**: el modo de archivo no existe en NTFS y Node lo ignora. La protección real son las **ACL por defecto del perfil de usuario** sobre `%LOCALAPPDATA%`: otras cuentas locales sin privilegios elevados no pueden leer ese directorio. Es el mismo nivel de protección que tienen las credenciales de la mayoría de las herramientas de escritorio en Windows; si tu máquina comparte la misma cuenta de Windows entre varias personas, esa frontera no existe — usa variables de entorno de sesión o el modo `local`.
+- El resto del state dir (`worker.pid`, `payload.json`, `worker.log`) contiene metadatos operativos y extractos del último payload de hook; vive bajo el mismo directorio y las mismas protecciones.
 
 ### Qué sale hacia terceros y bajo qué opt-in
 
-- En modo `llm` — **que solo se activa si el usuario configura una clave**, es
-  un opt-in explícito — se envía contenido de la sesión (último mensaje del
-  asistente y un extracto del transcript) a la API de Gemini (Google) o de
-  OpenRouter para redactar la locución. El texto pasa antes por
-  `src/message/sanitize.ts`, que elimina bloques de código (y su contenido),
-  código en línea, URLs y markdown; aún así, la prosa de la sesión sí viaja al
-  proveedor. Trata el modo `llm` como lo que es: compartir el resumen de tu
-  sesión con un tercero.
-- El evento `Notification` **nunca** usa el modo `llm`: aunque el usuario tenga
-  `mode llm` y una clave configurada, su locución se construye siempre de forma
-  local (`buildNotice` en `src/message/local-builder.ts`) y no se envía a ningún
-  proveedor. Es una barrera estructural de privacidad, no una omisión: las
-  notificaciones suelen dispararse en contextos sensibles (peticiones de permiso,
-  alertas) y su texto ya viene redactado por Claude Code, así que no hay valor en
-  parafrasearlo y sí riesgo en enviarlo a un tercero. En consecuencia, en modo
-  `llm` el único evento que queda garantizado 100 % local es `Notification` (los
-  demás resumen su prosa del asistente vía la cadena LLM salvo que no haya clave).
-- En modo `local` (el comportamiento sin claves) **nada sale a la red**: el
-  mensaje se construye de forma determinista y se sintetiza con el motor
-  TTS-Sidecar, que es 100 % offline.
-- Las claves viajan **solo en headers** (`x-goog-api-key` /
-  `Authorization: Bearer`), nunca en URLs (que suelen quedar en logs), y las
-  peticiones van únicamente a los endpoints oficiales de cada proveedor. Esto
-  está fijado por tests de contrato (`tests/providers.test.ts`).
+- En modo `llm` — **que solo se activa si el usuario configura una clave**, es un opt-in explícito — se envía contenido de la sesión (último mensaje del asistente y un extracto del transcript) a la API de Gemini (Google) o de OpenRouter para redactar la locución. El texto pasa antes por `src/message/sanitize.ts`, que elimina bloques de código (y su contenido), código en línea, URLs y markdown; aún así, la prosa de la sesión sí viaja al proveedor. Trata el modo `llm` como lo que es: compartir el resumen de tu sesión con un tercero.
+- El evento `Notification` **nunca** usa el modo `llm`: aunque el usuario tenga `mode llm` y una clave configurada, su locución se construye siempre de forma local (`buildNotice` en `src/message/local-builder.ts`) y no se envía a ningún proveedor. Es una barrera estructural de privacidad, no una omisión: las notificaciones suelen dispararse en contextos sensibles (peticiones de permiso, alertas) y su texto ya viene redactado por Claude Code, así que no hay valor en parafrasearlo y sí riesgo en enviarlo a un tercero. En consecuencia, en modo `llm` el único evento que queda garantizado 100 % local es `Notification` (los demás resumen su prosa del asistente vía la cadena LLM salvo que no haya clave).
+- En modo `local` (el comportamiento sin claves) **nada sale a la red**: el mensaje se construye de forma determinista y se sintetiza con el motor TTS-Sidecar, que es 100 % offline.
+- Las claves viajan **solo en headers** (`x-goog-api-key` / `Authorization: Bearer`), nunca en URLs (que suelen quedar en logs), y las peticiones van únicamente a los endpoints oficiales de cada proveedor. Esto está fijado por tests de contrato (`tests/providers.test.ts`).
 
 ### Qué no hace el plugin
 
-- **No pide ni maneja claves dentro del chat**: ni la skill ni el comando de
-  instalación piden la clave en la conversación (evita que quede en el
-  transcript); ambos guían al usuario a la variable de entorno o a editar el
-  archivo directamente.
-- **No imprime el valor de una clave**: `narrate-ctl status` reporta solo
-  `configurada`/`ausente`. Esta garantía está fijada por contrato en
-  `tests/narrate-ctl.test.ts`.
+- **No pide ni maneja claves dentro del chat**: ni la skill ni el comando de instalación piden la clave en la conversación (evita que quede en el transcript); ambos guían al usuario a la variable de entorno o a editar el archivo directamente.
+- **No imprime el valor de una clave**: `narrate-ctl status` reporta solo `configurada`/`ausente`. Esta garantía está fijada por contrato en `tests/narrate-ctl.test.ts`.
 - **No manda nada a la red en modo `local`**, ni telemetría en ningún modo.
-- **No ejecuta contenido de la sesión**: el payload de los hooks se parsea de
-  forma tolerante (`src/lib/hook-payload.ts`) y su texto solo se usa como
-  entrada de saneamiento; el único proceso que el plugin lanza es el
-  ejecutable `tts-sidecar` resuelto del `PATH`, con argumentos fijos.
+- **No ejecuta contenido de la sesión**: el payload de los hooks se parsea de forma tolerante (`src/lib/hook-payload.ts`) y su texto solo se usa como entrada de saneamiento; el único proceso que el plugin lanza es el ejecutable `tts-sidecar` resuelto del `PATH`, con argumentos fijos.
 
 ### Cadena de suministro
 
-- El plugin se distribuye clonando el repo con `dist/` **commiteado**; lo que
-  ejecutas es el JS del árbol de git. El CI verifica en cada push que `dist/`
-  es exactamente la compilación de `src/` (`npm run check-dist`), de modo que
-  el fuente publicado y el artefacto ejecutado no puedan divergir sin que el
-  pipeline falle.
-- No hay **ninguna dependencia de runtime**: los bundles solo usan la stdlib
-  de Node y `fetch` nativo. Las dependencias de desarrollo (typescript,
-  esbuild, @types/node) van fijadas por `package-lock.json` y no se instalan
-  en la máquina del usuario final.
+- El plugin se distribuye clonando el repo con `dist/` **commiteado**; lo que ejecutas es el JS del árbol de git. El CI verifica en cada push que `dist/` es exactamente la compilación de `src/` (`npm run check-dist`), de modo que el fuente publicado y el artefacto ejecutado no puedan divergir sin que el pipeline falle.
+- No hay **ninguna dependencia de runtime**: los bundles solo usan la stdlib de Node y `fetch` nativo. Las dependencias de desarrollo (typescript, esbuild, @types/node) van fijadas por `package-lock.json` y no se instalan en la máquina del usuario final.
