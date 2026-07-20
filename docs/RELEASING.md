@@ -303,13 +303,7 @@ narrate-ctl say "Prueba de audio local"   # emite una locución
 
 #### Paso 5 — Verificación completa por superficie del contrato (audible)
 
-Cada ítem deja el entorno en la condición indicada, dispara la narración y
-**escucha** el resultado. El plugin registra **cinco hooks de narración** (todos
-vía `dist/narrate-hook.js`, ver `hooks/hooks.json`): `UserPromptSubmit`, `Stop`,
-`SubagentStop`, `StopFailure` y `Notification`. El smoke test debe ejercitar
-**cada uno** en ambos modos (`local` y `llm`): una superficie no probada puede
-liberarse con un bug no detectado. Para cada ítem se abre Claude Code con el
-plugin cargado desde el clon limpio:
+Cada ítem deja el entorno en la condición indicada, dispara la narración y **escucha** el resultado. El plugin registra **cinco hooks de narración** (todos vía `dist/narrate-hook.js`, ver `hooks/hooks.json`): `UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`. El smoke test debe ejercitar **cada uno** en ambos modos (`local` y `llm`): una superficie no probada puede liberarse con un bug no detectado. Para cada ítem se abre Claude Code con el plugin cargado desde el clon limpio:
 
 ```powershell
 # Lanzar Claude Code con el plugin del clon limpio (lo ejecutas por ítem,
@@ -318,17 +312,13 @@ claude --plugin-dir $PLUGIN_E2E
 ```
 
 - **(A) Las cinco superficies de narración en modo `local` (sin claves):**
-  1. En la sesión de PowerShell previa a `claude` (sin definir claves), fija el
-     modo y confirma:
+  1. En la sesión de PowerShell previa a `claude` (sin definir claves), fija el modo y confirma:
      ```powershell
      narrate-ctl mode local
      narrate-ctl status        # enabled: true, messageMode: local
      ```
      Si el daemon no está `running`: `tts-sidecar daemon start`.
-  2. En la sesión de Claude, dispara **cada una** de las cinco superficies y
-     confirma **por audible** que suena una locución corta en español, con el
-     texto **limpio** (sin markdown, sin bloques de código ni URLs — los elimina
-     `sanitize`), reproducido casi textualmente, no una paráfrasis:
+  2. En la sesión de Claude, dispara **cada una** de las cinco superficies y confirma **por audible** que suena una locución corta en español, con el texto **limpio** (sin markdown, sin bloques de código ni URLs — los elimina `sanitize`), reproducido casi textualmente, no una paráfrasis:
      - **`UserPromptSubmit`**: envía un prompt simple (p. ej. "¿qué hora es?");
        escuchas tu entrada narrada.
      - **`Stop`**: el asistente termina su turno; escuchas la respuesta narrada.
@@ -344,10 +334,7 @@ claude --plugin-dir $PLUGIN_E2E
      es confirmar que **cada hook** dispara por su cuenta.
 
 - **(B) Las superficies clave en modo `llm` (con clave de proveedor):**
-  1. Define la clave **en el entorno de la sesión de PowerShell** (tiene
-     precedencia sobre `config.json` y evita escribirla en el chat); o edítala
-     en `config.json` del state dir. **Sin clave, `llm` degrada a `local`**, así
-     que la clave es obligatoria para este ítem.
+  1. Define la clave **en el entorno de la sesión de PowerShell** (tiene precedencia sobre `config.json` y evita escribirla en el chat); o edítala en `config.json` del state dir. **Sin clave, `llm` degrada a `local`**, así que la clave es obligatoria para este ítem.
      ```powershell
      $env:GEMINI_API_KEY = "<tu-clave-gemini>"        # o $env:OPENROUTER_API_KEY
      ```
@@ -356,17 +343,8 @@ claude --plugin-dir $PLUGIN_E2E
      narrate-ctl mode llm
      narrate-ctl status        # gemini key: configurada  (o openrouter: configurada)
      ```
-  3. Lanza Claude desde esa misma sesión de PowerShell
-     (`claude --plugin-dir $PLUGIN_E2E`) y repite **al menos** `UserPromptSubmit`
-     y `Stop` (y, opcional, `SubagentStop`) terminando turnos normales.
-  4. **Comprobación audible:** la locución suena **parafraseada** (cadena LLM, más
-     elaborada), no el eco limpio del evento. Como `worker.log` no registra qué
-     proveedor corrió, la distinción `local`↔`llm` se confirma **por audible**:
-     si escuchas una paráfrasis, el proveedor se usó; si escuchas el texto casi
-     textual, cayó a `local` (revisa la clave). Verifica `UserPromptSubmit` y
-     `Stop` en `llm`; `SubagentStop`/`StopFailure`/`Notification` ya se cubrieron
-     en limpio en el ítem (A) y comparten el mismo constructor de mensaje, así
-     que la paráfrasis en ellas es redundante salvo sospecha de bug.
+  3. Lanza Claude desde esa misma sesión de PowerShell (`claude --plugin-dir $PLUGIN_E2E`) y repite **al menos** `UserPromptSubmit` y `Stop` (y, opcional, `SubagentStop`) terminando turnos normales.
+  4. **Comprobación audible:** la locución suena **parafraseada** (cadena LLM, más elaborada), no el eco limpio del evento. Como `worker.log` no registra qué proveedor corrió, la distinción `local`↔`llm` se confirma **por audible**: si escuchas una paráfrasis, el proveedor se usó; si escuchas el texto casi textual, cayó a `local` (revisa la clave). Verifica `UserPromptSubmit` y `Stop` en `llm`; `SubagentStop`/`StopFailure`/`Notification` ya se cubrieron en limpio en el ítem (A) y comparten el mismo constructor de mensaje, así que la paráfrasis en ellas es redundante salvo sospecha de bug.
   5. Diagnóstico si no suena o suena como `local`:
      ```powershell
      Get-Content "$STATE_DIR\worker.log" -Tail 30   # solo errores de narración

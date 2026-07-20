@@ -192,26 +192,8 @@ El orden importa: cada bloque habilita al siguiente.
    `CHANGELOG.md` (Keep a Changelog, sección `[Unreleased]` que se corta a
    `[0.1.0]` en el paso 5) y `docs/RELEASING.md` escritos; versión mínima del
    motor declarada en `docs/INTEGRATION.md` y README.
-4. **Sincronización** — el motor ya publicó su release (v0.7.6); falta el
-   smoke test del plugin contra el motor **instalado desde los artefactos
-   publicados**, ejercitando **las cinco superficies de narración** registradas
-   en `hooks/hooks.json` (`UserPromptSubmit`, `Stop`, `SubagentStop`,
-   `StopFailure` y `Notification`) en modo `local` y `llm`; referencias cruzadas
-   de ambos repos verificadas.
-   *Pre-verificado en local (2026-07-15)*: la config de CircleCI valida con
-   `circleci config validate`; las referencias cruzadas del motor
-   (`docs/NARRATION-INTEGRATION.md`, `docs/CLAUDE-CODE-PLUGIN.md`, ambos del
-   repo del motor) apuntan
-   correctamente a este repo; y la porción automatizable del smoke test pasa
-   contra el motor v0.7.2 instalado localmente (`health-check` con payload
-   real de `SessionStart` avisa del modelo faltante con exit 0 sin bloquear;
-   `narrate-ctl status` reporta sin exponer claves). Desde entonces el motor
-   avanzó a `v0.7.5` (correcciones de empaquetado, sin cambios de contrato) y
-   luego a `v0.7.6` (corrige la ventana de consola del daemon en Windows), que es
-   la versión mínima ahora declarada; queda lo que exige el release
-   publicado del motor: narración audible de **las cinco superficies**
-   (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure`, `Notification`) en
-   modo `local` y `llm` contra los artefactos publicados de `v0.7.6`.
+4. **Sincronización** — el motor ya publicó su release (v0.7.6); falta el smoke test del plugin contra el motor **instalado desde los artefactos publicados**, ejercitando **las cinco superficies de narración** registradas en `hooks/hooks.json` (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) en modo `local` y `llm`; referencias cruzadas de ambos repos verificadas.
+   *Pre-verificado en local (2026-07-15)*: la config de CircleCI valida con `circleci config validate`; las referencias cruzadas del motor (`docs/NARRATION-INTEGRATION.md`, `docs/CLAUDE-CODE-PLUGIN.md`, ambos del repo del motor) apuntan correctamente a este repo; y la porción automatizable del smoke test pasa contra el motor v0.7.2 instalado localmente (`health-check` con payload real de `SessionStart` avisa del modelo faltante con exit 0 sin bloquear; `narrate-ctl status` reporta sin exponer claves). Desde entonces el motor avanzó a `v0.7.5` (correcciones de empaquetado, sin cambios de contrato) y luego a `v0.7.6` (corrige la ventana de consola del daemon en Windows), que es la versión mínima ahora declarada; queda lo que exige el release publicado del motor: narración audible de **las cinco superficies** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure`, `Notification`) en modo `local` y `llm` contra los artefactos publicados de `v0.7.6`.
 5. **Corte** — bump `0.1.0` confirmado en `package.json` **y**
    `.claude-plugin/plugin.json`, `dist/` regenerado y `check-dist` en verde,
    tag `v0.1.0`, push del tag.
