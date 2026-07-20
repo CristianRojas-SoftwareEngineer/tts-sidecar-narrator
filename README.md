@@ -72,6 +72,8 @@ claude --plugin-dir .
 
 ## Configuración
 
+### Ruta del estado
+
 El estado vive en `config.json` dentro del *state dir* por SO:
 
 | SO | Ruta |
@@ -80,22 +82,29 @@ El estado vive en `config.json` dentro del *state dir* por SO:
 | Linux | `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator/config.json` |
 | macOS | `~/Library/Application Support/tts-sidecar-narrator/config.json` |
 
+### Claves de API (modo `llm`)
+
+La **ruta recomendada** para proveer las claves es la **variable de entorno**, que tiene precedencia sobre el archivo y evita persistir la credencial en disco:
+
+- `GEMINI_API_KEY` (Gemini free tier, principal)
+- `OPENROUTER_API_KEY` (modelos `:free`, fallback)
+
+Si prefieres persistencia en archivo —por ejemplo, cuando Claude Code se lanza desde un GUI y no hereda el entorno de tu shell— puedes añadir `"geminiApiKey"` y/o `"openRouterApiKey"` a `config.json`. Sin claves, el modo `llm` degrada a `local` de facto.
+
+### Preferencias (`config.json`)
+
 ```json
 {
   "enabled": true,
-  "messageMode": "llm",
-  "geminiApiKey": "…",
-  "openRouterApiKey": "…"
+  "messageMode": "llm"
 }
 ```
 
 - `enabled`: interruptor global de la narración.
 - `messageMode`: `"llm"` (cadena completa) o `"local"` (solo constructor
   determinista, sin red). Sin ninguna key, `"llm"` degrada a `"local"` de facto.
-- Las variables de entorno `GEMINI_API_KEY` y `OPENROUTER_API_KEY` **tienen
-  precedencia** sobre el archivo.
 
-El archivo se crea con permisos restrictivos (0600 en POSIX) por contener credenciales. La skill opcional (`/tts-sidecar-narrator:narrate`) guía la configuración y expone los toggles.
+El archivo se crea con permisos restrictivos donde el SO lo soporta: `0600` en POSIX. En Windows ese bit es un no-op y la protección recae en las ACL del perfil sobre `%LOCALAPPDATA%`; el modelo de amenaza completo (qué se persiste, dónde y con qué permisos en cada SO) está en [SECURITY.md](SECURITY.md). La skill opcional (`/tts-sidecar-narrator:narrate`) guía la configuración y expone los toggles.
 
 ## Privacidad
 
@@ -116,8 +125,7 @@ npm run check-dist # verifica que dist/ está sincronizado con src/
 npm test          # suite de tests (node --test, sin framework externo)
 ```
 
-`dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS
-compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
+`dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
 
 El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`, `check-dist` y la suite de tests en Linux, Windows y macOS en cada push — el mismo proveedor y nomenclatura de jobs que usa el motor.
 

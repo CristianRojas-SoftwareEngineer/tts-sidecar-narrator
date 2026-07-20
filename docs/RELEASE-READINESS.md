@@ -18,16 +18,7 @@ Es el registro vivo del estado de preparación (el análogo, a escala de plugin,
 
 ## Qué significa «equiparable»
 
-TTS-Sidecar tiene 572 tests pytest, CI multiplataforma con publicación
-automática y una docena de documentos en `docs/`. **Equiparable no significa
-igualar esos números ni replicar sus documentos**: el motor empaqueta binarios
-PyInstaller para 4 plataformas, publica a PyPI y mantiene instaladores por SO;
-el plugin es un cliente delgado de ~17 módulos TypeScript que se distribuye
-clonando el repo. Equiparable se mide contra la superficie **propia** de cada
-proyecto, en dos dimensiones: **cobertura** (de tests y de documentación sobre
-lo que el plugin realmente hace y arriesga) y **completitud para su primer
-release** (que no falte ninguna de las categorías que hacen a un proyecto
-publicable). En concreto:
+TTS-Sidecar tiene 572 tests pytest, CI multiplataforma con publicación automática y una docena de documentos en `docs/`. **Equiparable no significa igualar esos números ni replicar sus documentos**: el motor empaqueta binarios PyInstaller para 4 plataformas, publica a PyPI y mantiene instaladores por SO; el plugin es un cliente delgado de ~17 módulos TypeScript que se distribuye clonando el repo. Equiparable se mide contra la superficie **propia** de cada proyecto, en dos dimensiones: **cobertura** (de tests y de documentación sobre lo que el plugin realmente hace y arriesga) y **completitud para su primer release** (que no falte ninguna de las categorías que hacen a un proyecto publicable). En concreto:
 
 - **Testing**: cada módulo con lógica no trivial (saneamiento, fallback de
   providers, precedencia de configuración, resolución multiplataforma) tiene
@@ -60,18 +51,13 @@ Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**
 
 ## Testing
 
-**Estado: implementado** — suite de 95 tests en `tests/` (`npm test`), que
-cubre la tabla de priorización completa de abajo. Las ramas por SO de
-`state-dir.ts`/`resolve-cli.ts` se ejercitan en cualquier máquina falsificando
-`process.platform` (además de correr sobre los tres SO reales en CI). El
-razonamiento original de la brecha se conserva a continuación.
+**Estado: implementado** — suite de 95 tests en `tests/` (`npm test`), que cubre la tabla de priorización completa de abajo. Las ramas por SO de `state-dir.ts`/`resolve-cli.ts` se ejercitan en cualquier máquina falsificando `process.platform` (además de correr sobre los tres SO reales en CI). El razonamiento original de la brecha se conserva a continuación.
 
 Para un plugin que orquesta hooks, un worker desacoplado y una cadena de providers LLM externos, el riesgo de una regresión silenciosa es real: un cambio en `provider-chain.ts` o `sanitize.ts` podría filtrar contenido no saneado a un tercero, o romper el fallback Gemini → OpenRouter → local sin que nada lo detecte hasta producción.
 
 **Decisión de framework**: el corredor nativo de Node (`node --test`), sin dependencia nueva. Está alineado con el principio del plugin de no exigir runtime extra (README, «Sin prerequisitos de runtime»), el proyecto ya compila con `esbuild` y los tests pueden correr sobre el output compilado o vía `tsx`/compilación previa sin agregar un framework. Vitest/Jest quedan descartados salvo que el volumen de tests haga que su DX pague la dependencia.
 
-Priorización, de mayor a menor retorno por esfuerzo (lo puro y determinista
-primero; lo que requiere mocks de red o de sistema de archivos después):
+Priorización, de mayor a menor retorno por esfuerzo (lo puro y determinista primero; lo que requiere mocks de red o de sistema de archivos después):
 
 | Módulo | Qué testear | Por qué es prioritario |
 |--------|-------------|-------------------------|
@@ -91,8 +77,7 @@ Los módulos que quedan fuera a propósito: `narrate-hook.ts`, `narrate-worker.t
 
 **Estado: implementado** — pipeline en [`.circleci/config.yml`](../.circleci/config.yml) según la recomendación de abajo, con Node fijado por pipeline parameter y la imagen/instaladores pineados (digest de `cimg/node`, Chocolatey, tarball oficial con SHA-256) siguiendo la política de pins del motor. El razonamiento original de la brecha se conserva a continuación.
 
-Antes no existía ningún workflow: `typecheck`, `build` y `check-dist` eran
-responsabilidad manual del autor antes de cada commit.
+Antes no existía ningún workflow: `typecheck`, `build` y `check-dist` eran responsabilidad manual del autor antes de cada commit.
 
 **Por qué el CI es necesario aquí y no solo deseable**: el plugin se distribuye con `dist/` commiteado — el artefacto que ejecutan los usuarios es el que está en git, no el que produce un build local. Eso crea un modo de fallo silencioso que no existe en proyectos que publican a un registry: editar `src/`, olvidar `npm run build`, commitear, y todos los usuarios ejecutan código viejo mientras el fuente dice otra cosa. `check-dist` detecta exactamente eso, pero el paso que se olvida (correr el build) es el mismo que se olvidaría al correr el check. Un guard manual no protege contra el olvido que lo motiva; uno automático sí.
 
@@ -246,4 +231,4 @@ Resumen del diseño (`src/lib/config.ts`, `src/lib/state-dir.ts`):
 - `narrate-ctl.js status` nunca imprime el valor de la clave, solo si está
   configurada.
 
-Brecha identificada (no es una vulnerabilidad, es una omisión de documentación): el `0600` es **no-op en Windows** (el comentario en el código ya lo advierte), y ni el README ni ningún doc explican qué protege realmente al usuario de Windows en ese caso — en la práctica, las ACL por defecto del perfil de usuario sobre `%LOCALAPPDATA%` (no accesible a otras cuentas locales sin privilegios elevados), pero eso hoy es tribal knowledge en un comentario de código, no algo que el usuario pueda leer. La resolución de esta brecha queda absorbida por el `SECURITY.md` de la sección [Documentación](#documentación): una frase explícita en su modelo de amenaza, y opcionalmente una advertencia en el `status` o en el README de que en Windows la protección depende de las ACL del perfil, no de un permiso de archivo explícito.
+Brecha identificada y **resuelta**: el `0600` es **no-op en Windows** (el comentario en el código ya lo advertía) y ningún doc explicaba qué protege realmente al usuario de Windows. La resolución quedó absorbida por el `SECURITY.md` de la sección [Documentación](#documentación): su modelo de amenaza declara explícitamente que en Windows la protección depende de las ACL del perfil sobre `%LOCALAPPDATA%`, no de un permiso de archivo explícito; el `README` ([Configuración](#configuración)) hace handoff a ese modelo de amenaza para el detalle de permisos por SO. No quedan acciones pendientes en esta brecha.

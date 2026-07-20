@@ -53,7 +53,8 @@ export function loadConfig(): Config {
 
 /**
  * Mezcla cambios parciales sobre la config del archivo y persiste con permisos
- * restrictivos (0600 en POSIX; no-op efectivo en Windows). Usado por la skill.
+ * restrictivos (0600 en POSIX; no-op efectivo en Windows — ver SECURITY.md,
+ * modelo de amenaza). Usado por la skill.
  */
 export function updateConfig(patch: Partial<Config>): Config {
   ensureStateDir();
