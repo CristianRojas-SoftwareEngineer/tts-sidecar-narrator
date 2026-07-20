@@ -127,8 +127,7 @@ Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claud
    hacia Google/OpenRouter. Las claves son del usuario; guíalo a definirlas por
    variable de entorno (tienen precedencia), sin escribirlas en el chat:
    - `GEMINI_API_KEY` (Gemini free tier) y/o `OPENROUTER_API_KEY` (modelos `:free`).
-   - Alternativa: editar `config.json` en el state dir (la ruta la muestra
-     `narrate-ctl.js status`). Sin claves, `llm` degrada a `local` de facto.
+   - Alternativa: editar `config.json` en el state dir (la ruta la muestra `narrate-ctl.js status`). Sin claves, `llm` degrada a `local` de facto. Para que la clave persista entre sesiones, usa `config.json`; la variable de entorno solo vive en la terminal donde se definió.
 
 ## Paso 5 — Verificación de extremo a extremo
 
