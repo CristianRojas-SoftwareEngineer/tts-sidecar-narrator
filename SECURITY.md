@@ -61,6 +61,15 @@ El plugin es un cliente delgado que corre dentro de la sesión de Claude Code de
   código en línea, URLs y markdown; aún así, la prosa de la sesión sí viaja al
   proveedor. Trata el modo `llm` como lo que es: compartir el resumen de tu
   sesión con un tercero.
+- El evento `Notification` **nunca** usa el modo `llm`: aunque el usuario tenga
+  `mode llm` y una clave configurada, su locución se construye siempre de forma
+  local (`buildNotice` en `src/message/local-builder.ts`) y no se envía a ningún
+  proveedor. Es una barrera estructural de privacidad, no una omisión: las
+  notificaciones suelen dispararse en contextos sensibles (peticiones de permiso,
+  alertas) y su texto ya viene redactado por Claude Code, así que no hay valor en
+  parafrasearlo y sí riesgo en enviarlo a un tercero. En consecuencia, en modo
+  `llm` el único evento que queda garantizado 100 % local es `Notification` (los
+  demás resumen su prosa del asistente vía la cadena LLM salvo que no haya clave).
 - En modo `local` (el comportamiento sin claves) **nada sale a la red**: el
   mensaje se construye de forma determinista y se sintetiza con el motor
   TTS-Sidecar, que es 100 % offline.
