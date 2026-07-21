@@ -435,13 +435,37 @@ function log(msg) {
   } catch {
   }
 }
-function takeSingleInstance() {
+var SINGLE_INSTANCE_WAIT_MS = 6e4;
+var POLL_INTERVAL_MS = 1e3;
+var NARRATION_GAP_MS = 1e3;
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+function readOwnerPid() {
   try {
-    const prev = Number.parseInt(readFileSync2(workerPidPath(), "utf8").trim(), 10);
-    if (Number.isInteger(prev) && prev !== process.pid && isAlive(prev)) {
-      killWorkerTree(prev);
-    }
+    return Number.parseInt(readFileSync2(workerPidPath(), "utf8").trim(), 10);
   } catch {
+    return NaN;
+  }
+}
+function takeSingleInstance() {
+  const deadline = Date.now() + SINGLE_INSTANCE_WAIT_MS;
+  while (Date.now() < deadline) {
+    const owner2 = readOwnerPid();
+    if (owner2 === process.pid) return;
+    if (Number.isInteger(owner2) && isAlive(owner2)) {
+      sleepSync(POLL_INTERVAL_MS);
+      continue;
+    }
+    try {
+      writeFileSync2(workerPidPath(), String(process.pid), "utf8");
+    } catch {
+    }
+    sleepSync(POLL_INTERVAL_MS);
+  }
+  const owner = readOwnerPid();
+  if (Number.isInteger(owner) && owner !== process.pid && isAlive(owner)) {
+    killWorkerTree(owner);
   }
   writeFileSync2(workerPidPath(), String(process.pid), "utf8");
 }
@@ -480,6 +504,7 @@ function runSpeak(cliPath, text) {
 async function main() {
   ensureStateDir();
   takeSingleInstance();
+  if (NARRATION_GAP_MS > 0) sleepSync(NARRATION_GAP_MS);
   const cfg = loadConfig();
   if (!cfg.enabled) return;
   const payload = readPayload();

@@ -1,6 +1,4 @@
-// WORKER (proceso independiente del hook). Hace todo el trabajo con latencia:
-// single-instance con interrupción del anterior, construcción del mensaje,
-// narración vía el CLI. Degrada en silencio; los errores van a worker.log.
+// WORKER (proceso independiente del hook). Hace todo el trabajo con latencia: instancia única que ESPERA al worker anterior en vez de interrumpirlo (la narración en curso suena completa antes de la siguiente; sin solapamiento), construcción del mensaje y narración vía el CLI. Degrada en silencio; los errores van a worker.log.
 import { spawn } from "node:child_process";
 import { appendFileSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { loadConfig } from "./lib/config.js";
@@ -23,15 +21,53 @@ function log(msg: string): void {
   }
 }
 
-/** Interrumpe al worker anterior (última narración gana) y registra el propio PID. */
-function takeSingleInstance(): void {
+// Tiempo máximo que un worker espera a que el anterior termine su narración antes de, como último recurso, interrumpirlo (evita espera indefinida si se cuelga). Cubre varias narraciones encadenadas (~20 s cada una).
+const SINGLE_INSTANCE_WAIT_MS = 60_000;
+
+// Intervalo de sondeo mientras hay un dueño vivo: el worker actual duerme y vuelve a comprobar el PID del dueño. 1 s = 1 sondeo/seg, lo bastante frecuente para encadenar sin demora visible y lo bastante espaciado para no burn I/O ni syscalls en un turno con cola larga (25 s ≈ 25 sondeos).
+const POLL_INTERVAL_MS = 1_000;
+
+// Pausa de respiración entre narraciones: cuando el worker anterior termina y este toma la plaza, espera este hueco antes de empezar a construir el texto y narrar. Evita que dos locuciones suenen pegadas y se vuelvan confusas, sobre todo en cadenas (UserPromptSubmit + Stop casi simultáneos).
+const NARRATION_GAP_MS = 1_000;
+
+/** Suspende el hilo actual de forma síncrona (sin event loop). */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** Lee el PID dueño actual de la plaza, o NaN si no hay archivo. */
+function readOwnerPid(): number {
   try {
-    const prev = Number.parseInt(readFileSync(workerPidPath(), "utf8").trim(), 10);
-    if (Number.isInteger(prev) && prev !== process.pid && isAlive(prev)) {
-      killWorkerTree(prev);
-    }
+    return Number.parseInt(readFileSync(workerPidPath(), "utf8").trim(), 10);
   } catch {
-    // Sin worker previo.
+    return NaN;
+  }
+}
+
+/**
+ * Instancia única SIN interrumpir la narración en curso: espera (acotado) a que el worker anterior termine, en vez de matarlo, para que la locución previa suene completa antes de la siguiente y no se solapen. El reclamo de la plaza de PID se hace en bucle: si otro worker la tomó, se espera a él, formando una cadena ordenada y libre de carreras. Si el anterior se cuelga, tras el tope se interrumpe como medida de último recurso.
+ */
+function takeSingleInstance(): void {
+  const deadline = Date.now() + SINGLE_INSTANCE_WAIT_MS;
+  while (Date.now() < deadline) {
+    const owner = readOwnerPid();
+    if (owner === process.pid) return; // soy dueño de la plaza: procedo
+    if (Number.isInteger(owner) && isAlive(owner)) {
+      sleepSync(POLL_INTERVAL_MS); // dueño vivo: espero a que termine su narración
+      continue;
+    }
+    // Plaza libre (sin dueño o dueño muerto): intento reclamarla.
+    try {
+      writeFileSync(workerPidPath(), String(process.pid), "utf8");
+    } catch {
+      // Otro la tomó en paralelo; el bucle reevalúa el dueño.
+    }
+    sleepSync(POLL_INTERVAL_MS);
+  }
+  // Tope de seguridad: si no pude sincronizar, interrumpo a cualquier dueño vivo.
+  const owner = readOwnerPid();
+  if (Number.isInteger(owner) && owner !== process.pid && isAlive(owner)) {
+    killWorkerTree(owner);
   }
   writeFileSync(workerPidPath(), String(process.pid), "utf8");
 }
@@ -76,6 +112,9 @@ function runSpeak(cliPath: string, text: string): Promise<void> {
 async function main(): Promise<void> {
   ensureStateDir();
   takeSingleInstance();
+
+  // Pausa de respiración: asegura un hueco audible entre esta narración y la anterior que acaba de terminar (evita que dos locuciones se encadenen sin pausa y se vuelven confusas). Cuando el worker actual es el único en la plaza, el gap se paga una vez al inicio y no afecta al turno siguiente.
+  if (NARRATION_GAP_MS > 0) sleepSync(NARRATION_GAP_MS);
 
   const cfg = loadConfig();
   if (!cfg.enabled) return;
