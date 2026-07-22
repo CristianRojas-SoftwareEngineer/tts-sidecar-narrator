@@ -18,7 +18,7 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
-Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.6** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
+Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.7** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
 
 ### Añadido
 
