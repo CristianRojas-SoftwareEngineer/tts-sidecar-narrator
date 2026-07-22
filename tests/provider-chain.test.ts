@@ -101,50 +101,75 @@ test("runChain recorta espacios del texto devuelto", async () => {
 
 // --- buildUserContent (mapeo de roles §3.3) ---
 
-test("buildUserContent conserva user/assitant y aplana system a user con prefijo", () => {
-  const out = buildUserContent([
-    { role: "system", content: "regla" },
-    { role: "user", content: "hola" },
-    { role: "assistant", content: "hola" },
-  ]);
+test("buildUserContent conserva user/assistant y aplana system a user con prefijo en modo summary", () => {
+  const out = buildUserContent({
+    mode: "summary",
+    text: "",
+    messages: [
+      { role: "system", content: "regla" },
+      { role: "user", content: "hola" },
+      { role: "assistant", content: "hola" },
+    ],
+  });
   assert.deepEqual(out, [
     { role: "user", content: "[Sistema]: regla" },
     { role: "user", content: "hola" },
     { role: "assistant", content: "hola" },
-    { role: "user", content: "¿Qué pasó en este turno?" },
+    {
+      role: "user",
+      content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+    },
   ]);
 });
 
-test("buildUserContent anexa ¿Qué pasó en este turno? si el último no es user", () => {
-  const out = buildUserContent([
-    { role: "user", content: "hola" },
-    { role: "assistant", content: "respuesta" },
-  ]);
+test("buildUserContent anexa input.text como assistant en modo summary si no está al final", () => {
+  const out = buildUserContent({
+    mode: "summary",
+    text: "respuesta actual",
+    messages: [{ role: "user", content: "hola" }],
+  });
   assert.deepEqual(out, [
     { role: "user", content: "hola" },
-    { role: "assistant", content: "respuesta" },
-    { role: "user", content: "¿Qué pasó en este turno?" },
+    { role: "assistant", content: "respuesta actual" },
+    {
+      role: "user",
+      content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+    },
   ]);
 });
 
-test("buildUserContent no anexa nada si el último ya es user", () => {
-  const out = buildUserContent([
-    { role: "assistant", content: "respuesta" },
-    { role: "user", content: "hola" },
+test("buildUserContent en modo prompt anexa input.text como user si no está al final", () => {
+  const out = buildUserContent({
+    mode: "prompt",
+    text: "nueva petición",
+    messages: [
+      { role: "user", content: "petición previa" },
+      { role: "assistant", content: "respuesta previa" },
+    ],
+  });
+  assert.deepEqual(out, [
+    { role: "user", content: "petición previa" },
+    { role: "assistant", content: "respuesta previa" },
+    { role: "user", content: "nueva petición" },
   ]);
-  assert.equal(out.length, 2);
-  assert.equal(out[out.length - 1].role, "user");
 });
 
 test("buildUserContent filtra mensajes vacíos", () => {
-  const out = buildUserContent([
-    { role: "user", content: "  " },
-    { role: "user", content: "útil" },
-    { role: "assistant", content: "" },
-  ]);
+  const out = buildUserContent({
+    mode: "summary",
+    text: "",
+    messages: [
+      { role: "user", content: "  " },
+      { role: "user", content: "útil" },
+      { role: "assistant", content: "" },
+    ],
+  });
   assert.deepEqual(out, [{ role: "user", content: "útil" }]);
 });
 
-test("buildUserContent con lista vacía devuelve []", () => {
-  assert.deepEqual(buildUserContent([]), []);
+test("buildUserContent con lista vacía y sin texto devuelve []", () => {
+  assert.deepEqual(
+    buildUserContent({ mode: "summary", text: "", messages: [] }),
+    [],
+  );
 });

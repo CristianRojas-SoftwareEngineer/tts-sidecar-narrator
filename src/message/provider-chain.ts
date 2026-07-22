@@ -48,24 +48,47 @@ export async function runChain(
 }
 
 /**
- * Mapea la lista de mensajes a la estructura que reciben los providers,
- * preservando los roles (§3.3 del plan de migración). Reglas:
- * - `system` se aplana a `user` con prefijo `[Sistema]: ` (ni Gemini `contents`
- *   ni Anthropic `messages` aceptan rol `system` dentro del array; el prefijo
- *   conserva el significado, igual que en el Orchestrator).
- * - `assistant`/`user` se conservan tal cual.
- * - Si el último mensaje no es `user`, se anexa `¿Qué pasó en este turno?`.
+ * Mapea y prepara la lista de mensajes final para los proveedores LLM,
+ * incorporando el texto primario del input y el historial del transcript,
+ * preservando los roles y aplicando las reglas del modo (summary vs prompt).
  */
-export function buildUserContent(messages: SessionMessage[]): SessionMessage[] {
-  const out: SessionMessage[] = messages
-    .filter((m) => m.content && m.content.trim().length > 0)
+export function buildUserContent(input: GenerationInput): SessionMessage[] {
+  const { mode, text, messages } = input;
+  const trimmedText = (text ?? "").trim();
+
+  const history: SessionMessage[] = (messages ?? [])
+    .filter((m) => m && m.content && m.content.trim().length > 0)
     .map((m) =>
       m.role === "system"
-        ? { role: "user", content: `[Sistema]: ${m.content}` }
-        : m,
+        ? { role: "user", content: `[Sistema]: ${m.content.trim()}` }
+        : { role: m.role, content: m.content.trim() },
     );
-  if (out.length > 0 && out[out.length - 1].role !== "user") {
-    out.push({ role: "user", content: "¿Qué pasó en este turno?" });
+
+  if (mode === "summary") {
+    if (trimmedText) {
+      const last = history.length > 0 ? history[history.length - 1] : undefined;
+      if (!last || last.role !== "assistant" || last.content !== trimmedText) {
+        history.push({ role: "assistant", content: trimmedText });
+      }
+    }
+    if (history.length > 0 && history[history.length - 1].role !== "user") {
+      history.push({
+        role: "user",
+        content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+      });
+    }
+    return history;
   }
-  return out;
+
+  if (mode === "prompt") {
+    if (trimmedText) {
+      const last = history.length > 0 ? history[history.length - 1] : undefined;
+      if (!last || last.role !== "user" || last.content !== trimmedText) {
+        history.push({ role: "user", content: trimmedText });
+      }
+    }
+    return history;
+  }
+
+  return history;
 }

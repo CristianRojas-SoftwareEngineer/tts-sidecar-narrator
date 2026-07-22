@@ -27,7 +27,10 @@ export class OpenRouterProvider implements TextProvider {
   async generate(input: GenerationInput): Promise<string> {
     if (!this.apiKey) throw new Error("OpenRouter: sin API key");
 
-    const messages = buildUserContent(input.messages);
+    const messages = buildUserContent(input);
+    if (messages.length === 0) {
+      throw new Error("OpenRouter: sin contenido para generar");
+    }
     const body = {
       model: MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,

@@ -62,9 +62,17 @@ test("Gemini: serializa messages con rol model para assistant", async () => {
   assert.deepEqual(body.contents, [
     { role: "user", parts: [{ text: "Hola" }] },
     { role: "model", parts: [{ text: "Hola, ¿en qué ayudo?" }] },
-    { role: "user", parts: [{ text: "¿Qué pasó en este turno?" }] },
+    { role: "model", parts: [{ text: "Terminé la tarea." }] },
+    {
+      role: "user",
+      parts: [
+        {
+          text: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+        },
+      ],
+    },
   ]);
-  assert.ok(body.systemInstruction.parts[0].text.includes("continuidad"));
+  assert.ok(body.systemInstruction.parts[0].text.includes("primera persona"));
 });
 
 test("Gemini: extrae y une el texto de las parts de la respuesta", async () => {

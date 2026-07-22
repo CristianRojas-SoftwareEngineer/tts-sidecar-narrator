@@ -9,16 +9,14 @@ import {
   systemPromptFor,
 } from "../src/message/prompts.js";
 
-test("SUMMARY_SYSTEM_PROMPT no prohibe rutas, archivos ni comandos", () => {
-  assert.ok(!SUMMARY_SYSTEM_PROMPT.includes("rutas"));
-  assert.ok(!SUMMARY_SYSTEM_PROMPT.includes("archivos"));
-  assert.ok(!SUMMARY_SYSTEM_PROMPT.includes("comandos"));
+test("SUMMARY_SYSTEM_PROMPT exige precisión técnica y primera persona", () => {
+  assert.ok(SUMMARY_SYSTEM_PROMPT.includes("precisión técnica"));
   assert.ok(SUMMARY_SYSTEM_PROMPT.includes("primera persona"));
 });
 
-test("PROMPT_SYSTEM_PROMPT describe la tríada de tres mensajes", () => {
-  assert.ok(PROMPT_SYSTEM_PROMPT.includes("tres mensajes"));
-  assert.ok(PROMPT_SYSTEM_PROMPT.toLowerCase().includes("petición"));
+test("PROMPT_SYSTEM_PROMPT instruye responder a la última intervención del usuario", () => {
+  assert.ok(!PROMPT_SYSTEM_PROMPT.includes("tres mensajes"));
+  assert.ok(PROMPT_SYSTEM_PROMPT.includes("última intervención del usuario"));
 });
 
 test("systemPromptFor mapea modo → prompt", () => {

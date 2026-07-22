@@ -29,11 +29,16 @@ export class GeminiProvider implements TextProvider {
   async generate(input: GenerationInput): Promise<string> {
     if (!this.apiKey) throw new Error("Gemini: sin API key");
 
+    const messages = buildUserContent(input);
+    if (messages.length === 0) {
+      throw new Error("Gemini: sin contenido para generar");
+    }
+
     const body = {
       systemInstruction: {
         parts: [{ text: systemPromptFor(input.mode) }],
       },
-      contents: buildUserContent(input.messages).map((m) => ({
+      contents: messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
       })),

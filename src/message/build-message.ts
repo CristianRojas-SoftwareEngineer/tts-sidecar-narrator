@@ -17,7 +17,7 @@ import { OpenRouterProvider } from "./openrouter-provider.js";
 import { buildLocalSummary, buildNotice, staticForEvent } from "./local-builder.js";
 import { sanitizeForSpeech } from "./sanitize.js";
 
-const TRANSCRIPT_TAIL_MESSAGES = 3;
+const TRANSCRIPT_TAIL_MESSAGES = 10;
 const TRANSCRIPT_TAIL_BYTES = 256 * 1024;
 
 /** Punto de entrada del subsistema. Devuelve el texto listo para `speak`. */
@@ -65,32 +65,22 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
 
 /**
  * Mensaje para UserPromptSubmit: responde al prompt actual como asistente de voz.
- * Construye la tríada curada del Orchestrator (§5.3): petición previa del usuario,
- * última respuesta del asistente y petición actual (esta última, fiable, del
- * payload). Usa LLM si está disponible; de lo contrario fallback local o estático.
+ * Pasa el prompt actual en `text` y el historial en `messages`.
+ * Usa LLM si está disponible; de lo contrario fallback local o estático.
  */
 async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<string> {
-  // Tríada: prompt actual del payload (fiable) enriquecido con el hilo previo.
   const transcript = readTranscriptMessages(payload.transcript_path);
-  const prevUser = lastOfRole(transcript, "user");
-  const lastAssistant = lastOfRole(transcript, "assistant");
   const currentPrompt =
     (payload.prompt ?? "").trim() ||
     (transcript.length ? transcript[transcript.length - 1].content : "");
 
-  const messages: SessionMessage[] = [];
-  if (prevUser) messages.push({ role: "user", content: prevUser });
-  if (lastAssistant) messages.push({ role: "assistant", content: lastAssistant });
-  messages.push({ role: "user", content: currentPrompt });
-
-  // En modo LLM, generar respuesta breve a la tríada.
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
     if (providers.length > 0) {
       const input: GenerationInput = {
         mode: "prompt",
         text: currentPrompt,
-        messages,
+        messages: transcript,
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -106,14 +96,6 @@ async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<st
 
   // Último recurso: estático.
   return staticForEvent("UserPromptSubmit");
-}
-
-/** Último mensaje del rol indicado en la lista, o undefined si no hay. */
-function lastOfRole(messages: SessionMessage[], role: SessionMessage["role"]): string | undefined {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === role) return messages[i].content;
-  }
-  return undefined;
 }
 
 /** Providers en orden de prioridad; se omite el que no tenga key. */
@@ -171,36 +153,99 @@ function extractMessage(line: string): SessionMessage | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
   try {
-    const obj = JSON.parse(trimmed) as {
-      type?: string;
-      role?: string;
-      message?: { role?: string; content?: unknown };
-    };
-    const role = obj.message?.role ?? obj.role ?? obj.type;
-    if (role !== "user" && role !== "assistant" && role !== "system") return null;
+    const obj = JSON.parse(trimmed);
+    if (!obj || typeof obj !== "object") return null;
 
-    const text = extractText(obj.message?.content);
+    const role = parseRole(obj as Record<string, unknown>);
+    if (!role) return null;
+
+    const rawContent = extractContent(obj as Record<string, unknown>);
+    const text = extractText(rawContent);
     if (!text) return null;
 
-    return { role: role as SessionMessage["role"], content: text };
+    return { role, content: text };
   } catch {
     return null;
   }
 }
 
-/** Aplana el content (string o array de bloques) a texto plano. */
+/** Resuelve el rol normalizado (user, assistant, system) desde obj.message, obj.role, obj.source o obj.type. */
+function parseRole(obj: Record<string, unknown>): SessionMessage["role"] | null {
+  const rawRole =
+    (obj.message as { role?: unknown })?.role ??
+    obj.role ??
+    obj.source ??
+    obj.type;
+
+  if (typeof rawRole !== "string") return null;
+  const normalized = rawRole.toLowerCase().trim();
+
+  if (
+    normalized === "user" ||
+    normalized === "user_input" ||
+    normalized === "user_explicit"
+  ) {
+    return "user";
+  }
+
+  if (
+    normalized === "assistant" ||
+    normalized === "model" ||
+    normalized === "planner_response"
+  ) {
+    return "assistant";
+  }
+
+  if (normalized === "system") {
+    return "system";
+  }
+
+  return null;
+}
+
+/** Ubica la propiedad de contenido en obj.message.content, obj.content, obj.text, obj.payload, etc. */
+function extractContent(obj: Record<string, unknown>): unknown {
+  if ((obj.message as { content?: unknown })?.content !== undefined) {
+    return (obj.message as { content: unknown }).content;
+  }
+  if (obj.content !== undefined) return obj.content;
+  if ((obj.message as { text?: unknown })?.text !== undefined) {
+    return (obj.message as { text: unknown }).text;
+  }
+  if (obj.text !== undefined) return obj.text;
+  if ((obj.payload as { content?: unknown })?.content !== undefined) {
+    return (obj.payload as { content: unknown }).content;
+  }
+  if ((obj.payload as { text?: unknown })?.text !== undefined) {
+    return (obj.payload as { text: unknown }).text;
+  }
+  return undefined;
+}
+
+/** Aplana el content (string, array de bloques o string items, u objeto con text/content) a texto plano. */
 function extractText(content: unknown): string {
   if (typeof content === "string") return content.trim();
+
   if (Array.isArray(content)) {
     return content
-      .map((b) =>
-        b && typeof b === "object" && typeof (b as { text?: unknown }).text === "string"
-          ? (b as { text: string }).text
-          : "",
-      )
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const t = (item as { text?: unknown; content?: unknown }).text ?? (item as { content?: unknown }).content;
+          if (typeof t === "string") return t;
+        }
+        return "";
+      })
+      .filter((s) => s.length > 0)
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
   }
+
+  if (content && typeof content === "object") {
+    const t = (content as { text?: unknown; content?: unknown }).text ?? (content as { content?: unknown }).content;
+    if (typeof t === "string") return t.trim();
+  }
+
   return "";
 }

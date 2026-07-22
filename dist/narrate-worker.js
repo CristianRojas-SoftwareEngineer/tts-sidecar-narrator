@@ -160,19 +160,42 @@ async function runChain(providers, input) {
   }
   return void 0;
 }
-function buildUserContent(messages) {
-  const out = messages.filter((m) => m.content && m.content.trim().length > 0).map(
-    (m) => m.role === "system" ? { role: "user", content: `[Sistema]: ${m.content}` } : m
+function buildUserContent(input) {
+  const { mode, text, messages } = input;
+  const trimmedText = (text ?? "").trim();
+  const history = (messages ?? []).filter((m) => m && m.content && m.content.trim().length > 0).map(
+    (m) => m.role === "system" ? { role: "user", content: `[Sistema]: ${m.content.trim()}` } : { role: m.role, content: m.content.trim() }
   );
-  if (out.length > 0 && out[out.length - 1].role !== "user") {
-    out.push({ role: "user", content: "\xBFQu\xE9 pas\xF3 en este turno?" });
+  if (mode === "summary") {
+    if (trimmedText) {
+      const last = history.length > 0 ? history[history.length - 1] : void 0;
+      if (!last || last.role !== "assistant" || last.content !== trimmedText) {
+        history.push({ role: "assistant", content: trimmedText });
+      }
+    }
+    if (history.length > 0 && history[history.length - 1].role !== "user") {
+      history.push({
+        role: "user",
+        content: "Cu\xE9ntame en voz alta en primera persona y de forma t\xE9cnica qu\xE9 lograste avanzar."
+      });
+    }
+    return history;
   }
-  return out;
+  if (mode === "prompt") {
+    if (trimmedText) {
+      const last = history.length > 0 ? history[history.length - 1] : void 0;
+      if (!last || last.role !== "user" || last.content !== trimmedText) {
+        history.push({ role: "user", content: trimmedText });
+      }
+    }
+    return history;
+  }
+  return history;
 }
 
 // src/message/prompts.ts
-var SUMMARY_SYSTEM_PROMPT = "Eres la voz del asistente de continuidad de Smart Code Proxy. Narra en alto nivel, en una o dos frases cortas en espa\xF1ol, una s\xEDntesis de lo realizado. Parafrasea; no expliques detalle t\xE9cnico punto por punto ni enumeres pasos. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de las oraciones. Habla en primera persona.";
-var PROMPT_SYSTEM_PROMPT = "Eres la voz del asistente Smart Code Proxy. Recibir\xE1s tres mensajes: la petici\xF3n anterior del usuario, tu \xFAltima respuesta, y la nueva petici\xF3n del usuario. Responde SOLO a la nueva petici\xF3n (la tercera) en una sola oraci\xF3n breve y natural en espa\xF1ol, confirmando que proceder\xE1s a investigar o ejecutar lo solicitado. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final.";
+var SUMMARY_SYSTEM_PROMPT = "Eres un desarrollador experto, asertivo y directo que habla por voz sintetizada en tiempo real. Sintetiza lo realizado en una o dos oraciones breves, bien articuladas en espa\xF1ol y en primera persona. Mant\xE9n la precisi\xF3n t\xE9cnica: conserva expl\xEDcitamente identificadores, rutas de archivo, comandos o funciones relevantes cuando aporte claridad sobre lo que se hizo. Cierra de forma conversacional invitando a continuar. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final de las oraciones.";
+var PROMPT_SYSTEM_PROMPT = "Eres un desarrollador experto, asertivo y conversacional que responde por voz sintetizada en tiempo real. Responde a la \xFAltima intervenci\xF3n del usuario en una sola oraci\xF3n breve, clara y bien articulada en espa\xF1ol. Si es una consulta o saludo social, responde cordial y directamente; si es una instrucci\xF3n t\xE9cnica o comando, confirma asertivamente que proceder\xE1s a trabajarlo conservando los identificadores t\xE9cnicos relevantes. Usa mensajes anteriores solo como contexto. Texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, comillas, guiones ni s\xEDmbolos. Sin puntos al final.";
 function systemPromptFor(mode) {
   switch (mode) {
     case "summary":
@@ -192,11 +215,15 @@ var GeminiProvider = class {
   name = "gemini";
   async generate(input) {
     if (!this.apiKey) throw new Error("Gemini: sin API key");
+    const messages = buildUserContent(input);
+    if (messages.length === 0) {
+      throw new Error("Gemini: sin contenido para generar");
+    }
     const body = {
       systemInstruction: {
         parts: [{ text: systemPromptFor(input.mode) }]
       },
-      contents: buildUserContent(input.messages).map((m) => ({
+      contents: messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }]
       })),
@@ -233,7 +260,10 @@ var OpenRouterProvider = class {
   name = "openrouter";
   async generate(input) {
     if (!this.apiKey) throw new Error("OpenRouter: sin API key");
-    const messages = buildUserContent(input.messages);
+    const messages = buildUserContent(input);
+    if (messages.length === 0) {
+      throw new Error("OpenRouter: sin contenido para generar");
+    }
     const body = {
       model: MODEL2,
       max_tokens: MAX_OUTPUT_TOKENS,
@@ -302,7 +332,7 @@ function buildNotice(message) {
 }
 
 // src/message/build-message.ts
-var TRANSCRIPT_TAIL_MESSAGES = 3;
+var TRANSCRIPT_TAIL_MESSAGES = 10;
 var TRANSCRIPT_TAIL_BYTES = 256 * 1024;
 async function buildMessage(payload, cfg) {
   const event = payload.hook_event_name;
@@ -334,20 +364,14 @@ async function buildMessage(payload, cfg) {
 }
 async function buildPromptMessage(payload, cfg) {
   const transcript = readTranscriptMessages(payload.transcript_path);
-  const prevUser = lastOfRole(transcript, "user");
-  const lastAssistant = lastOfRole(transcript, "assistant");
   const currentPrompt = (payload.prompt ?? "").trim() || (transcript.length ? transcript[transcript.length - 1].content : "");
-  const messages = [];
-  if (prevUser) messages.push({ role: "user", content: prevUser });
-  if (lastAssistant) messages.push({ role: "assistant", content: lastAssistant });
-  messages.push({ role: "user", content: currentPrompt });
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
     if (providers.length > 0) {
       const input = {
         mode: "prompt",
         text: currentPrompt,
-        messages
+        messages: transcript
       };
       const llm = await runChain(providers, input);
       if (llm) {
@@ -359,12 +383,6 @@ async function buildPromptMessage(payload, cfg) {
   const localSummary = buildLocalSummary(currentPrompt);
   if (localSummary) return localSummary;
   return staticForEvent("UserPromptSubmit");
-}
-function lastOfRole(messages, role) {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === role) return messages[i].content;
-  }
-  return void 0;
 }
 function buildProviders(cfg) {
   const providers = [];
@@ -408,21 +426,64 @@ function extractMessage(line) {
   if (!trimmed) return null;
   try {
     const obj = JSON.parse(trimmed);
-    const role = obj.message?.role ?? obj.role ?? obj.type;
-    if (role !== "user" && role !== "assistant" && role !== "system") return null;
-    const text = extractText(obj.message?.content);
+    if (!obj || typeof obj !== "object") return null;
+    const role = parseRole(obj);
+    if (!role) return null;
+    const rawContent = extractContent(obj);
+    const text = extractText(rawContent);
     if (!text) return null;
     return { role, content: text };
   } catch {
     return null;
   }
 }
+function parseRole(obj) {
+  const rawRole = obj.message?.role ?? obj.role ?? obj.source ?? obj.type;
+  if (typeof rawRole !== "string") return null;
+  const normalized = rawRole.toLowerCase().trim();
+  if (normalized === "user" || normalized === "user_input" || normalized === "user_explicit") {
+    return "user";
+  }
+  if (normalized === "assistant" || normalized === "model" || normalized === "planner_response") {
+    return "assistant";
+  }
+  if (normalized === "system") {
+    return "system";
+  }
+  return null;
+}
+function extractContent(obj) {
+  if (obj.message?.content !== void 0) {
+    return obj.message.content;
+  }
+  if (obj.content !== void 0) return obj.content;
+  if (obj.message?.text !== void 0) {
+    return obj.message.text;
+  }
+  if (obj.text !== void 0) return obj.text;
+  if (obj.payload?.content !== void 0) {
+    return obj.payload.content;
+  }
+  if (obj.payload?.text !== void 0) {
+    return obj.payload.text;
+  }
+  return void 0;
+}
 function extractText(content) {
   if (typeof content === "string") return content.trim();
   if (Array.isArray(content)) {
-    return content.map(
-      (b) => b && typeof b === "object" && typeof b.text === "string" ? b.text : ""
-    ).join(" ").replace(/\s+/g, " ").trim();
+    return content.map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object") {
+        const t = item.text ?? item.content;
+        if (typeof t === "string") return t;
+      }
+      return "";
+    }).filter((s) => s.length > 0).join(" ").replace(/\s+/g, " ").trim();
+  }
+  if (content && typeof content === "object") {
+    const t = content.text ?? content.content;
+    if (typeof t === "string") return t.trim();
   }
   return "";
 }
