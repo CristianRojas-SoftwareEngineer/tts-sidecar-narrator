@@ -55,7 +55,7 @@ La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH
 Para que la narración funcione, en la máquina del usuario debe existir:
 
 1. `tts-sidecar` en el `PATH` (instalado por cualquier canal: `uv`, `pipx` o el
-   instalador nativo por SO), en la    **versión mínima verificada: v0.7.8**. Las
+   instalador nativo por SO), en la **versión mínima verificada: v0.7.8**. Las
    superficies del contrato son estables desde antes, así que versiones
    anteriores pueden funcionar, pero v0.7.8 es la versión contra la que se
    corrió el smoke test del release del plugin (esta declaración se actualiza
