@@ -49,15 +49,15 @@ En orden; cada paso asume el anterior.
    (incluida la versión del motor contra la que se verificó, ver la sección
    de sincronización). Crear una nueva sección `## [Unreleased]` vacía encima
    y actualizar las referencias de enlaces del pie.
-3. **Regenerar y verificar `dist/`**:
+3. **Verificar `dist/`** (el pre-commit hook lo regenera automáticamente al commitear):
    ```bash
-   npm run build
    npm run check-dist
    npm run typecheck
    npm test
    ```
-   Commitear el `dist/` resultante junto con el bump. `check-dist` en verde es
-   obligatorio: lo que ejecutan los usuarios es el `dist/` del árbol de git.
+   `check-dist` en verde es obligatorio: lo que ejecutan los usuarios es el `dist/` del árbol de git.
+   El hook en `.githooks/pre-commit` corre `npm run build` y staggea `dist/` en cada commit, así que no
+   hace falta invocarlo manualmente.
 4. **Verificar la versión mínima del motor declarada**: la versión de
    TTS-Sidecar declarada en el README («Prerequisitos») y en
    [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos sobre el motor») debe
@@ -207,9 +207,9 @@ Objetivo: que `main` pase la triple puerta de CI antes de tocar versiones, para 
 
 ### Fase 1 — Release del motor publicado ✅ completada
 
-El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la sección de sincronización). Al momento del corte, esa versión es [`v0.7.7`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.7) (2026-07-22):
+El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin» de la sección de sincronización). Al momento del corte, esa versión es [`v0.7.8`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases/tag/v0.7.8) (2026-07-22):
 
-1. `v0.7.7` corrige la **eliminación de ruido/estática al final de la síntesis de audio**
+1. `v0.7.8` corrige la **eliminación de ruido/estática al final de la síntesis de audio**
    (runtime en `audio_writer.py`): aplica un desvanecimiento suave (*fade-out* de 15 ms)
    y un relleno de silencio de cola (50 ms) para prevenir la discontinuidad de fase
    y evitar estallidos de estática al finalizar la locución.
@@ -219,31 +219,31 @@ El plugin se verifica contra la **última versión publicada del motor**, no con
 3. Verificación post-publicación (externa, comprobable) — hecha sin clonar el
    motor:
    ```powershell
-   # 3a. El GitHub Release v0.7.7 expone los 5 assets esperados:
-   #     instalador Windows tts-sidecar-0.7.7-x86_64-setup.exe,
+   # 3a. El GitHub Release v0.7.8 expone los 5 assets esperados:
+    #     instalador Windows tts-sidecar-0.7.8-x86_64-setup.exe,
    #     AppImage x86_64 y arm64, .dmg arm64 y SHA256SUMS.txt.
    #     Sus notas incluyen el enlace de oferta de fuente GPLv3 §6 al tarball.
-   gh release view v0.7.7 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
+   gh release view v0.7.8 --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
    # Comprobación: la salida lista los 5 assets y el enlace GPLv3 §6.
 
-   # 3b. PyPI confirma 0.7.7 como versión publicada y más reciente.
-   pip index versions tts-sidecar
-   # Comprobación: "0.7.7" figura como la versión disponible más reciente.
+   # 3b. PyPI confirma 0.7.8 como versión publicada y más reciente.
+    pip index versions tts-sidecar
+    # Comprobación: "0.7.8" figura como la versión disponible más reciente.
    ```
 
 ### Fase 2 — Smoke test contra el motor publicado ⏳ pendiente
 
-Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de arriba, ejecutado contra los artefactos reales de `v0.7.7` (no contra el árbol de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de [Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
+Corresponde al paso 6 del [Checklist de release](#checklist-de-release) de arriba, ejecutado contra los artefactos reales de `v0.7.8` (no contra el árbol de desarrollo del motor). Es un **E2E audible en Windows 11 (PowerShell 7)**: el usuario lo ejecuta personalmente; aquí cada paso tiene su comando y su comprobación. Las variables `$PLUGIN_E2E`/`$STATE_DIR`/`narrate-ctl` vienen de [Convenciones y variables](#convenciones-y-variables-aplican-a-todas-las-fases).
 
 #### Paso 1 — Instalar y aprovisionar el motor publicado
 
 ```powershell
 # 1a. Instalar el motor fijando la versión verificada (uv tool es opcional;
-#     también sirve el instalador nativo tts-sidecar-0.7.7-x86_64-setup.exe).
-uv tool install "tts-sidecar==0.7.7"
+#     también sirve el instalador nativo tts-sidecar-0.7.8-x86_64-setup.exe).
+uv tool install "tts-sidecar==0.7.8"
 
-# 1b. Comprobación: el CLI resuelve y reporta 0.7.7.
-tts-sidecar version          # debe imprimir: 0.7.7
+# 1b. Comprobación: el CLI resuelve y reporta 0.7.8.
+tts-sidecar version          # debe imprimir: 0.7.8
 
 # 1c. Aprovisionar el modelo es-mx-latam + Voice Encoder (descarga a la caché
 #     de HuggingFace; idempotente: salta si ya está). Puede tardar minutos.
@@ -382,11 +382,11 @@ Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de relea
 
 1. **Confirmar la versión mínima del motor** declarada en el README
    («Prerequisitos») y en [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos
-   sobre el motor»): debe ser `v0.7.7`, la verificada en la Fase 2.
+   sobre el motor»): debe ser `v0.7.8`, la verificada en la Fase 2.
    ```powershell
    Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
-     -Pattern "v0\.7\.7"
-   # Comprobación: ambos archivos muestran la referencia a v0.7.7.
+      -Pattern "v0\.7\.8"
+    # Comprobación: ambos archivos muestran la referencia a v0.7.8.
    ```
 2. **Bump de versión doble** a `0.1.0` en `package.json` **y**
    `.claude-plugin/plugin.json` (los dos números deben coincidir).
@@ -402,31 +402,30 @@ Una vez confirmado el smoke test de la Fase 2, se ejecuta el [Checklist de relea
    ```
 3. **Cortar el changelog**: renombrar `## [Unreleased]` a
    `## [0.1.0] — 2026-07-17` dejando declarada la verificación contra
-   TTS-Sidecar v0.7.7, crear una nueva `## [Unreleased]` vacía encima y
+   TTS-Sidecar v0.7.8, crear una nueva `## [Unreleased]` vacía encima y
    actualizar las referencias de enlaces del pie. Edítalo en
    `$PLUGIN_DEV\CHANGELOG.md`.
-4. **Regenerar y verificar `dist/`**, y commitearlo junto con el bump:
+4. **Verificar `dist/`** (el pre-commit hook lo regenera automáticamente al commitear):
    ```powershell
    Push-Location $PLUGIN_DEV
-   npm run build          # recompila src/ -> dist/
    npm run check-dist     # obligatorio: dist/ debe coincidir con src/
    npm run typecheck
    npm test
    Pop-Location
-   # Comprobación: los cuatro comandos terminan sin error y `git status`
-   # muestra dist/ modificado (debe commitearse).
-   git -C $PLUGIN_DEV status --short
+   # Comprobación: los tres comandos terminan sin error.
+   # El hook en .githooks/pre-commit corre npm run build y staggea dist/
+   # automáticamente en cada commit, así que build manual no es necesario.
    ```
 5. **Verificar las referencias cruzadas** con el motor
    (`docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md`, del lado del
    motor; README y `docs/INTEGRATION.md` del lado del plugin):
    ```powershell
-   # Lado del plugin: las cuatro referencias apuntan a v0.7.7 / sin contradicción.
+   # Lado del plugin: las cuatro referencias apuntan a v0.7.8 / sin contradicción.
    Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
-     -Pattern "v0\.7\.7"
-   # Lado del motor (si el repo del motor está clonado en $ENGINE_ROOT):
-   #   Get-Content "$ENGINE_ROOT\docs\NARRATION-INTEGRATION.md" -Tail 40
-   # Comprobación: ninguna referencia contradice el tag v0.7.7.
+      -Pattern "v0\.7\.8"
+    # Lado del motor (si el repo del motor está clonado en $ENGINE_ROOT):
+    #   Get-Content "$ENGINE_ROOT\docs\NARRATION-INTEGRATION.md" -Tail 40
+    # Comprobación: ninguna referencia contradice el tag v0.7.8.
    ```
 6. **Commit, tag y push** — punto de no retorno, a partir del cual el
    marketplace resuelve exactamente ese estado:

@@ -28,8 +28,8 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
 
 ## Prerequisitos
 
-1. **TTS-Sidecar ≥ v0.7.7** instalado (instalador nativo o
-   `uv tool install tts-sidecar`) y aprovisionado — v0.7.7 es la versión del
+1. **TTS-Sidecar ≥ v0.7.8** instalado (instalador nativo o
+   `uv tool install tts-sidecar`) y aprovisionado — v0.7.8 es la versión del
    motor contra la que este plugin fue verificado; versiones anteriores pueden
    funcionar pero no están cubiertas por el contrato de
    [`docs/INTEGRATION.md`](docs/INTEGRATION.md):
@@ -127,7 +127,7 @@ npm test          # suite de tests (node --test, sin framework externo)
 
 `dist/` **se commitea**: los plugins se instalan clonando el repo, así que el JS compilado debe estar en el árbol para que los hooks funcionen sin paso de build.
 
-El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`, `check-dist` y la suite de tests en Linux, Windows y macOS en cada push — el mismo proveedor y nomenclatura de jobs que usa el motor.
+El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`, `npm run build` y la suite de tests en Linux, Windows y macOS en cada push — el mismo proveedor y nomenclatura de jobs que usa el motor.
 
 ## Documentación
 

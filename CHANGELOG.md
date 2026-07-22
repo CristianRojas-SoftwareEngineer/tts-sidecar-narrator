@@ -18,7 +18,9 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
-Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.7** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
+## [0.1.0] — 2026-07-22
+
+Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.8** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
 
 ### Añadido
 
@@ -40,17 +42,18 @@ Primera versión pública, lanzada en conjunto con el primer release público de
   `status`/`say`; `status` nunca imprime el valor de una clave.
 - **Comando de instalación guiada** (`/tts-sidecar-narrator:install`) y
   **skill de configuración** (`/tts-sidecar-narrator:narrate`).
-- **Suite de tests** (`node --test`, sin dependencias nuevas): 95 tests sobre
+- **Suite de tests** (`node --test`, sin dependencias nuevas): 100 tests sobre
   saneamiento, constructor local, cadena de providers, configuración y
   precedencia de claves, parseo del payload de hooks, resolución del state
   dir y del CLI en los tres SO, contrato de los providers con `fetch`
   mockeado, y subcomandos de `narrate-ctl` como subproceso real.
 - **CI en CircleCI**: triple puerta `test-linux`/`test-windows`/`test-macos`
   (misma plataforma y nomenclatura que el motor) en cada push, corriendo
-  typecheck, verificación de `dist/` sincronizado y la suite completa.
+   typecheck, build y la suite completa.
 - **Documentación**: README, `docs/INTEGRATION.md` (contrato con el motor),
   `SECURITY.md` (modelo de amenaza del plugin, incluida la semántica real de
   la protección del `config.json` en Windows), `docs/RELEASING.md` (proceso
   de release y sincronización con el motor) y este changelog.
 
-[Unreleased]: https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/commits/main
+[Unreleased]: https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/releases/tag/v0.1.0

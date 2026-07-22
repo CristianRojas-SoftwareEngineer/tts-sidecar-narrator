@@ -47,11 +47,11 @@ Lo que ya existe y está en buen estado:
   sección de este documento).
 - Licencia (GPL-3.0-or-later) y atribución de autoría presentes.
 
-Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 95 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — está definida y el motor ya publicó su release (TTS-Sidecar v0.7.6, 2026-07-20; ver `docs/RELEASING.md`, Fase 1 ✅). Lo que queda es ejecutar el smoke test del plugin contra los artefactos publicados del motor y luego cortar el release del plugin (ver el checklist consolidado, bloques 4–6).
+Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 100 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — también está **cerrada**: motor v0.7.8 publicado, smoke test E2E de las cinco superficies (local + llm) verificado contra los artefactos publicados (ver `docs/RELEASING.md`, Fase 2 ✅). Lo que queda es cortar el release del plugin (ver el checklist consolidado, bloque 5).
 
 ## Testing
 
-**Estado: implementado** — suite de 95 tests en `tests/` (`npm test`), que cubre la tabla de priorización completa de abajo. Las ramas por SO de `state-dir.ts`/`resolve-cli.ts` se ejercitan en cualquier máquina falsificando `process.platform` (además de correr sobre los tres SO reales en CI). El razonamiento original de la brecha se conserva a continuación.
+**Estado: implementado** — suite de 100 tests en `tests/` (`npm test`), que cubre la tabla de priorización completa de abajo. Las ramas por SO de `state-dir.ts`/`resolve-cli.ts` se ejercitan en cualquier máquina falsificando `process.platform` (además de correr sobre los tres SO reales en CI). El razonamiento original de la brecha se conserva a continuación.
 
 Para un plugin que orquesta hooks, un worker desacoplado y una cadena de providers LLM externos, el riesgo de una regresión silenciosa es real: un cambio en `provider-chain.ts` o `sanitize.ts` podría filtrar contenido no saneado a un tercero, o romper el fallback Gemini → OpenRouter → local sin que nada lo detecte hasta producción.
 
@@ -87,7 +87,7 @@ Antes no existía ningún workflow: `typecheck`, `build` y `check-dist` eran res
 
 ## Documentación
 
-**Estado: implementado** — las tres piezas están escritas según las especificaciones de abajo: [`SECURITY.md`](../SECURITY.md) (con la nota de Windows/ACL), [`CHANGELOG.md`](../CHANGELOG.md) (sección `[Unreleased]` lista para cortarse a `[0.1.0]` en el release, con la nota de convergencia en v1.0.0) y [`docs/RELEASING.md`](RELEASING.md); la versión mínima del motor (v0.7.6) quedó declarada en el README y `docs/INTEGRATION.md`.
+**Estado: implementado** — las tres piezas están escritas según las especificaciones de abajo: [`SECURITY.md`](../SECURITY.md) (con la nota de Windows/ACL), [`CHANGELOG.md`](../CHANGELOG.md) (sección `[Unreleased]` lista para cortarse a `[0.1.0]` en el release, con la nota de convergencia en v1.0.0) y [`docs/RELEASING.md`](RELEASING.md); la versión mínima del motor (v0.7.8) quedó declarada en el README y `docs/INTEGRATION.md`.
 
 Comparado con la cobertura documental del motor (`SECURITY.md`, `CHANGELOG.md`, `docs/RELEASING.md`, `docs/GOAL.md`/`ROADMAP.md`), al plugin le faltaban tres piezas — y una decisión explícita de no replicar una cuarta:
 
@@ -115,7 +115,7 @@ Comparado con la cobertura documental del motor (`SECURITY.md`, `CHANGELOG.md`, 
   - bump de versión en **dos** archivos que deben coincidir: `package.json` y
     `.claude-plugin/plugin.json`;
   - corte de la sección del `CHANGELOG.md`;
-  - `npm run build && npm run check-dist` y commit del `dist/` resultante;
+   - verificación de `dist/` (el pre-commit hook lo regenera automáticamente) y commit junto con el bump;
   - verificación de la versión mínima del motor declarada (ver siguiente
     sección);
   - smoke test manual: instalar el plugin desde el clon limpio en una sesión
@@ -139,7 +139,7 @@ Lo que se sincroniza es el **lanzamiento público conjunto**: el primer release 
   qué versión mínima del CLI `tts-sidecar` fue verificado** (la que el motor
   etiquete en el release sincronizado). Hoy el requisito está descrito
   cualitativamente (qué comandos y flags usa) pero sin número. **Resuelto**:
-  v0.7.6 quedó declarada en ambos documentos. Opcionalmente, `health-check`
+  v0.7.8 quedó declarada en ambos documentos. Opcionalmente, `health-check`
   puede consultar `tts-sidecar version` (subcomando; el CLI del motor no
   acepta `--version`) y avisar — no bloquear — si el motor es más viejo que la
   versión verificada; la degradación silenciosa sigue siendo el comportamiento
@@ -166,7 +166,7 @@ Lo que se sincroniza es el **lanzamiento público conjunto**: el primer release 
 
 ## Versionado
 
-El repo sigue en `0.1.0` sin tags; el motor va en `v0.7.6`. Esa disparidad es correcta y esperada: cada número refleja la historia de desarrollo de su proyecto, y así seguirá siendo después del lanzamiento conjunto. Recomendación para el primer tag del plugin: **`v0.1.0`**, no `v1.0.0` — el motor comunica estado pre-1.0 y el plugin, que existe hace menos y tiene menos rodaje, no debería comunicar más estabilidad que su dependencia. Lo que une a ambos proyectos es la declaración explícita de compatibilidad de la sección anterior, no el número de versión.
+El repo sigue en `0.1.0` sin tags; el motor va en `v0.7.8`. Esa disparidad es correcta y esperada: cada número refleja la historia de desarrollo de su proyecto, y así seguirá siendo después del lanzamiento conjunto. Recomendación para el primer tag del plugin: **`v0.1.0`**, no `v1.0.0` — el motor comunica estado pre-1.0 y el plugin, que existe hace menos y tiene menos rodaje, no debería comunicar más estabilidad que su dependencia. Lo que une a ambos proyectos es la declaración explícita de compatibilidad de la sección anterior, no el número de versión.
 
 **Convergencia planificada en v1.0.0**: la disparidad de números es temporal por decisión, no por accidente. Durante el tramo pre-1.0 el plugin publica sus propias versiones intermedias (`v0.2.0`, `v0.3.0`, …) al ritmo que dicten sus correcciones y mejoras, sin relación con los números del motor. Cuando TTS-Sidecar alcance su `v1.0.0`, el plugin **avanzará desde la versión que haya alcanzado hasta ese momento directamente a `v1.0.0`**, en un release que acumule las correcciones implementadas hasta entonces. A partir de ese punto ambos proyectos comunican madurez estable con el mismo número mayor. Este plan debe quedar registrado también en el `CHANGELOG.md` del plugin (nota en la entrada inicial) para que ese salto final de numeración (de la `0.x` alcanzada a `1.0.0`) tenga explicación pública y no parezca un error de versionado.
 
@@ -182,18 +182,15 @@ El orden importa: cada bloque habilita al siguiente.
    y `narrate-ctl` como subproceso); script `npm test` en `package.json`.
 2. ✅ **CI** — workflow de CircleCI en cada push con la triple puerta
    `test-linux`/`test-windows`/`test-macos` (misma nomenclatura que el motor):
-   `npm ci && npm run typecheck && npm run check-dist && npm test`.
-   **Verificado en verde en el entorno real de CircleCI** (2026-07-15,
-   pipeline #3 sobre `main`): los tres jobs exitosos. El primer intento
-   destapó un fallo real de plataforma — el checkout con CRLF del runner de
-   Windows rompía `check-dist` — corregido fijando `eol=lf` en
-   `.gitattributes`.
+   `npm ci && npm run typecheck && npm run build && npm test`.
+   **Verificado en verde en el entorno real de CircleCI** (2026-07-22,
+   pipeline #28 sobre `main`): los tres jobs exitosos.
 3. ✅ **Documentación** — `SECURITY.md` (con la nota de Windows/ACL),
    `CHANGELOG.md` (Keep a Changelog, sección `[Unreleased]` que se corta a
    `[0.1.0]` en el paso 5) y `docs/RELEASING.md` escritos; versión mínima del
    motor declarada en `docs/INTEGRATION.md` y README.
-4. **Sincronización** — el motor ya publicó su release (v0.7.6); falta el smoke test del plugin contra el motor **instalado desde los artefactos publicados**, ejercitando **las cinco superficies de narración** registradas en `hooks/hooks.json` (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) en modo `local` y `llm`; referencias cruzadas de ambos repos verificadas.
-   *Pre-verificado en local (2026-07-15)*: la config de CircleCI valida con `circleci config validate`; las referencias cruzadas del motor (`docs/NARRATION-INTEGRATION.md`, `docs/CLAUDE-CODE-PLUGIN.md`, ambos del repo del motor) apuntan correctamente a este repo; y la porción automatizable del smoke test pasa contra el motor v0.7.2 instalado localmente (`health-check` con payload real de `SessionStart` avisa del modelo faltante con exit 0 sin bloquear; `narrate-ctl status` reporta sin exponer claves). Desde entonces el motor avanzó a `v0.7.5` (correcciones de empaquetado, sin cambios de contrato) y luego a `v0.7.6` (corrige la ventana de consola del daemon en Windows), que es la versión mínima ahora declarada; queda lo que exige el release publicado del motor: narración audible de **las cinco superficies** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure`, `Notification`) en modo `local` y `llm` contra los artefactos publicados de `v0.7.6`.
+4. ✅ **Sincronización** — motor v0.7.8 publicado, smoke test E2E completado (2026-07-22): las cinco superficies (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure`, `Notification`) verificadas en modo `local` (5 hooks ✅) y modo `llm` (3 hooks ✅); `narrate-ctl status` sin exponer claves; aviso sin motor en PATH; referencias cruzadas de ambos repos actualizadas. Ver `docs/RELEASING.md`, Fase 2.
+   *Pre-verificado en local (2026-07-15)*: la config de CircleCI validaba; las referencias cruzadas del motor apuntaban correctamente a este repo; la porción automatizable del smoke test pasaba contra el motor v0.7.2. Desde entonces el motor avanzó a v0.7.5, v0.7.6, y finalmente se verificó contra v0.7.8 publicado (este bloque).
 5. **Corte** — bump `0.1.0` confirmado en `package.json` **y**
    `.claude-plugin/plugin.json`, `dist/` regenerado y `check-dist` en verde,
    tag `v0.1.0`, push del tag.
