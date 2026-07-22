@@ -47,7 +47,7 @@ Lo que ya existe y está en buen estado:
   sección de este documento).
 - Licencia (GPL-3.0-or-later) y atribución de autoría presentes.
 
-Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 100 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — también está **cerrada**: motor v0.7.8 publicado, smoke test E2E de las cinco superficies (local + llm) verificado contra los artefactos publicados (ver `docs/RELEASING.md`, Fase 2 ✅). Lo que queda es cortar el release del plugin (ver el checklist consolidado, bloque 5).
+Las cuatro brechas identificadas originalmente eran: **cero tests**, **cero CI**, **documentación de release/seguridad incompleta**, y **sincronización con el motor sin definir**. Las tres primeras están **cerradas** (suite de 100 tests con `node --test`, pipeline de CircleCI con triple puerta por SO, y `SECURITY.md`/`CHANGELOG.md`/`docs/RELEASING.md` escritos, con la versión mínima del motor declarada). La cuarta — el corte sincronizado en sí — también está **cerrada**: motor v0.7.8 publicado, smoke test E2E de las cinco superficies (local + llm) verificado contra los artefactos publicados (ver `docs/RELEASING.md`, Fase 2 ✅), y release `v0.1.0` del plugin cortado (commit `a360919`, tag `v0.1.0`, 2026-07-22).
 
 ## Testing
 
@@ -191,9 +191,8 @@ El orden importa: cada bloque habilita al siguiente.
    motor declarada en `docs/INTEGRATION.md` y README.
 4. ✅ **Sincronización** — motor v0.7.8 publicado, smoke test E2E completado (2026-07-22): las cinco superficies (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure`, `Notification`) verificadas en modo `local` (5 hooks ✅) y modo `llm` (3 hooks ✅); `narrate-ctl status` sin exponer claves; aviso sin motor en PATH; referencias cruzadas de ambos repos actualizadas. Ver `docs/RELEASING.md`, Fase 2.
    *Pre-verificado en local (2026-07-15)*: la config de CircleCI validaba; las referencias cruzadas del motor apuntaban correctamente a este repo; la porción automatizable del smoke test pasaba contra el motor v0.7.2. Desde entonces el motor avanzó a v0.7.5, v0.7.6, y finalmente se verificó contra v0.7.8 publicado (este bloque).
-5. **Corte** — bump `0.1.0` confirmado en `package.json` **y**
-   `.claude-plugin/plugin.json`, `dist/` regenerado y `check-dist` en verde,
-   tag `v0.1.0`, push del tag.
+5. ✅ **Corte** — bump `0.1.0` en `package.json` y `.claude-plugin/plugin.json`,
+   changelog cortado, commit `a360919`, tag `v0.1.0` pusheado (2026-07-22).
 6. **Post-corte** — este documento se archiva o se convierte en el roadmap de
    la siguiente versión.
 
