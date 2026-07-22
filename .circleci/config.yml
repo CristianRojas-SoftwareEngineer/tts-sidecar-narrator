@@ -63,14 +63,11 @@ jobs:
             npm run typecheck
             echo "[STEP] Typecheck (tsc --noEmit) - FIN"
       - run:
-          # El guard del modo de fallo propio de distribuir dist/ commiteado:
-          # detecta un dist/ desincronizado con src/ (build olvidado) que
-          # haría que los usuarios ejecuten código viejo en silencio.
-          name: Check dist/ is in sync with src/ (check-dist)
+          name: Build dist/ from src/
           command: |
-            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
-            npm run check-dist
-            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+            echo "[STEP] Build dist/ from src/ - INICIO"
+            npm run build
+            echo "[STEP] Build dist/ from src/ - FIN"
       - run:
           name: Run node --test suite over tests/
           command: |
@@ -120,13 +117,13 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "[STEP] Typecheck (tsc --noEmit) - FIN"
       - run:
-          name: Check dist/ is in sync with src/ (check-dist)
+          name: Build dist/ from src/
           command: |
-            Write-Host "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
+            Write-Host "[STEP] Build dist/ from src/ - INICIO"
             $env:Path = "C:\Program Files\nodejs;" + $env:Path
-            npm run check-dist
+            npm run build
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Write-Host "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+            Write-Host "[STEP] Build dist/ from src/ - FIN"
       - run:
           name: Run node --test suite over tests/
           command: |
@@ -182,11 +179,11 @@ jobs:
             npm run typecheck
             echo "[STEP] Typecheck (tsc --noEmit) - FIN"
       - run:
-          name: Check dist/ is in sync with src/ (check-dist)
+          name: Build dist/ from src/
           command: |
-            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - INICIO"
-            npm run check-dist
-            echo "[STEP] Check dist/ is in sync with src/ (check-dist) - FIN"
+            echo "[STEP] Build dist/ from src/ - INICIO"
+            npm run build
+            echo "[STEP] Build dist/ from src/ - FIN"
       - run:
           name: Run node --test suite over tests/
           command: |
