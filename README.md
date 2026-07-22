@@ -141,8 +141,8 @@ El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`
 - [`SECURITY.md`](SECURITY.md) — política de seguridad y modelo de amenaza del
   plugin (credenciales, modo `llm`, cadena de suministro).
 - [`CHANGELOG.md`](CHANGELOG.md) — cambios notables por versión.
-- [`docs/RELEASE-READINESS.md`](docs/RELEASE-READINESS.md) — registro vivo de
-  la preparación del primer release público sincronizado con el motor.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — direcciones futuras del plugin y
+  registro histórico del release v0.1.0.
 
 ## Licencia
 
