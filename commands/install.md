@@ -45,7 +45,7 @@ Elige el canal automáticamente, en este orden:
 1. **¿Está `uv`?** (`command -v uv` / `where uv`). Si sí:
 
    ```bash
-   uv tool install "tts-sidecar>=0.7.8"
+   uv tool install "tts-sidecar>=0.8.0"
    ```
 
    (si ya estaba instalado, `uv tool upgrade tts-sidecar`). Es el camino más
@@ -55,7 +55,7 @@ Elige el canal automáticamente, en este orden:
 2. **¿Está `pipx`?** (`command -v pipx`). Si sí:
 
    ```bash
-   pipx install "tts-sidecar>=0.7.8"
+   pipx install "tts-sidecar>=0.8.0"
    ```
 
 3. **Si no hay ninguno**, ofrece al usuario elegir entre dos opciones y espera su

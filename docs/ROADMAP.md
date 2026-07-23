@@ -66,7 +66,7 @@ son la primera línea de defensa; el canal de reporte es
 
 `health-check` podría consultar `tts-sidecar version` y avisar —sin
 bloquear— si el motor instalado es más viejo que la versión verificada
-(`v0.7.8`). Hoy la degradación silenciosa es el comportamiento base y está
+(`v0.8.0`). Hoy la degradación silenciosa es el comportamiento base y está
 documentado en `docs/INTEGRATION.md`; la verificación programática sería una
 capa adicional de cortesía para el usuario.
 

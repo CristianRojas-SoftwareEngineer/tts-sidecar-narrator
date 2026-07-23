@@ -28,8 +28,8 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
 
 ## Prerequisitos
 
-1. **TTS-Sidecar ≥ v0.7.8** instalado (instalador nativo o
-   `uv tool install tts-sidecar`) y aprovisionado — v0.7.8 es la versión del
+1. **TTS-Sidecar ≥ v0.8.0** instalado (instalador nativo o
+   `uv tool install tts-sidecar`) y aprovisionado — v0.8.0 es la versión del
    motor contra la que este plugin fue verificado; versiones anteriores pueden
    funcionar pero no están cubiertas por el contrato de
    [`docs/INTEGRATION.md`](docs/INTEGRATION.md):
