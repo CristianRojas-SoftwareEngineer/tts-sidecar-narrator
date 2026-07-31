@@ -28,11 +28,12 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
 
 ## Prerequisitos
 
-1. **TTS-Sidecar ≥ v0.8.0** instalado (instalador nativo o
-   `uv tool install tts-sidecar`) y aprovisionado — v0.8.0 es la versión del
-   motor contra la que este plugin fue verificado; versiones anteriores pueden
-   funcionar pero no están cubiertas por el contrato de
-   [`docs/INTEGRATION.md`](docs/INTEGRATION.md):
+1. **TTS-Sidecar ≥ v0.9.1** instalado (instalador nativo o
+   `uv tool install tts-sidecar`) y aprovisionado — v0.9.1 es la versión del
+   motor contra la que este plugin fue verificado; versiones anteriores **no
+   funcionan** (el rediseño de CLI de v0.9.x reemplazó `speak` por el grupo
+   `speech` que consume el contrato de
+   [`docs/INTEGRATION.md`](docs/INTEGRATION.md)):
    ```bash
    tts-sidecar setup
    ```
@@ -58,8 +59,8 @@ El flujo para el usuario final es de **dos pasos**:
    ```
 2. **Instalar y configurar el motor** invocando el comando de instalación
    guiado, que detecta el SO, instala el binario TTS-Sidecar (vía `uv`/`pipx` o
-   el instalador nativo), descarga el modelo, deja el daemon listo y activa la
-   narración:
+   el instalador nativo), descarga el modelo, deja el daemon listo, hornea los
+   avisos pre-sintetizados (`narrate-ctl bake`) y activa la narración:
    ```
    /tts-sidecar-narrator:install
    ```

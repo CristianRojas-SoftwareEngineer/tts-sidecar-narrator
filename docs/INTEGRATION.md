@@ -3,7 +3,7 @@
 Este documento describe la integración de `tts-sidecar-narrator` con el motor de síntesis **TTS-Sidecar**, desde la perspectiva del **plugin (el consumidor)**.
 
 La contraparte, escrita desde la perspectiva del motor, está en el repositorio de TTS-Sidecar:
-[docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
+[docs/CLAUDE-CODE-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/CLAUDE-CODE-INTEGRATION.md).
 
 ## Tabla de contenidos
 
@@ -32,21 +32,31 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
 
 ## Superficies del CLI que consume
 
-| Superficie | Uso en el plugin |
-|------------|------------------|
-| `tts-sidecar speak --text "<msg>" --daemon` | Síntesis y reproducción de cada locución. **Requiere el daemon vivo** y falla si no lo está (no lo arranca solo); por eso el plugin lo mantiene caliente. |
-| `tts-sidecar doctor --json` | Verificación del entorno al iniciar sesión. Se parsea `checks[]` buscando `name == "Chatterbox model"` y su `status` (`PASS`/`FAIL`). |
-| `tts-sidecar daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
-| `tts-sidecar daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
+| # | Superficie | Uso en el plugin |
+|---|------------|------------------|
+| 1 | `tts-sidecar speech say --text "<msg>" --daemon` | Síntesis y reproducción de cada locución dinámica. **Requiere el daemon vivo** (exit `5` si está caído; no lo arranca solo); por eso el plugin lo mantiene caliente. |
+| 2 | `tts-sidecar doctor --json` | Verificación del entorno al iniciar sesión. Se parsea `checks[]` buscando `name == "Chatterbox model"` y su `status` (`PASS`/`FAIL`). Con FAIL emite **un solo objeto** JSON (salida por veredicto, exit `1` sin clave `error`; contrato §10 del motor, desde v0.9.1). |
+| 3 | `tts-sidecar daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
+| 4 | `tts-sidecar daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
+| 5 | `tts-sidecar speech synthesize --text "<aviso>" --label <label> --daemon` | Horneado único de los avisos estáticos (`narrate-ctl bake`, invocado por la instalación guiada). El label es hash del texto; exit `6` (label ya existe) se trata como «ya horneado» (idempotencia). Exit `5` daemon caído, `4` modelo ausente. |
+| 6 | `tts-sidecar speech play --label <label>` | Reproducción instantánea de un aviso horneado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no horneado): se registra en `worker.log` y el turno queda sin audio, sin re-horneado ni fallback. Exit `2` = label ilegal. |
 
 ## Cómo lo usan los hooks
 
-- **`Stop` / `Notification`** → `narrate-worker` construye el mensaje y llama a
-  `speak --text … --daemon`. El worker corre desanclado; nunca bloquea el turno.
+- **`UserPromptSubmit`** → `narrate-worker` reproduce el acuse fijo pre-sintetizado
+  («Procesando con Claude») con `speech play --label …`: sin LLM, sin resumen y
+  sin daemon en la ruta caliente.
+- **`Stop` / `SubagentStop` / `StopFailure` / `Notification`** → `narrate-worker`
+  construye el mensaje dinámico y llama a `speech say --text … --daemon`; si no
+  hay material utilizable, cae al aviso estático horneado vía `speech play`.
+  El worker corre desanclado; nunca bloquea el turno.
 - **`SessionStart`** → `health-check` corre `doctor --json`. Si el modelo está en
   caché (`PASS`) y el daemon no corre, lo levanta con `daemon start`
   (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía
   `systemMessage` y no hace nada más.
+- **Instalación** (`/tts-sidecar-narrator:install`) → `narrate-ctl bake` hornea
+  los avisos del catálogo (`src/message/static-avisos.ts`) con
+  `speech synthesize … --daemon`, una sola vez y de forma idempotente.
 
 La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH` (honrando `PATHEXT` en Windows).
 
@@ -55,11 +65,11 @@ La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH
 Para que la narración funcione, en la máquina del usuario debe existir:
 
 1. `tts-sidecar` en el `PATH` (instalado por cualquier canal: `uv`, `pipx` o el
-instalador nativo por SO), en la **versión mínima verificada: v0.8.0**. Las
-    superficies del contrato son estables desde antes, así que versiones
-    anteriores pueden funcionar, pero v0.8.0 es la versión contra la que se
-    corrió el smoke test del release del plugin (esta declaración se actualiza
-    en cada corte; ver [RELEASING.md](RELEASING.md)).
+instalador nativo por SO), en la **versión mínima verificada: v0.9.1**. El
+    rediseño de CLI de v0.9.x eliminó el comando `speak` y añadió el grupo
+    `speech` (superficies 1, 5 y 6), así que **versiones anteriores a v0.9.1 no
+    funcionan** con este plugin (esta declaración se actualiza en cada corte;
+    ver [RELEASING.md](RELEASING.md)).
 2. El modelo `es-mx-latam` en caché, descargado con `tts-sidecar setup`.
 
 El comando `/tts-sidecar-narrator:install` del plugin guía ambos pasos.
@@ -70,4 +80,4 @@ Si el CLI no está en el `PATH`, el modelo no está en caché, o el daemon no re
 
 ## Estabilidad del contrato
 
-El plugin asume estables los flags y el esquema JSON de las cuatro superficies de arriba. Si una versión de TTS-Sidecar cambia, por ejemplo, el `name` del check del modelo en `doctor --json`, o el campo `running` de `daemon status --json`, la integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar; su contraparte formal vive en el documento de integración del motor.
+El plugin asume estables los flags y el esquema JSON de las seis superficies de arriba. El contrato del motor (`CLI-CONTRACT.md` §12) declara formalmente las superficies 1–4; las superficies 5 y 6 (`speech synthesize` / `speech play`) las adopta este plugin bajo el compromiso de estabilidad publicado del grupo `speech` en v0.9.x, y se declaran solo de este lado. Si una versión de TTS-Sidecar cambia, por ejemplo, el `name` del check del modelo en `doctor --json`, o el campo `running` de `daemon status --json`, la integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar; su contraparte formal vive en el documento de integración del motor.

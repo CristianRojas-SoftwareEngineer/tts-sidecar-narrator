@@ -32,7 +32,7 @@ Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidec
 2. Si **está presente**, corre `tts-sidecar doctor --json` y analiza el JSON
    (`checks[].status`, `failed`). Con esto sabes qué falta realmente:
    - Si no hay `FAIL` → el motor ya está listo; salta al **Paso 3** (daemon) y
-     luego al **Paso 5** (verificación).
+     luego al **Paso 4** (horneado) y al **Paso 6** (verificación).
    - Si el check `Chatterbox model` es `FAIL` → falta el modelo; salta al **Paso 2**.
 3. Si **no está presente**, continúa al **Paso 1**.
 
@@ -45,7 +45,7 @@ Elige el canal automáticamente, en este orden:
 1. **¿Está `uv`?** (`command -v uv` / `where uv`). Si sí:
 
    ```bash
-   uv tool install "tts-sidecar>=0.8.0"
+   uv tool install "tts-sidecar>=0.9.1"
    ```
 
    (si ya estaba instalado, `uv tool upgrade tts-sidecar`). Es el camino más
@@ -55,7 +55,7 @@ Elige el canal automáticamente, en este orden:
 2. **¿Está `pipx`?** (`command -v pipx`). Si sí:
 
    ```bash
-   pipx install "tts-sidecar>=0.8.0"
+   pipx install "tts-sidecar>=0.9.1"
    ```
 
 3. **Si no hay ninguno**, ofrece al usuario elegir entre dos opciones y espera su
@@ -100,7 +100,7 @@ Corre los chequeos de `doctor` y descarga el modelo `es-mx-latam` a la caché de
 
 ## Paso 3 — Dejar el daemon en marcha
 
-El plugin narra con `speak --daemon`, que **usa el daemon y falla si no está levantado** (no lo arranca solo). El daemon mantiene el modelo en memoria, así cada narración tarda segundos en vez de decenas.
+El plugin narra con `speech say --daemon`, que **usa el daemon y falla si no está levantado** (no lo arranca solo). El daemon mantiene el modelo en memoria, así cada narración tarda segundos en vez de decenas.
 
 ```bash
 tts-sidecar daemon start
@@ -109,7 +109,24 @@ tts-sidecar daemon status
 
 Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual: el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión nueva (siempre que la narración esté activada y el modelo en caché). Este arranque durante la instalación es solo para dejarlo caliente ya mismo.
 
-## Paso 4 — Activar la narración y, opcionalmente, el modo LLM
+## Paso 4 — Hornear los avisos pre-sintetizados
+
+Con el daemon recién levantado (precondición exacta de este paso), hornea los avisos estáticos del plugin — el acuse de `UserPromptSubmit` («Procesando con Claude») y los fallbacks por evento — para que en cada turno se reproduzcan al instante con `speech play`, sin modelo ni daemon:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" bake
+```
+
+Interpreta el resultado:
+
+- **Exit `0`** → todos los avisos quedaron horneados (los ya existentes se
+  reportan como «ya horneado»: el comando es idempotente y es seguro repetirlo).
+- **Fallo con «daemon caído» (exit `5` del motor)** → vuelve al **Paso 3** y
+  reintenta.
+- **Fallo con «modelo ausente» (exit `4` del motor)** → vuelve al **Paso 2**
+  (`tts-sidecar setup`) y reintenta.
+
+## Paso 5 — Activar la narración y, opcionalmente, el modo LLM
 
 1. Asegura que la narración está activa y revisa el estado:
 
@@ -129,7 +146,7 @@ Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claud
    - `GEMINI_API_KEY` (Gemini free tier) y/o `OPENROUTER_API_KEY` (modelos `:free`).
    - Alternativa: editar `config.json` en el state dir (la ruta la muestra `narrate-ctl.js status`). Sin claves, `llm` degrada a `local` de facto. Para que la clave persista entre sesiones, usa `config.json`; la variable de entorno solo vive en la terminal donde se definió.
 
-## Paso 5 — Verificación de extremo a extremo
+## Paso 6 — Verificación de extremo a extremo
 
 1. Diagnóstico final: `tts-sidecar doctor --json`. Confirma que `failed` es 0
    (los `WARN`/`SKIP` no cuentan).
@@ -139,11 +156,24 @@ Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claud
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" say "La narración por voz quedó lista"
    ```
 
-   Pregunta al usuario si escuchó la locución. Si no:
+3. Reproducción de un aviso horneado (verifica la ruta `speech play` que usará
+   `UserPromptSubmit`): toma un label de la salida del Paso 4 (por ejemplo el de
+   `UserPromptSubmit`, con forma `narrator-<hash>`) y reprodúcelo:
+
+   ```bash
+   tts-sidecar speech play --label <label-del-aviso>
+   ```
+
+   Debe sonar el aviso con exit `0`. Un exit `3` significa que el aviso no está
+   horneado: repite el **Paso 4**.
+
+   Pregunta al usuario si escuchó las locuciones. Si no:
    - Reconfirma que el daemon está `running` (Paso 3).
    - Revisa `worker.log` en el state dir (`narrate-ctl.js status` da la ruta) por
      errores de dispositivo de audio o CLI.
 
 ## Cierre
 
-Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno y levanta el daemon si hace falta; luego **cada evento registrado** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`).
+Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno y levanta el daemon si hace falta; luego **cada evento registrado** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`/`bake`).
+
+Menciona también el mantenimiento de los avisos pre-sintetizados: si se borra la caché del motor (`synthetic-speech/`) o cambia alguna frase de los avisos en una actualización del plugin, basta re-ejecutar `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" bake` con el daemon caliente (es idempotente; los avisos vigentes no se re-sintetizan).

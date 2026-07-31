@@ -18,6 +18,38 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Migración al motor TTS-Sidecar v0.9.1** (versión mínima verificada; antes
+  v0.8.0): la narración invoca `speech say --text … --daemon` en lugar del
+  comando `speak`, eliminado sin alias en el rediseño de CLI de v0.9.x — con
+  motores v0.9.x el plugin quedaba mudo por un fallo silencioso (exit `2` solo
+  visible en `worker.log`).
+- **`UserPromptSubmit` es ahora un acuse fijo pre-sintetizado**: reproduce el
+  aviso horneado «Procesando con Claude» vía `speech play` (sin modelo ni
+  daemon), en lugar de invocar un LLM de narración más síntesis en la ruta
+  caliente de cada prompt. Elimina la divergencia semántica del LLM narrador y
+  la latencia de red en el momento más visible del ciclo.
+- **Los fallbacks estáticos se reproducen desde su WAV horneado** (`speech
+  play`) en vez de re-sintetizarse en cada aparición: el catálogo único de
+  avisos vive en `src/message/static-avisos.ts`, con label derivado del hash
+  del texto (si una frase cambia, su label cambia y nunca suena el WAV viejo).
+
+### Añadido
+
+- **Subcomando `narrate-ctl bake`**: hornea los seis avisos del catálogo con
+  `speech synthesize --daemon`, idempotente por construcción (exit `6` del
+  motor = «ya horneado»). Integrado en la instalación guiada
+  (`/tts-sidecar-narrator:install`) y re-ejecutable a mano tras borrar la caché
+  del motor o cambiar una frase.
+
+### Eliminado
+
+- **Modo prompt del subsistema LLM** (`buildPromptMessage`,
+  `PROMPT_SYSTEM_PROMPT` y el modo de generación `prompt`), huérfano tras el
+  acuse fijo de `UserPromptSubmit`. El modo `summary` (Stop/SubagentStop/
+  StopFailure) no cambia.
+
 ## [0.1.0] — 2026-07-22
 
 Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.8** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
