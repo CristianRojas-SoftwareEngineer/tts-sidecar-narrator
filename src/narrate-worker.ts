@@ -89,21 +89,49 @@ function readPayload(): HookPayload {
   }
 }
 
-/** Ejecuta `tts-sidecar speak --text <texto> --daemon`. Resuelve al terminar. */
-function runSpeak(cliPath: string, text: string): Promise<void> {
+/**
+ * Ejecuta `tts-sidecar speech play --label <label>`: reproduce un aviso
+ * pre-sintetizado, sin modelo ni daemon. Política de fallo: cualquier exit ≠ 0
+ * (incluido el `3` de cache miss, aviso no horneado) se registra en worker.log
+ * y el turno queda sin audio — sin re-horneado ni fallback a `speech say`.
+ */
+function runPlay(cliPath: string, label: string): Promise<void> {
   return new Promise((resolve) => {
-    const args = ["speak", "--text", text, "--daemon"];
+    const args = ["speech", "play", "--label", label];
     const child = spawn(cliPath, args, {
       stdio: "ignore",
       windowsHide: true,
       shell: needsShell(cliPath),
     });
     child.on("error", (err) => {
-      log(`speak error: ${err.message}`);
+      log(`speech play error: ${err.message}`);
       resolve();
     });
     child.on("exit", (code) => {
-      if (code !== 0) log(`speak salió con código ${code}`);
+      if (code !== 0) {
+        const hint = code === 3 ? " (aviso no horneado; ejecuta narrate-ctl bake)" : "";
+        log(`speech play salió con código ${code}${hint}`);
+      }
+      resolve();
+    });
+  });
+}
+
+/** Ejecuta `tts-sidecar speech say --text <texto> --daemon`. Resuelve al terminar. */
+function runSay(cliPath: string, text: string): Promise<void> {
+  return new Promise((resolve) => {
+    const args = ["speech", "say", "--text", text, "--daemon"];
+    const child = spawn(cliPath, args, {
+      stdio: "ignore",
+      windowsHide: true,
+      shell: needsShell(cliPath),
+    });
+    child.on("error", (err) => {
+      log(`speech say error: ${err.message}`);
+      resolve();
+    });
+    child.on("exit", (code) => {
+      if (code !== 0) log(`speech say salió con código ${code}`);
       resolve();
     });
   });
@@ -121,8 +149,8 @@ async function main(): Promise<void> {
 
   const payload = readPayload();
 
-  const text = await buildMessage(payload, cfg);
-  if (!text) {
+  const request = await buildMessage(payload, cfg);
+  if (request.kind === "say" && !request.text) {
     log("mensaje vacío tras la construcción; nada que narrar");
     return;
   }
@@ -133,7 +161,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  await runSpeak(cli, text);
+  if (request.kind === "play") await runPlay(cli, request.label);
+  else await runSay(cli, request.text);
 }
 
 main()

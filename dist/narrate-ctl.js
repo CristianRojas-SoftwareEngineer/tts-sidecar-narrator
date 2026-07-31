@@ -108,6 +108,24 @@ function needsShell(cliPath) {
   return lower.endsWith(".cmd") || lower.endsWith(".bat");
 }
 
+// src/message/static-avisos.ts
+import { createHash } from "node:crypto";
+function labelFor(text) {
+  const hash = createHash("sha256").update(text, "utf8").digest("hex");
+  return `narrator-${hash.slice(0, 12)}`;
+}
+function aviso(text) {
+  return { text, label: labelFor(text) };
+}
+var AVISOS = {
+  UserPromptSubmit: aviso("Procesando con Claude"),
+  Stop: aviso("El asistente termin\xF3 su turno."),
+  SubagentStop: aviso("El subagente complet\xF3 su trabajo."),
+  StopFailure: aviso("Ocurri\xF3 un error durante la ejecuci\xF3n."),
+  Notification: aviso("Claude necesita tu atenci\xF3n"),
+  Default: aviso("Procesando.")
+};
+
 // src/narrate-ctl.ts
 function printStatus() {
   const cfg = loadConfig();
@@ -127,12 +145,40 @@ function say(text) {
     console.error("tts-sidecar no est\xE1 en el PATH; no se puede narrar.");
     return 1;
   }
-  const res = spawnSync(cli, ["speak", "--text", text, "--daemon"], {
+  const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
     stdio: "inherit",
     windowsHide: true,
     shell: needsShell(cli)
   });
   return res.status ?? 0;
+}
+function bake() {
+  const cli = resolveCli();
+  if (!cli) {
+    console.error("tts-sidecar no est\xE1 en el PATH; no se puede hornear.");
+    return 1;
+  }
+  let failed = false;
+  for (const [evento, { text, label }] of Object.entries(AVISOS)) {
+    const res = spawnSync(
+      cli,
+      ["speech", "synthesize", "--text", text, "--label", label, "--daemon"],
+      {
+        stdio: ["ignore", "ignore", "inherit"],
+        windowsHide: true,
+        shell: needsShell(cli)
+      }
+    );
+    const code = res.status ?? 1;
+    if (code === 0) console.log(`${evento}: horneado (${label})`);
+    else if (code === 6) console.log(`${evento}: ya horneado (${label})`);
+    else {
+      failed = true;
+      const motivo = code === 5 ? " \u2014 daemon ca\xEDdo; lev\xE1ntalo con `tts-sidecar daemon start`" : code === 4 ? " \u2014 modelo ausente; provisi\xF3nalo con `tts-sidecar setup`" : "";
+      console.error(`${evento}: fallo (exit ${code})${motivo}`);
+    }
+  }
+  return failed ? 1 : 0;
 }
 function main() {
   const [cmd, ...rest] = process.argv.slice(2);
@@ -167,6 +213,8 @@ function main() {
       }
       return say(text);
     }
+    case "bake":
+      return bake();
     default:
       console.error(`Comando desconocido: ${cmd}`);
       return 2;

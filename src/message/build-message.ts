@@ -1,8 +1,9 @@
-// Orquestador del subsistema de mensajes: payload → texto a narrar. Siempre
+// Orquestador del subsistema de mensajes: payload → petición de narración
+// (`say` con texto dinámico o `play` de un aviso pre-sintetizado). Siempre
 // resuelve (nunca lanza). Degradación: cadena LLM (solo modo summary y con keys)
-// → resumen local determinista → texto estático por evento. El modo notice
-// (Notification) no usa LLM. El modo prompt (UserPromptSubmit) usa LLM para
-// responder brevemente al prompt actual.
+// → resumen local determinista → aviso estático pre-sintetizado por evento.
+// El modo notice (Notification) no usa LLM. UserPromptSubmit es un acuse fijo:
+// reproduce su aviso horneado, sin LLM ni resumen.
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import type { Config } from "../lib/config.js";
 import type { HookPayload } from "../lib/hook-payload.js";
@@ -15,13 +16,17 @@ import {
 import { GeminiProvider } from "./gemini-provider.js";
 import { OpenRouterProvider } from "./openrouter-provider.js";
 import { buildLocalSummary, buildNotice, staticForEvent } from "./local-builder.js";
+import { AVISOS, type NarrationRequest } from "./static-avisos.js";
 import { sanitizeForSpeech } from "./sanitize.js";
 
 const TRANSCRIPT_TAIL_MESSAGES = 10;
 const TRANSCRIPT_TAIL_BYTES = 256 * 1024;
 
-/** Punto de entrada del subsistema. Devuelve el texto listo para `speak`. */
-export async function buildMessage(payload: HookPayload, cfg: Config): Promise<string> {
+/** Punto de entrada del subsistema. Devuelve la petición de narración para el worker. */
+export async function buildMessage(
+  payload: HookPayload,
+  cfg: Config,
+): Promise<NarrationRequest> {
   const event = payload.hook_event_name;
 
   // Modo notice: sin LLM, el mensaje ya viene redactado.
@@ -29,10 +34,10 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
     return buildNotice(payload.message);
   }
 
-  // Modo prompt: UserPromptSubmit necesita contexto del transcript + prompt actual.
-  // El payload no tiene last_assistant_message (aún no ha respondido).
+  // Acuse fijo: UserPromptSubmit reproduce su aviso pre-sintetizado, sin LLM ni
+  // resumen (sin divergencia semántica ni latencia de red en la ruta caliente).
   if (event === "UserPromptSubmit") {
-    return buildPromptMessage(payload, cfg);
+    return { kind: "play", label: AVISOS.UserPromptSubmit.label };
   }
 
   // Modo summary (Stop, SubagentStop, StopFailure y cualquier otro evento
@@ -50,52 +55,17 @@ export async function buildMessage(payload: HookPayload, cfg: Config): Promise<s
       const llm = await runChain(providers, input);
       if (llm) {
         const clean = sanitizeForSpeech(llm);
-        if (clean) return clean;
+        if (clean) return { kind: "say", text: clean };
       }
     }
   }
 
   // Degradación local: resumen determinista del texto primario.
   const localSummary = buildLocalSummary(primary);
-  if (localSummary) return localSummary;
+  if (localSummary) return { kind: "say", text: localSummary };
 
-  // Último recurso: estático por evento.
-  return staticForEvent(event);
-}
-
-/**
- * Mensaje para UserPromptSubmit: responde al prompt actual como asistente de voz.
- * Pasa el prompt actual en `text` y el historial en `messages`.
- * Usa LLM si está disponible; de lo contrario fallback local o estático.
- */
-async function buildPromptMessage(payload: HookPayload, cfg: Config): Promise<string> {
-  const transcript = readTranscriptMessages(payload.transcript_path);
-  const currentPrompt =
-    (payload.prompt ?? "").trim() ||
-    (transcript.length ? transcript[transcript.length - 1].content : "");
-
-  if (cfg.messageMode === "llm") {
-    const providers = buildProviders(cfg);
-    if (providers.length > 0) {
-      const input: GenerationInput = {
-        mode: "prompt",
-        text: currentPrompt,
-        messages: transcript,
-      };
-      const llm = await runChain(providers, input);
-      if (llm) {
-        const clean = sanitizeForSpeech(llm);
-        if (clean) return clean;
-      }
-    }
-  }
-
-  // Degradación local: usar el prompt como texto primario.
-  const localSummary = buildLocalSummary(currentPrompt);
-  if (localSummary) return localSummary;
-
-  // Último recurso: estático.
-  return staticForEvent("UserPromptSubmit");
+  // Último recurso: aviso pre-sintetizado por evento.
+  return { kind: "play", label: staticForEvent(event).label };
 }
 
 /** Providers en orden de prioridad; se omite el que no tenga key. */

@@ -138,22 +138,6 @@ test("buildUserContent anexa input.text como assistant en modo summary si no est
   ]);
 });
 
-test("buildUserContent en modo prompt anexa input.text como user si no está al final", () => {
-  const out = buildUserContent({
-    mode: "prompt",
-    text: "nueva petición",
-    messages: [
-      { role: "user", content: "petición previa" },
-      { role: "assistant", content: "respuesta previa" },
-    ],
-  });
-  assert.deepEqual(out, [
-    { role: "user", content: "petición previa" },
-    { role: "assistant", content: "respuesta previa" },
-    { role: "user", content: "nueva petición" },
-  ]);
-});
-
 test("buildUserContent filtra mensajes vacíos", () => {
   const out = buildUserContent({
     mode: "summary",

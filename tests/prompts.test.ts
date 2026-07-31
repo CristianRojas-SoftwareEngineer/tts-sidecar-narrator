@@ -1,25 +1,15 @@
-// Caracterización de los system prompts adoptados del Orchestrator (§3.1–3.2,
-// decisión §5.2): el de resumen NO prohibe rutas/archivos, y el de prompt
-// describe la tríada de tres mensajes.
+// Caracterización del system prompt de resumen adoptado del Orchestrator
+// (§3.1–3.2, decisión §5.2): NO prohibe rutas/archivos. El modo prompt se
+// eliminó con el acuse fijo pre-sintetizado de UserPromptSubmit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  SUMMARY_SYSTEM_PROMPT,
-  PROMPT_SYSTEM_PROMPT,
-  systemPromptFor,
-} from "../src/message/prompts.js";
+import { SUMMARY_SYSTEM_PROMPT, systemPromptFor } from "../src/message/prompts.js";
 
 test("SUMMARY_SYSTEM_PROMPT exige precisión técnica y primera persona", () => {
   assert.ok(SUMMARY_SYSTEM_PROMPT.includes("precisión técnica"));
   assert.ok(SUMMARY_SYSTEM_PROMPT.includes("primera persona"));
 });
 
-test("PROMPT_SYSTEM_PROMPT instruye responder a la última intervención del usuario", () => {
-  assert.ok(!PROMPT_SYSTEM_PROMPT.includes("tres mensajes"));
-  assert.ok(PROMPT_SYSTEM_PROMPT.includes("última intervención del usuario"));
-});
-
 test("systemPromptFor mapea modo → prompt", () => {
   assert.equal(systemPromptFor("summary"), SUMMARY_SYSTEM_PROMPT);
-  assert.equal(systemPromptFor("prompt"), PROMPT_SYSTEM_PROMPT);
 });

@@ -1,17 +1,10 @@
-// System prompts por modo de generación. El modo `summary` y `prompt` usan LLM;
-// el modo `notice` (Notification) no pasa por aquí (el mensaje ya viene redactado).
+// System prompts por modo de generación. Solo el modo `summary` usa LLM; el
+// modo `notice` (Notification) no pasa por aquí (el mensaje ya viene redactado)
+// y `UserPromptSubmit` reproduce un aviso pre-sintetizado (sin LLM).
 // Contrato común impuesto a los modelos y verificado luego por sanitize.ts:
 // texto plano, español, 1-2 frases, primera persona, sin markdown ni símbolos.
 
-export type GenerationMode = "prompt" | "summary";
-
-export const PROMPT_SYSTEM_PROMPT =
-  "Eres un desarrollador experto, asertivo y conversacional que responde por voz sintetizada en tiempo real. " +
-  "Responde a la última intervención del usuario en una sola oración breve, clara y bien articulada en español. " +
-  "Si es una consulta o saludo social, responde cordial y directamente; si es una instrucción técnica o comando, " +
-  "confirma asertivamente que procederás a trabajarlo conservando los identificadores técnicos relevantes. " +
-  "Usa mensajes anteriores solo como contexto. " +
-  "Responde en texto plano para ser leído en voz alta: sin markdown, sin asteriscos, ni símbolos.";
+export type GenerationMode = "summary";
 
 export const SUMMARY_SYSTEM_PROMPT =
   "Eres un desarrollador experto, asertivo y directo que habla por voz sintetizada en tiempo real. " +
@@ -23,8 +16,6 @@ export const SUMMARY_SYSTEM_PROMPT =
 
 export function systemPromptFor(mode: GenerationMode): string {
   switch (mode) {
-    case "prompt":
-      return PROMPT_SYSTEM_PROMPT;
     case "summary":
       return SUMMARY_SYSTEM_PROMPT;
   }

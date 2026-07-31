@@ -1,11 +1,13 @@
-// Caracterización de buildMessage: enrutado de eventos, tríada de
-// UserPromptSubmit (§5.3) y mapeo de roles (§3.3) contra Gemini.
+// Caracterización de buildMessage: enrutado de eventos hacia peticiones de
+// narración (`say` dinámico / `play` de aviso pre-sintetizado), acuse fijo de
+// UserPromptSubmit y mapeo de roles (§3.3) contra Gemini.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildMessage } from "../src/message/build-message.js";
+import { AVISOS } from "../src/message/static-avisos.js";
 import { withEnv } from "./helpers.js";
 import type { Config } from "../src/lib/config.js";
 import type { HookPayload } from "../src/lib/hook-payload.js";
@@ -19,38 +21,51 @@ const LOCAL: Config = {
 
 // --- Enrutado de eventos (modo local: sin LLM) ---
 
-test("UserPromptSubmit (local) usa el prompt del payload", async () => {
+test("UserPromptSubmit es un acuse fijo: play del aviso horneado, ignora el prompt", async () => {
   const out = await buildMessage(
     { hook_event_name: "UserPromptSubmit", prompt: "haz X" },
     LOCAL,
   );
-  assert.equal(out, "haz X");
+  assert.deepEqual(out, { kind: "play", label: AVISOS.UserPromptSubmit.label });
 });
 
-test("SubagentStop (local) narra el fallback del Orchestrator", async () => {
+test("SubagentStop (local) cae al aviso pre-sintetizado del evento", async () => {
   const out = await buildMessage({ hook_event_name: "SubagentStop" }, LOCAL);
-  assert.equal(out, "El subagente completó su trabajo.");
+  assert.deepEqual(out, { kind: "play", label: AVISOS.SubagentStop.label });
 });
 
-test("StopFailure (local) narra el fallback del Orchestrator", async () => {
+test("StopFailure (local) cae al aviso pre-sintetizado del evento", async () => {
   const out = await buildMessage({ hook_event_name: "StopFailure" }, LOCAL);
-  assert.equal(out, "Ocurrió un error durante la ejecución.");
+  assert.deepEqual(out, { kind: "play", label: AVISOS.StopFailure.label });
 });
 
-test("Stop (local) sin last_assistant cae al fallback", async () => {
+test("Stop (local) sin last_assistant cae al aviso pre-sintetizado", async () => {
   const out = await buildMessage({ hook_event_name: "Stop" }, LOCAL);
-  assert.equal(out, "El asistente terminó su turno.");
+  assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
 });
 
-test("Notification (local) usa su texto propio", async () => {
+test("Stop (local) con last_assistant narra el resumen local vía say", async () => {
+  const out = await buildMessage(
+    { hook_event_name: "Stop", last_assistant_message: "Terminé la tarea." },
+    LOCAL,
+  );
+  assert.deepEqual(out, { kind: "say", text: "Terminé la tarea." });
+});
+
+test("Notification usa su texto propio vía say", async () => {
   const out = await buildMessage(
     { hook_event_name: "Notification", message: "**Atención**" },
     LOCAL,
   );
-  assert.equal(out, "Atención");
+  assert.deepEqual(out, { kind: "say", text: "Atención" });
 });
 
-// --- Tríada + mapeo de roles vía Gemini (fetch mockeado) ---
+test("Notification sin mensaje cae al aviso pre-sintetizado", async () => {
+  const out = await buildMessage({ hook_event_name: "Notification" }, LOCAL);
+  assert.deepEqual(out, { kind: "play", label: AVISOS.Notification.label });
+});
+
+// --- Modo summary vía Gemini (fetch mockeado) ---
 
 const realFetch = globalThis.fetch;
 let lastBody: unknown;
@@ -70,19 +85,9 @@ afterEach(() => {
   lastBody = undefined;
 });
 
-test("UserPromptSubmit (llm) arma la tríada en orden y mapea roles a Gemini", async () => {
+test("UserPromptSubmit (llm) NO invoca ningún LLM: acuse fijo play", async () => {
   const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
   try {
-    const transcriptPath = join(tmpdir(), `narrator-tríada-${Date.now()}.jsonl`);
-    writeFileSync(
-      transcriptPath,
-      [
-        JSON.stringify({ message: { role: "user", content: "petición previa" } }),
-        JSON.stringify({ message: { role: "assistant", content: "respuesta previa" } }),
-      ].join("\n"),
-      "utf8",
-    );
-
     const cfg: Config = {
       enabled: true,
       messageMode: "llm",
@@ -92,44 +97,12 @@ test("UserPromptSubmit (llm) arma la tríada en orden y mapea roles a Gemini", a
     const payload: HookPayload = {
       hook_event_name: "UserPromptSubmit",
       prompt: "nueva petición",
-      transcript_path: transcriptPath,
     };
 
-    mockGemini("respuesta narrada");
+    mockGemini("no debería llamarse");
     const out = await buildMessage(payload, cfg);
-    assert.equal(out, "respuesta narrada");
-
-    assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
-      { role: "user", parts: [{ text: "petición previa" }] },
-      { role: "model", parts: [{ text: "respuesta previa" }] },
-      { role: "user", parts: [{ text: "nueva petición" }] },
-    ]);
-  } finally {
-    restoreEnv();
-  }
-});
-
-test("UserPromptSubmit (llm) en sesión nueva (sin historial) no alucina ni fuerza tríada", async () => {
-  const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
-  try {
-    const cfg: Config = {
-      enabled: true,
-      messageMode: "llm",
-      geminiApiKey: "dummy",
-      openRouterApiKey: undefined,
-    };
-    const payload: HookPayload = {
-      hook_event_name: "UserPromptSubmit",
-      prompt: "Hola buenas",
-    };
-
-    mockGemini("Hola en que te puedo ayudar");
-    const out = await buildMessage(payload, cfg);
-    assert.equal(out, "Hola en que te puedo ayudar");
-
-    assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
-      { role: "user", parts: [{ text: "Hola buenas" }] },
-    ]);
+    assert.deepEqual(out, { kind: "play", label: AVISOS.UserPromptSubmit.label });
+    assert.equal(lastBody, undefined);
   } finally {
     restoreEnv();
   }
@@ -151,7 +124,7 @@ test("Stop (llm) incluye last_assistant_message cuando el transcript está vací
 
     mockGemini("Creé el componente principal");
     const out = await buildMessage(payload, cfg);
-    assert.equal(out, "Creé el componente principal");
+    assert.deepEqual(out, { kind: "say", text: "Creé el componente principal" });
 
     assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
       { role: "model", parts: [{ text: "Creé el componente principal." }] },
@@ -169,7 +142,7 @@ test("Stop (llm) incluye last_assistant_message cuando el transcript está vací
   }
 });
 
-test("Stop (llm) sin last_assistant_message ni transcript degrada limpiamente a fallback local", async () => {
+test("Stop (llm) sin last_assistant_message ni transcript degrada limpiamente al aviso play", async () => {
   const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
   try {
     const cfg: Config = {
@@ -184,7 +157,7 @@ test("Stop (llm) sin last_assistant_message ni transcript degrada limpiamente a 
     };
 
     const out = await buildMessage(payload, cfg);
-    assert.equal(out, "El asistente terminó su turno.");
+    assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
     assert.equal(lastBody, undefined);
   } finally {
     restoreEnv();
@@ -213,21 +186,28 @@ test("readTranscriptMessages parsea esquemas reales de JSONL (USER_INPUT, PLANNE
       openRouterApiKey: undefined,
     };
     const payload: HookPayload = {
-      hook_event_name: "UserPromptSubmit",
-      prompt: "Continuar",
+      hook_event_name: "Stop",
+      last_assistant_message: "Prueba realizada",
       transcript_path: transcriptPath,
     };
 
-    mockGemini("Continuando ejecucion");
+    mockGemini("Realicé la prueba");
     const out = await buildMessage(payload, cfg);
-    assert.equal(out, "Continuando ejecucion");
+    assert.deepEqual(out, { kind: "say", text: "Realicé la prueba" });
 
     assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
       { role: "user", parts: [{ text: "Hola asistente" }] },
       { role: "model", parts: [{ text: "Hola usuario" }] },
       { role: "user", parts: [{ text: "Haz la prueba" }] },
       { role: "model", parts: [{ text: "Prueba realizada" }] },
-      { role: "user", parts: [{ text: "Continuar" }] },
+      {
+        role: "user",
+        parts: [
+          {
+            text: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+          },
+        ],
+      },
     ]);
   } finally {
     restoreEnv();
@@ -254,18 +234,26 @@ test("readTranscriptMessages descarta líneas cortadas/fragmentadas al leer la c
       openRouterApiKey: undefined,
     };
     const payload: HookPayload = {
-      hook_event_name: "UserPromptSubmit",
-      prompt: "Siguiente",
+      hook_event_name: "Stop",
+      last_assistant_message: "Trabajo hecho",
       transcript_path: transcriptPath,
     };
 
     mockGemini("Procesando");
     const out = await buildMessage(payload, cfg);
-    assert.equal(out, "Procesando");
+    assert.deepEqual(out, { kind: "say", text: "Procesando" });
 
     assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
       { role: "user", parts: [{ text: "Petición válida" }] },
-      { role: "user", parts: [{ text: "Siguiente" }] },
+      { role: "model", parts: [{ text: "Trabajo hecho" }] },
+      {
+        role: "user",
+        parts: [
+          {
+            text: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+          },
+        ],
+      },
     ]);
   } finally {
     restoreEnv();

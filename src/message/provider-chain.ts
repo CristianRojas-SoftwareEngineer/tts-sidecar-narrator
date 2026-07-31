@@ -50,7 +50,7 @@ export async function runChain(
 /**
  * Mapea y prepara la lista de mensajes final para los proveedores LLM,
  * incorporando el texto primario del input y el historial del transcript,
- * preservando los roles y aplicando las reglas del modo (summary vs prompt).
+ * preservando los roles y aplicando las reglas del modo (summary).
  */
 export function buildUserContent(input: GenerationInput): SessionMessage[] {
   const { mode, text, messages } = input;
@@ -76,16 +76,6 @@ export function buildUserContent(input: GenerationInput): SessionMessage[] {
         role: "user",
         content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
       });
-    }
-    return history;
-  }
-
-  if (mode === "prompt") {
-    if (trimmedText) {
-      const last = history.length > 0 ? history[history.length - 1] : undefined;
-      if (!last || last.role !== "user" || last.content !== trimmedText) {
-        history.push({ role: "user", content: trimmedText });
-      }
     }
     return history;
   }

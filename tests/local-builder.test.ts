@@ -7,6 +7,7 @@ import {
   staticForEvent,
   buildNotice,
 } from "../src/message/local-builder.js";
+import { AVISOS } from "../src/message/static-avisos.js";
 
 test("buildLocalSummary conserva TODAS las oraciones (sin truncar)", () => {
   assert.equal(
@@ -24,28 +25,28 @@ test("buildLocalSummary devuelve vacío solo si no queda prosa", () => {
   );
 });
 
-test("staticForEvent conoce los eventos con texto propio", () => {
-  assert.equal(staticForEvent("Stop"), "El asistente terminó su turno.");
-  assert.equal(staticForEvent("UserPromptSubmit"), "Solicitud recibida. Procesando con Claude.");
-  assert.equal(staticForEvent("SubagentStop"), "El subagente completó su trabajo.");
-  assert.equal(staticForEvent("StopFailure"), "Ocurrió un error durante la ejecución.");
-  assert.equal(staticForEvent("Notification"), "Claude necesita tu atención");
-  assert.equal(staticForEvent("SessionStart"), "Sesión iniciada");
+test("staticForEvent devuelve el aviso del catálogo para los eventos con texto propio", () => {
+  assert.deepEqual(staticForEvent("Stop"), AVISOS.Stop);
+  assert.deepEqual(staticForEvent("UserPromptSubmit"), AVISOS.UserPromptSubmit);
+  assert.deepEqual(staticForEvent("SubagentStop"), AVISOS.SubagentStop);
+  assert.deepEqual(staticForEvent("StopFailure"), AVISOS.StopFailure);
+  assert.deepEqual(staticForEvent("Notification"), AVISOS.Notification);
 });
 
-test("staticForEvent cae al texto por defecto ante eventos desconocidos", () => {
-  assert.equal(staticForEvent("SubagentStop_inexistente"), "Procesando.");
-  assert.equal(staticForEvent(undefined), "Procesando.");
+test("staticForEvent cae al aviso por defecto ante eventos desconocidos", () => {
+  assert.deepEqual(staticForEvent("SubagentStop_inexistente"), AVISOS.Default);
+  assert.deepEqual(staticForEvent("SessionStart"), AVISOS.Default);
+  assert.deepEqual(staticForEvent(undefined), AVISOS.Default);
 });
 
-test("buildNotice limpia el mensaje para voz", () => {
-  assert.equal(
+test("buildNotice limpia el mensaje para voz y lo enruta a say", () => {
+  assert.deepEqual(
     buildNotice("Claude necesita **permiso** para usar `Bash`"),
-    "Claude necesita permiso para usar Bash",
+    { kind: "say", text: "Claude necesita permiso para usar Bash" },
   );
 });
 
-test("buildNotice cae al estático de Notification si el mensaje queda vacío", () => {
-  assert.equal(buildNotice(""), "Claude necesita tu atención");
-  assert.equal(buildNotice(undefined), "Claude necesita tu atención");
+test("buildNotice cae al aviso pre-sintetizado de Notification si el mensaje queda vacío", () => {
+  assert.deepEqual(buildNotice(""), { kind: "play", label: AVISOS.Notification.label });
+  assert.deepEqual(buildNotice(undefined), { kind: "play", label: AVISOS.Notification.label });
 });

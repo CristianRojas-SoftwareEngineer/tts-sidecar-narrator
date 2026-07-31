@@ -181,25 +181,13 @@ function buildUserContent(input) {
     }
     return history;
   }
-  if (mode === "prompt") {
-    if (trimmedText) {
-      const last = history.length > 0 ? history[history.length - 1] : void 0;
-      if (!last || last.role !== "user" || last.content !== trimmedText) {
-        history.push({ role: "user", content: trimmedText });
-      }
-    }
-    return history;
-  }
   return history;
 }
 
 // src/message/prompts.ts
-var PROMPT_SYSTEM_PROMPT = "Eres un desarrollador experto, asertivo y conversacional que responde por voz sintetizada en tiempo real. Responde a la \xFAltima intervenci\xF3n del usuario en una sola oraci\xF3n breve, clara y bien articulada en espa\xF1ol. Si es una consulta o saludo social, responde cordial y directamente; si es una instrucci\xF3n t\xE9cnica o comando, confirma asertivamente que proceder\xE1s a trabajarlo conservando los identificadores t\xE9cnicos relevantes. Usa mensajes anteriores solo como contexto. Responde en texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, ni s\xEDmbolos.";
 var SUMMARY_SYSTEM_PROMPT = "Eres un desarrollador experto, asertivo y directo que habla por voz sintetizada en tiempo real. Sintetiza lo realizado en una o dos oraciones breves, bien articuladas en espa\xF1ol y en primera persona. Mant\xE9n la precisi\xF3n t\xE9cnica: conserva expl\xEDcitamente identificadores, rutas de archivo, comandos o funciones relevantes cuando aporte claridad sobre lo que se hizo. Cierra de forma conversacional invitando a continuar. Responde en texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, ni s\xEDmbolos.";
 function systemPromptFor(mode) {
   switch (mode) {
-    case "prompt":
-      return PROMPT_SYSTEM_PROMPT;
     case "summary":
       return SUMMARY_SYSTEM_PROMPT;
   }
@@ -310,25 +298,42 @@ function sanitizeForSpeech(input) {
   return plain ? plain.replace(/\s+/g, " ").trim() : "";
 }
 
-// src/message/local-builder.ts
-var STATIC_BY_EVENT = {
-  Stop: "El asistente termin\xF3 su turno.",
-  UserPromptSubmit: "Solicitud recibida. Procesando con Claude.",
-  SubagentStop: "El subagente complet\xF3 su trabajo.",
-  StopFailure: "Ocurri\xF3 un error durante la ejecuci\xF3n.",
-  Notification: "Claude necesita tu atenci\xF3n",
-  SessionStart: "Sesi\xF3n iniciada"
+// src/message/static-avisos.ts
+import { createHash } from "node:crypto";
+function labelFor(text) {
+  const hash = createHash("sha256").update(text, "utf8").digest("hex");
+  return `narrator-${hash.slice(0, 12)}`;
+}
+function aviso(text) {
+  return { text, label: labelFor(text) };
+}
+var AVISOS = {
+  UserPromptSubmit: aviso("Procesando con Claude"),
+  Stop: aviso("El asistente termin\xF3 su turno."),
+  SubagentStop: aviso("El subagente complet\xF3 su trabajo."),
+  StopFailure: aviso("Ocurri\xF3 un error durante la ejecuci\xF3n."),
+  Notification: aviso("Claude necesita tu atenci\xF3n"),
+  Default: aviso("Procesando.")
 };
-var STATIC_DEFAULT = "Procesando.";
+
+// src/message/local-builder.ts
+var AVISO_BY_EVENT = {
+  Stop: AVISOS.Stop,
+  UserPromptSubmit: AVISOS.UserPromptSubmit,
+  SubagentStop: AVISOS.SubagentStop,
+  StopFailure: AVISOS.StopFailure,
+  Notification: AVISOS.Notification
+};
 function buildLocalSummary(text) {
   return sanitizeForSpeech(text);
 }
 function staticForEvent(eventName) {
-  return STATIC_BY_EVENT[eventName ?? ""] ?? STATIC_DEFAULT;
+  return AVISO_BY_EVENT[eventName ?? ""] ?? AVISOS.Default;
 }
 function buildNotice(message) {
   const clean = sanitizeForSpeech(message ?? "");
-  return clean || staticForEvent("Notification");
+  if (clean) return { kind: "say", text: clean };
+  return { kind: "play", label: staticForEvent("Notification").label };
 }
 
 // src/message/build-message.ts
@@ -340,7 +345,7 @@ async function buildMessage(payload, cfg) {
     return buildNotice(payload.message);
   }
   if (event === "UserPromptSubmit") {
-    return buildPromptMessage(payload, cfg);
+    return { kind: "play", label: AVISOS.UserPromptSubmit.label };
   }
   const primary = (payload.last_assistant_message ?? "").trim();
   if (cfg.messageMode === "llm") {
@@ -354,35 +359,13 @@ async function buildMessage(payload, cfg) {
       const llm = await runChain(providers, input);
       if (llm) {
         const clean = sanitizeForSpeech(llm);
-        if (clean) return clean;
+        if (clean) return { kind: "say", text: clean };
       }
     }
   }
   const localSummary = buildLocalSummary(primary);
-  if (localSummary) return localSummary;
-  return staticForEvent(event);
-}
-async function buildPromptMessage(payload, cfg) {
-  const transcript = readTranscriptMessages(payload.transcript_path);
-  const currentPrompt = (payload.prompt ?? "").trim() || (transcript.length ? transcript[transcript.length - 1].content : "");
-  if (cfg.messageMode === "llm") {
-    const providers = buildProviders(cfg);
-    if (providers.length > 0) {
-      const input = {
-        mode: "prompt",
-        text: currentPrompt,
-        messages: transcript
-      };
-      const llm = await runChain(providers, input);
-      if (llm) {
-        const clean = sanitizeForSpeech(llm);
-        if (clean) return clean;
-      }
-    }
-  }
-  const localSummary = buildLocalSummary(currentPrompt);
-  if (localSummary) return localSummary;
-  return staticForEvent("UserPromptSubmit");
+  if (localSummary) return { kind: "say", text: localSummary };
+  return { kind: "play", label: staticForEvent(event).label };
 }
 function buildProviders(cfg) {
   const providers = [];
@@ -544,20 +527,41 @@ function readPayload() {
     return {};
   }
 }
-function runSpeak(cliPath, text) {
+function runPlay(cliPath, label) {
   return new Promise((resolve) => {
-    const args = ["speak", "--text", text, "--daemon"];
+    const args = ["speech", "play", "--label", label];
     const child = spawn2(cliPath, args, {
       stdio: "ignore",
       windowsHide: true,
       shell: needsShell(cliPath)
     });
     child.on("error", (err) => {
-      log(`speak error: ${err.message}`);
+      log(`speech play error: ${err.message}`);
       resolve();
     });
     child.on("exit", (code) => {
-      if (code !== 0) log(`speak sali\xF3 con c\xF3digo ${code}`);
+      if (code !== 0) {
+        const hint = code === 3 ? " (aviso no horneado; ejecuta narrate-ctl bake)" : "";
+        log(`speech play sali\xF3 con c\xF3digo ${code}${hint}`);
+      }
+      resolve();
+    });
+  });
+}
+function runSay(cliPath, text) {
+  return new Promise((resolve) => {
+    const args = ["speech", "say", "--text", text, "--daemon"];
+    const child = spawn2(cliPath, args, {
+      stdio: "ignore",
+      windowsHide: true,
+      shell: needsShell(cliPath)
+    });
+    child.on("error", (err) => {
+      log(`speech say error: ${err.message}`);
+      resolve();
+    });
+    child.on("exit", (code) => {
+      if (code !== 0) log(`speech say sali\xF3 con c\xF3digo ${code}`);
       resolve();
     });
   });
@@ -569,8 +573,8 @@ async function main() {
   const cfg = loadConfig();
   if (!cfg.enabled) return;
   const payload = readPayload();
-  const text = await buildMessage(payload, cfg);
-  if (!text) {
+  const request = await buildMessage(payload, cfg);
+  if (request.kind === "say" && !request.text) {
     log("mensaje vac\xEDo tras la construcci\xF3n; nada que narrar");
     return;
   }
@@ -579,7 +583,8 @@ async function main() {
     log("tts-sidecar no encontrado en PATH; se omite la narraci\xF3n");
     return;
   }
-  await runSpeak(cli, text);
+  if (request.kind === "play") await runPlay(cli, request.label);
+  else await runSay(cli, request.text);
 }
 main().catch((err) => log(`worker error: ${err?.message ?? err}`)).finally(() => {
   releaseSingleInstance();

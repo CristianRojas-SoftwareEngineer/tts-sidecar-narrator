@@ -6,9 +6,10 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { chmodSync, readFileSync, writeFileSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 import { makeTempDir, removeDir } from "./helpers.js";
+import { AVISOS } from "../src/message/static-avisos.js";
 
 const CTL = join(process.cwd(), "dist", "narrate-ctl.js");
 
@@ -114,6 +115,130 @@ test("say sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
   const emptyPath = makeTempDir("narrator-empty-");
   try {
     const res = runCtl(["say", "hola"], { PATH: emptyPath, Path: emptyPath });
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /no está en el PATH/);
+  } finally {
+    removeDir(emptyPath);
+  }
+});
+
+// --- CLI falso: registra argv por invocación y sale con códigos de una secuencia ---
+
+/**
+ * Crea un `tts-sidecar` falso en `dir` (shim .cmd en Windows, script sh en
+ * Unix, ambos delegando en un impl Node). Cada invocación anota su argv en
+ * `argv.log` y consume el siguiente código de la secuencia (0 si se agota).
+ */
+function makeFakeCli(dir: string, codes: number[]): { argvLog: string } {
+  const argvLog = join(dir, "argv.log");
+  writeFileSync(join(dir, "seq.json"), JSON.stringify(codes));
+  writeFileSync(
+    join(dir, "impl.cjs"),
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      'fs.appendFileSync(path.join(__dirname, "argv.log"), JSON.stringify(process.argv.slice(2)) + "\\n");',
+      'const seqPath = path.join(__dirname, "seq.json");',
+      'const codes = JSON.parse(fs.readFileSync(seqPath, "utf8"));',
+      "const code = codes.length ? codes.shift() : 0;",
+      "fs.writeFileSync(seqPath, JSON.stringify(codes));",
+      "process.exit(code);",
+    ].join("\n"),
+  );
+  if (process.platform === "win32") {
+    writeFileSync(
+      join(dir, "tts-sidecar.cmd"),
+      '@node "%~dp0impl.cjs" %*\r\n@exit /b %errorlevel%\r\n',
+    );
+  } else {
+    const sh = join(dir, "tts-sidecar");
+    writeFileSync(sh, '#!/bin/sh\nexec node "$(dirname "$0")/impl.cjs" "$@"\n');
+    chmodSync(sh, 0o755);
+  }
+  return { argvLog };
+}
+
+/** PATH que resuelve el CLI falso y mantiene `node` disponible para el shim. */
+function fakeCliEnv(dir: string): Record<string, string> {
+  const p = dir + delimiter + dirname(process.execPath);
+  return { PATH: p, Path: p };
+}
+
+function loggedArgvs(argvLog: string): string[][] {
+  return readFileSync(argvLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as string[]);
+}
+
+test("say invoca speech say --text --daemon (contrato v0.9.1)", () => {
+  const dir = makeTempDir("narrator-fakecli-");
+  try {
+    const { argvLog } = makeFakeCli(dir, [0]);
+    const res = runCtl(["say", "hola"], fakeCliEnv(dir));
+    assert.equal(res.status, 0);
+    const [argv] = loggedArgvs(argvLog);
+    assert.deepEqual(argv.slice(0, 3), ["speech", "say", "--text"]);
+    assert.ok(argv.includes("--daemon"));
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("bake hornea los seis avisos con speech synthesize --label --daemon", () => {
+  const dir = makeTempDir("narrator-fakecli-");
+  try {
+    const { argvLog } = makeFakeCli(dir, [0, 0, 0, 0, 0, 0]);
+    const res = runCtl(["bake"], fakeCliEnv(dir));
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout.match(/: horneado /g)?.length, 6);
+
+    const argvs = loggedArgvs(argvLog);
+    assert.equal(argvs.length, 6);
+    const labels = argvs.map((argv) => {
+      assert.deepEqual(argv.slice(0, 2), ["speech", "synthesize"]);
+      assert.ok(argv.includes("--daemon"));
+      return argv[argv.indexOf("--label") + 1];
+    });
+    assert.deepEqual(
+      labels.sort(),
+      Object.values(AVISOS).map((a) => a.label).sort(),
+    );
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("bake es idempotente: exit 6 (label ya existe) cuenta como éxito", () => {
+  const dir = makeTempDir("narrator-fakecli-");
+  try {
+    makeFakeCli(dir, [0, 6, 6, 0, 6, 6]);
+    const res = runCtl(["bake"], fakeCliEnv(dir));
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout.match(/: ya horneado /g)?.length, 4);
+    assert.equal(res.stdout.match(/: horneado /g)?.length, 2);
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("bake propaga el fallo (exit 5, daemon caído) con código ≠ 0", () => {
+  const dir = makeTempDir("narrator-fakecli-");
+  try {
+    makeFakeCli(dir, [5, 0, 0, 0, 0, 0]);
+    const res = runCtl(["bake"], fakeCliEnv(dir));
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /exit 5/);
+    assert.match(res.stderr, /daemon caído/);
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("bake sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
+  const emptyPath = makeTempDir("narrator-empty-");
+  try {
+    const res = runCtl(["bake"], { PATH: emptyPath, Path: emptyPath });
     assert.equal(res.status, 1);
     assert.match(res.stderr, /no está en el PATH/);
   } finally {
