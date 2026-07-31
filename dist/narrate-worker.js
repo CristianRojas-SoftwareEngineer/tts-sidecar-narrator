@@ -240,7 +240,7 @@ var GeminiProvider = class {
 
 // src/message/openrouter-provider.ts
 var ENDPOINT2 = "https://openrouter.ai/api/v1/messages";
-var MODEL2 = "poolside/laguna-xs-2.1:free";
+var MODEL2 = "inclusionai/ling-3.0-flash:free";
 var OpenRouterProvider = class {
   constructor(apiKey) {
     this.apiKey = apiKey;

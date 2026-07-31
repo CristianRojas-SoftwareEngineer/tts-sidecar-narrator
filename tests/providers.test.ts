@@ -109,13 +109,13 @@ test("Gemini: lanza sin llamar a fetch si no hay API key", async () => {
 
 // --- OpenRouter (formato Anthropic Messages) ---
 
-test("OpenRouter: usa el modelo poolside y el endpoint /api/v1/messages", async () => {
+test("OpenRouter: usa el modelo :free configurado y el endpoint /api/v1/messages", async () => {
   mockFetch(200, { content: [{ type: "text", text: "ok" }] });
   await new OpenRouterProvider("clave").generate(INPUT);
   assert.ok(lastRequest?.url.includes("openrouter.ai"));
   assert.ok(lastRequest?.url.includes("/api/v1/messages"));
   const body = JSON.parse(lastRequest!.init.body as string);
-  assert.equal(body.model, "poolside/laguna-xs-2.1:free");
+  assert.equal(body.model, "inclusionai/ling-3.0-flash:free");
 });
 
 test("OpenRouter: manda system + messages (formato Anthropic), no chat/completions", async () => {

@@ -12,9 +12,8 @@ import { systemPromptFor } from "./prompts.js";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/messages";
 
-// Modelo del Orchestrator (§5.4): poolside/laguna-xs-2.1:free. Verificar
-// disponibilidad si OpenRouter cambia su catálogo :free.
-const MODEL = "poolside/laguna-xs-2.1:free";
+// Verificar disponibilidad si OpenRouter cambia su catálogo :free.
+const MODEL = "inclusionai/ling-3.0-flash:free";
 
 interface OpenRouterResponse {
   content?: Array<{ type?: string; text?: string }>;
