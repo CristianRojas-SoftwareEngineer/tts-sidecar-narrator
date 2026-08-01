@@ -13,7 +13,11 @@ import { systemPromptFor } from "./prompts.js";
 const ENDPOINT = "https://openrouter.ai/api/v1/messages";
 
 // Verificar disponibilidad si OpenRouter cambia su catálogo :free.
-const MODEL = "inclusionai/ling-3.0-flash:free";
+// Laguna XS 2.1 no emite razonamiento (verificado con key el 2026-07-31): a
+// diferencia de Ling 3.0 Flash, no consume el presupuesto de max_tokens en un
+// bloque `thinking`, por lo que nunca devuelve texto vacío con el prompt
+// anti-invención. Además es 2-3x más rápido en la ruta caliente de voz.
+const MODEL = "poolside/laguna-xs-2.1:free";
 
 interface OpenRouterResponse {
   content?: Array<{ type?: string; text?: string }>;

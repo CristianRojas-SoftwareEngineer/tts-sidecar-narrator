@@ -115,7 +115,7 @@ test("OpenRouter: usa el modelo :free configurado y el endpoint /api/v1/messages
   assert.ok(lastRequest?.url.includes("openrouter.ai"));
   assert.ok(lastRequest?.url.includes("/api/v1/messages"));
   const body = JSON.parse(lastRequest!.init.body as string);
-  assert.equal(body.model, "inclusionai/ling-3.0-flash:free");
+  assert.equal(body.model, "poolside/laguna-xs-2.1:free");
 });
 
 test("OpenRouter: manda system + messages (formato Anthropic), no chat/completions", async () => {
