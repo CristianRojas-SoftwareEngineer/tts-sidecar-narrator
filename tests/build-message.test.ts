@@ -63,6 +63,13 @@ test("Stop (local) sin last_assistant cae al aviso pre-sintetizado", async () =>
   assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
 });
 
+test("evento ausente/desconocido sin material degrada al aviso Default (red de seguridad)", async () => {
+  // Payload corrupto/indeterminado (JSON malformado o fallo de lectura del
+  // traspaso interno): sin hook_event_name ni material, la última red es Default.
+  const out = await buildMessage({}, LOCAL);
+  assert.deepEqual(out, { kind: "play", label: AVISOS.Default.label });
+});
+
 test("Stop con last_assistant solo-símbolos degrada al aviso estático (umbral)", async () => {
   const out = await buildMessage(
     { hook_event_name: "Stop", last_assistant_message: "🎉🎉🎉" },

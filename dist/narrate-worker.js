@@ -276,18 +276,6 @@ var AVISOS = {
   Default: aviso("Procesando.")
 };
 
-// src/message/local-builder.ts
-var AVISO_BY_EVENT = {
-  Stop: AVISOS.Stop,
-  UserPromptSubmit: AVISOS.UserPromptSubmit,
-  SubagentStop: AVISOS.SubagentStop,
-  StopFailure: AVISOS.StopFailure,
-  Notification: AVISOS.Notification
-};
-function staticForEvent(eventName) {
-  return AVISO_BY_EVENT[eventName ?? ""] ?? AVISOS.Default;
-}
-
 // src/message/sanitize.ts
 function toPlainText(input) {
   let t = input ?? "";
@@ -377,7 +365,8 @@ async function buildMessage(payload, cfg) {
   const raw = payload.last_assistant_message ?? "";
   const primary = sanitizeForSpeech(raw);
   if (primary === "") {
-    return { kind: "play", label: staticForEvent(event).label };
+    const fallback = event === "Stop" ? AVISOS.Stop : AVISOS.Default;
+    return { kind: "play", label: fallback.label };
   }
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);

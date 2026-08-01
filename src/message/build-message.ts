@@ -12,7 +12,6 @@ import type { HookPayload } from "../lib/hook-payload.js";
 import { runChain, type GenerationInput, type TextProvider } from "./provider-chain.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { OpenRouterProvider } from "./openrouter-provider.js";
-import { staticForEvent } from "./local-builder.js";
 import { AVISOS, type NarrationRequest } from "./static-avisos.js";
 import { sanitizeForSpeech } from "./sanitize.js";
 import { clampHead, clampSentences, LOCAL_SPEECH_MAX_CHARS } from "./clamp.js";
@@ -42,9 +41,11 @@ export async function buildMessage(
   const raw = payload.last_assistant_message ?? "";
   const primary = sanitizeForSpeech(raw);
 
-  // Umbral: sin material narrable no se invoca el LLM.
+  // Umbral: sin material narrable no se invoca el LLM. En este punto el evento
+  // solo puede ser `Stop` (los demás retornaron arriba) o desconocido/ausente.
   if (primary === "") {
-    return { kind: "play", label: staticForEvent(event).label };
+    const fallback = event === "Stop" ? AVISOS.Stop : AVISOS.Default;
+    return { kind: "play", label: fallback.label };
   }
 
   if (cfg.messageMode === "llm") {
