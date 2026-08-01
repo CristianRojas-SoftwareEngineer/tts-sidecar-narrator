@@ -52,7 +52,7 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
   final no tiene material narrable, o el LLM cae, degrada al resumen local
   acotado o al aviso estático pre-sintetizado (`speech play`). El worker corre
   desanclado; nunca bloquea el turno.
-- **`SubagentStop` / `StopFailure` / `Notification`** → reproducen su aviso
+- **`SubagentStop` / `StopFailure` / `Notification`** → reproducen su anuncio
   pre-sintetizado con `speech play --label …`: sin LLM ni síntesis por evento. Para
   `Notification` el mensaje específico sigue visible en pantalla.
 - **`SessionStart`** → `health-check` corre `doctor --json`. Si el modelo está en
@@ -60,7 +60,7 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
   (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía
   `systemMessage` y no hace nada más.
 - **Instalación** (`/tts-sidecar-narrator:install`) → `narrate-ctl presynth`
-  pre-sintetiza los avisos del catálogo (`src/message/static-avisos.ts`) con
+  pre-sintetiza los anuncios del catálogo (`src/message/static-announcements.ts`) con
   `speech synthesize … --daemon`, una sola vez y de forma idempotente.
 
 La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH` (honrando `PATHEXT` en Windows).

@@ -109,9 +109,9 @@ tts-sidecar daemon status
 
 Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual: el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión nueva (siempre que la narración esté activada y el modelo en caché). Este arranque durante la instalación es solo para dejarlo caliente ya mismo.
 
-## Paso 4 — Pre-sintetizar los avisos
+## Paso 4 — Pre-sintetizar los anuncios
 
-Con el daemon recién levantado (precondición exacta de este paso), pre-sintetiza los avisos estáticos del plugin — el acuse de `UserPromptSubmit` («Procesando con Claude») y los fallbacks por evento — para que en cada turno se reproduzcan al instante con `speech play`, sin modelo ni daemon:
+Con el daemon recién levantado (precondición exacta de este paso), pre-sintetiza los anuncios estáticos del plugin — el acuse de `UserPromptSubmit` («Procesando con Claude») y los fallbacks por evento — para que en cada turno se reproduzcan al instante con `speech play`, sin modelo ni daemon:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth
@@ -119,7 +119,7 @@ node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth
 
 Interpreta el resultado:
 
-- **Exit `0`** → todos los avisos quedaron pre-sintetizados (los ya existentes se
+- **Exit `0`** → todos los anuncios quedaron pre-sintetizados (los ya existentes se
   reportan como «ya pre-sintetizado»: el comando es idempotente y es seguro repetirlo).
 - **Fallo con «daemon caído» (exit `5` del motor)** → vuelve al **Paso 3** y
   reintenta.
@@ -156,15 +156,15 @@ Interpreta el resultado:
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" say "La narración por voz quedó lista"
    ```
 
-3. Reproducción de un aviso pre-sintetizado (verifica la ruta `speech play` que usará
+3. Reproducción de un anuncio pre-sintetizado (verifica la ruta `speech play` que usará
    `UserPromptSubmit`): toma un label de la salida del Paso 4 (por ejemplo el de
    `UserPromptSubmit`, con forma `narrator-<hash>`) y reprodúcelo:
 
    ```bash
-   tts-sidecar speech play --label <label-del-aviso>
+   tts-sidecar speech play --label <label-del-anuncio>
    ```
 
-   Debe sonar el aviso con exit `0`. Un exit `3` significa que el aviso no está
+   Debe sonar el anuncio con exit `0`. Un exit `3` significa que el anuncio no está
    pre-sintetizado: repite el **Paso 4**.
 
    Pregunta al usuario si escuchó las locuciones. Si no:
@@ -176,4 +176,4 @@ Interpreta el resultado:
 
 Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno y levanta el daemon si hace falta; luego **cada evento registrado** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`/`presynth`).
 
-Menciona también el mantenimiento de los avisos pre-sintetizados: si se borra la caché del motor (`synthetic-speech/`) o cambia alguna frase de los avisos en una actualización del plugin, basta re-ejecutar `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth` con el daemon caliente (es idempotente; los avisos vigentes no se re-sintetizan).
+Menciona también el mantenimiento de los anuncios pre-sintetizados: si se borra la caché del motor (`synthetic-speech/`) o cambia alguna frase de los anuncios en una actualización del plugin, basta re-ejecutar `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth` con el daemon caliente (es idempotente; los anuncios vigentes no se re-sintetizan).

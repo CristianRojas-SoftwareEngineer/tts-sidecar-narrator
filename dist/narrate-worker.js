@@ -258,22 +258,22 @@ var OpenRouterProvider = class {
   }
 };
 
-// src/message/static-avisos.ts
+// src/message/static-announcements.ts
 import { createHash } from "node:crypto";
 function labelFor(text) {
   const hash = createHash("sha256").update(text, "utf8").digest("hex");
   return `narrator-${hash.slice(0, 12)}`;
 }
-function aviso(text) {
+function announcement(text) {
   return { text, label: labelFor(text) };
 }
-var AVISOS = {
-  UserPromptSubmit: aviso("Procesando con Claude"),
-  Stop: aviso("El asistente termin\xF3 su turno."),
-  SubagentStop: aviso("El subagente complet\xF3 su trabajo."),
-  StopFailure: aviso("Ocurri\xF3 un error durante la ejecuci\xF3n."),
-  Notification: aviso("Claude necesita tu atenci\xF3n"),
-  Default: aviso("Procesando.")
+var ANNOUNCEMENTS = {
+  UserPromptSubmit: announcement("Procesando con Claude"),
+  Stop: announcement("El asistente termin\xF3 su turno."),
+  SubagentStop: announcement("El subagente complet\xF3 su trabajo."),
+  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n."),
+  Notification: announcement("Claude necesita tu atenci\xF3n"),
+  Default: announcement("Procesando.")
 };
 
 // src/message/sanitize.ts
@@ -351,21 +351,21 @@ function splitSentences(text) {
 async function buildMessage(payload, cfg) {
   const event = payload.hook_event_name;
   if (event === "Notification") {
-    return { kind: "play", label: AVISOS.Notification.label };
+    return { kind: "play", label: ANNOUNCEMENTS.Notification.label };
   }
   if (event === "UserPromptSubmit") {
-    return { kind: "play", label: AVISOS.UserPromptSubmit.label };
+    return { kind: "play", label: ANNOUNCEMENTS.UserPromptSubmit.label };
   }
   if (event === "SubagentStop") {
-    return { kind: "play", label: AVISOS.SubagentStop.label };
+    return { kind: "play", label: ANNOUNCEMENTS.SubagentStop.label };
   }
   if (event === "StopFailure") {
-    return { kind: "play", label: AVISOS.StopFailure.label };
+    return { kind: "play", label: ANNOUNCEMENTS.StopFailure.label };
   }
   const raw = payload.last_assistant_message ?? "";
   const primary = sanitizeForSpeech(raw);
   if (primary === "") {
-    const fallback = event === "Stop" ? AVISOS.Stop : AVISOS.Default;
+    const fallback = event === "Stop" ? ANNOUNCEMENTS.Stop : ANNOUNCEMENTS.Default;
     return { kind: "play", label: fallback.label };
   }
   if (cfg.messageMode === "llm") {
@@ -458,7 +458,7 @@ function runPlay(cliPath, label) {
     });
     child.on("exit", (code) => {
       if (code !== 0) {
-        const hint = code === 3 ? " (aviso no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
+        const hint = code === 3 ? " (anuncio no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
         log(`speech play sali\xF3 con c\xF3digo ${code}${hint}`);
       }
       resolve();

@@ -1,6 +1,6 @@
 // Caracterización de buildMessage: enrutado MVP determinista. Solo `Stop` (y el
 // default) genera locución dinámica sobre `last_assistant_message`; el resto de
-// eventos reproduce su aviso pre-sintetizado (`play`). Blinda el invariante «el LLM
+// eventos reproduce su anuncio pre-sintetizado (`play`). Blinda el invariante «el LLM
 // nunca recibe nada que no sea last_assistant_message» y el caso «Hola».
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildMessage } from "../src/message/build-message.js";
-import { AVISOS } from "../src/message/static-avisos.js";
+import { ANNOUNCEMENTS } from "../src/message/static-announcements.js";
 import { SUMMARY_CLOSING } from "../src/message/prompts.js";
 import { withEnv } from "./helpers.js";
 import type { Config } from "../src/lib/config.js";
@@ -28,54 +28,54 @@ const LLM: Config = {
   openRouterApiKey: undefined,
 };
 
-// --- Enrutado de eventos con aviso fijo (`play`), sin LLM ---
+// --- Enrutado de eventos con anuncio fijo (`play`), sin LLM ---
 
-test("UserPromptSubmit es un acuse fijo: play del aviso pre-sintetizado, ignora el prompt", async () => {
+test("UserPromptSubmit es un acuse fijo: play del anuncio pre-sintetizado, ignora el prompt", async () => {
   const out = await buildMessage(
     { hook_event_name: "UserPromptSubmit", prompt: "haz X" },
     LOCAL,
   );
-  assert.deepEqual(out, { kind: "play", label: AVISOS.UserPromptSubmit.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.UserPromptSubmit.label });
 });
 
-test("Notification reproduce su aviso pre-sintetizado (play fijo), ignora el mensaje", async () => {
+test("Notification reproduce su anuncio pre-sintetizado (play fijo), ignora el mensaje", async () => {
   const out = await buildMessage(
     { hook_event_name: "Notification", message: "**Atención** necesita permiso" },
     LOCAL,
   );
-  assert.deepEqual(out, { kind: "play", label: AVISOS.Notification.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Notification.label });
 });
 
-test("SubagentStop reproduce su aviso pre-sintetizado (play fijo)", async () => {
+test("SubagentStop reproduce su anuncio pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "SubagentStop" }, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: AVISOS.SubagentStop.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.SubagentStop.label });
 });
 
-test("StopFailure reproduce su aviso pre-sintetizado (play fijo)", async () => {
+test("StopFailure reproduce su anuncio pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "StopFailure" }, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: AVISOS.StopFailure.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.StopFailure.label });
 });
 
 // --- Ruta Stop: umbral y degradación local ---
 
-test("Stop (local) sin last_assistant cae al aviso pre-sintetizado", async () => {
+test("Stop (local) sin last_assistant cae al anuncio pre-sintetizado", async () => {
   const out = await buildMessage({ hook_event_name: "Stop" }, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Stop.label });
 });
 
-test("evento ausente/desconocido sin material degrada al aviso Default (red de seguridad)", async () => {
+test("evento ausente/desconocido sin material degrada al anuncio Default (red de seguridad)", async () => {
   // Payload corrupto/indeterminado (JSON malformado o fallo de lectura del
   // traspaso interno): sin hook_event_name ni material, la última red es Default.
   const out = await buildMessage({}, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: AVISOS.Default.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Default.label });
 });
 
-test("Stop con last_assistant solo-símbolos degrada al aviso estático (umbral)", async () => {
+test("Stop con last_assistant solo-símbolos degrada al anuncio estático (umbral)", async () => {
   const out = await buildMessage(
     { hook_event_name: "Stop", last_assistant_message: "🎉🎉🎉" },
     LOCAL,
   );
-  assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
+  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Stop.label });
 });
 
 test("Stop (local) con last_assistant narra el resumen local vía say", async () => {
@@ -114,7 +114,7 @@ test("UserPromptSubmit (llm) NO invoca ningún LLM: acuse fijo play", async () =
       { hook_event_name: "UserPromptSubmit", prompt: "nueva petición" },
       LLM,
     );
-    assert.deepEqual(out, { kind: "play", label: AVISOS.UserPromptSubmit.label });
+    assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.UserPromptSubmit.label });
     assert.equal(lastBody, undefined);
   } finally {
     restoreEnv();
@@ -218,14 +218,14 @@ test("Stop (llm) con LLM caído degrada al resumen local acotado (clampSentences
   }
 });
 
-test("Stop (llm) sin last_assistant_message degrada limpiamente al aviso play sin invocar LLM", async () => {
+test("Stop (llm) sin last_assistant_message degrada limpiamente al anuncio play sin invocar LLM", async () => {
   const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
   try {
     const out = await buildMessage(
       { hook_event_name: "Stop", last_assistant_message: "" },
       LLM,
     );
-    assert.deepEqual(out, { kind: "play", label: AVISOS.Stop.label });
+    assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Stop.label });
     assert.equal(lastBody, undefined);
   } finally {
     restoreEnv();

@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { makeTempDir, removeDir } from "./helpers.js";
-import { AVISOS } from "../src/message/static-avisos.js";
+import { ANNOUNCEMENTS } from "../src/message/static-announcements.js";
 
 const CTL = join(process.cwd(), "dist", "narrate-ctl.js");
 
@@ -185,7 +185,7 @@ test("say invoca speech say --text --daemon (contrato v0.9.1)", () => {
   }
 });
 
-test("presynth pre-sintetiza los seis avisos con speech synthesize --label --daemon", () => {
+test("presynth pre-sintetiza los seis anuncios con speech synthesize --label --daemon", () => {
   const dir = makeTempDir("narrator-fakecli-");
   try {
     const { argvLog } = makeFakeCli(dir, [0, 0, 0, 0, 0, 0]);
@@ -202,7 +202,7 @@ test("presynth pre-sintetiza los seis avisos con speech synthesize --label --dae
     });
     assert.deepEqual(
       labels.sort(),
-      Object.values(AVISOS).map((a) => a.label).sort(),
+      Object.values(ANNOUNCEMENTS).map((a) => a.label).sort(),
     );
   } finally {
     removeDir(dir);

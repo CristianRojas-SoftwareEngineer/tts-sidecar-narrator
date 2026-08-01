@@ -90,9 +90,9 @@ function readPayload(): HookPayload {
 }
 
 /**
- * Ejecuta `tts-sidecar speech play --label <label>`: reproduce un aviso
+ * Ejecuta `tts-sidecar speech play --label <label>`: reproduce un anuncio
  * pre-sintetizado, sin modelo ni daemon. Política de fallo: cualquier exit ≠ 0
- * (incluido el `3` de cache miss, aviso no pre-sintetizado) se registra en worker.log
+ * (incluido el `3` de cache miss, anuncio no pre-sintetizado) se registra en worker.log
  * y el turno queda sin audio — sin re-sintetizado ni fallback a `speech say`.
  */
 function runPlay(cliPath: string, label: string): Promise<void> {
@@ -109,7 +109,7 @@ function runPlay(cliPath: string, label: string): Promise<void> {
     });
     child.on("exit", (code) => {
       if (code !== 0) {
-        const hint = code === 3 ? " (aviso no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
+        const hint = code === 3 ? " (anuncio no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
         log(`speech play salió con código ${code}${hint}`);
       }
       resolve();

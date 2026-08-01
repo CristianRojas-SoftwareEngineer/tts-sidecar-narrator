@@ -18,7 +18,7 @@ las **correcciones de integración concretas** a implementar en el plugin.
 - [Contexto adicional no bloqueante](#contexto-adicional-no-bloqueante)
 - [Derivas de documentación](#derivas-de-documentación)
 - [Correcciones a implementar](#correcciones-a-implementar)
-- [Rediseño de `UserPromptSubmit`: aviso fijo pre-sintetizado](#rediseño-de-userpromptsubmit-aviso-fijo-pre-sintetizado)
+- [Rediseño de `UserPromptSubmit`: anuncio fijo pre-sintetizado](#rediseño-de-userpromptsubmit-anuncio-fijo-pre-sintetizado)
   - [El problema actual](#el-problema-actual)
   - [El cambio de especificación](#el-cambio-de-especificación)
   - [Superficies nuevas del contrato CLI](#superficies-nuevas-del-contrato-cli)
@@ -202,13 +202,13 @@ Lista accionable derivada de lo anterior (**ejecutada**; estado final):
       `src/lib/daemon.ts` (superficies 3 y 4 intactas).
 
 El rediseño de `UserPromptSubmit` descrito abajo también quedó **implementado**:
-catálogo de avisos en `src/message/static-avisos.ts` (labels
+catálogo de anuncios en `src/message/static-announcements.ts` (labels
 `narrator-<sha256:12>`), subcomando `narrate-ctl presynth` (idempotente, integrado
 en `commands/install.md`), `runPlay` en el worker con política de fallo visible
 (log y silencio, sin auto-sanación), y eliminación del modo prompt del LLM
 (`buildPromptMessage`, `PROMPT_SYSTEM_PROMPT`).
 
-## Rediseño de `UserPromptSubmit`: aviso fijo pre-sintetizado
+## Rediseño de `UserPromptSubmit`: anuncio fijo pre-sintetizado
 
 > **Naturaleza distinta al resto del documento.** Las secciones anteriores derivan
 > de **rupturas** del contrato CLI (el motor cambió y el plugin debe alinearse para
@@ -242,7 +242,7 @@ Ese diseño tiene dos defectos, ambos en la ruta caliente de cada prompt:
 ### El cambio de especificación
 
 `UserPromptSubmit` **deja de emitir un mensaje dinámico**. Pasa a reproducir un
-**aviso fijo, único y pre-sintetizado** —"Procesando con Claude"— como acuse de
+**anuncio fijo, único y pre-sintetizado** —"Procesando con Claude"— como acuse de
 recibo determinista. Consecuencias de la especificación:
 
 - Ese hook **ya no invoca ningún LLM** ni resume el prompt: no hay interpretación que
@@ -251,7 +251,7 @@ recibo determinista. Consecuencias de la especificación:
   daemon**, es decir, prácticamente instantánea y robusta ante un daemon frío o caído.
 - Los eventos **dinámicos no cambian**. Stop / SubagentStop / StopFailure resumen *lo
   que ya ocurrió* —varía de turno a turno y ese es su valor— y siguen usando
-  `speech say` (síntesis efímera). El aviso fijo aplica **solo** a `UserPromptSubmit`,
+  `speech say` (síntesis efímera). El anuncio fijo aplica **solo** a `UserPromptSubmit`,
   que es un acuse de inicio, no un resumen.
 
 ### Superficies nuevas del contrato CLI
@@ -261,15 +261,15 @@ El rediseño añade **dos**, ambas del grupo `speech` estabilizado en v0.9.x:
 
 | Superficie | Rol | Modelo/daemon | Persiste | Códigos de salida relevantes |
 |---|---|---|---|---|
-| `speech synthesize -t "<aviso>" -l <label>` | Pre-sintetiza el aviso una vez y lo guarda | **sí** (o `--no-daemon` para carga directa) | sí (`synthetic-speech/<voz>/<label>.wav`) | `0` ok · `6` label ya existe sin `-f` · `5` daemon caído con `--daemon` · `4` modelo no provisionado · `2` etiqueta ilegal · `3` voz inexistente |
-| `speech play -l <label>` | Reproduce el aviso guardado | **no** | — | `0` existe · **`3` no existe** (cache miss) · `2` etiqueta ilegal |
+| `speech synthesize -t "<anuncio>" -l <label>` | Pre-sintetiza el anuncio una vez y lo guarda | **sí** (o `--no-daemon` para carga directa) | sí (`synthetic-speech/<voz>/<label>.wav`) | `0` ok · `6` label ya existe sin `-f` · `5` daemon caído con `--daemon` · `4` modelo no provisionado · `2` etiqueta ilegal · `3` voz inexistente |
+| `speech play -l <label>` | Reproduce el anuncio guardado | **no** | — | `0` existe · **`3` no existe** (cache miss) · `2` etiqueta ilegal |
 
 Notas de contrato que condicionan el diseño:
 
 - **`speech play` no toca el modelo ni el daemon**: por eso es el camino instantáneo
   y resiliente. Sus únicos flags son `--label/-l` (requerido), `--voice/-v` y `--json`.
 - **El *cache miss* es un código limpio (`3`)**, no una excepción ambigua: es la señal
-  que el plugin registra como "aviso no pre-sintetizado" (la resolución del miss es manual;
+  que el plugin registra como "anuncio no pre-sintetizado" (la resolución del miss es manual;
   ver [Diseño de la resolución](#diseño-de-la-resolución)).
 - **`speech synthesize` sí exige el modelo cargado** (con `--daemon` sale `5` si el
   daemon está caído; con `--no-daemon` carga el modelo directo). Esto obliga a pre-sintetizar
@@ -280,8 +280,8 @@ Notas de contrato que condicionan el diseño:
 
 ### Diseño de la resolución
 
-1. **Aviso fijo con label estable.** El label del aviso se deriva de un **hash del
-   texto** (p. ej. `narrator-<hash>`). Así, si algún día cambia la frase del aviso, el
+1. **Anuncio fijo con label estable.** El label del anuncio se deriva de un **hash del
+   texto** (p. ej. `narrator-<hash>`). Así, si algún día cambia la frase del anuncio, el
    nuevo texto produce un label nuevo: nunca se reproduce el WAV viejo por accidente,
    y basta repetir el paso de pre-síntesis con la frase nueva.
 2. **Almacenamiento consciente de la voz.** El almacén es por voz
@@ -289,15 +289,15 @@ Notas de contrato que condicionan el diseño:
    **consistente** en `synthesize` y `play`; si el usuario cambia de voz, debe
    repetirse manualmente el paso de pre-síntesis para la voz nueva. Con la voz por defecto, ambos comandos usan `default` sin
    flag, de forma coherente.
-3. **Pre-síntesis explícita, una sola vez.** El aviso se pre-sintetiza con
-   `speech synthesize -t "<aviso>" -l <label>` en un **paso explícito** de
+3. **Pre-síntesis explícita, una sola vez.** El anuncio se pre-sintetiza con
+   `speech synthesize -t "<anuncio>" -l <label>` en un **paso explícito** de
    instalación/`setup` del plugin, no en la ruta caliente. Si la caché se borra o
    cambia la voz, la recuperación es **manual**: repetir ese mismo paso. En cada
    turno, el hook ejecuta únicamente `speech play`.
 4. **Fallo visible, sin auto-sanación.** Si `speech play` sale con código no-cero
    —incluido el `3` de *cache miss*—, el hook **no** re-sintetiza ni degrada a
    `speech say`: registra el fallo en `worker.log` (o emite un warning) y ese turno
-   queda sin aviso sonoro. La auto-sanación (detectar el miss y re-sintetizar en
+   queda sin anuncio sonoro. La auto-sanación (detectar el miss y re-sintetizar en
    caliente) queda **fuera del alcance de esta versión**.
 
 ### Impacto señalado en el plugin
@@ -306,16 +306,16 @@ Puntos de contacto a tocar (se **señalan**, no se implementan aquí; entran en 
 posterior):
 
 - `src/narrate-hook.ts` (router de eventos) — `UserPromptSubmit` se enruta a la ruta
-  del aviso fijo, **no** a `buildMessage`.
+  del anuncio fijo, **no** a `buildMessage`.
 - `src/narrate-worker.ts` — además del arreglo `speak → speech say` (Ruptura 1) para
   los eventos dinámicos, añadir `runPlay(label)`; ante cualquier exit no-cero,
   registrar el fallo en `worker.log` y terminar (sin re-sintetizado ni fallback).
 - Paso de instalación/`setup` — invocar `speech synthesize` una sola vez para pre-sintetizar
-  el aviso, y documentar su re-ejecución manual (borrado de caché, cambio de voz o de
+  el anuncio, y documentar su re-ejecución manual (borrado de caché, cambio de voz o de
   frase).
 - `src/message/build-message.ts` — `UserPromptSubmit` deja de pasar por
-  `buildPromptMessage`; el aviso no depende del modo `llm`/`local`.
-- Registro del aviso — texto y label (por hash) del aviso fijo en un único lugar
+  `buildPromptMessage`; el anuncio no depende del modo `llm`/`local`.
+- Registro del anuncio — texto y label (por hash) del anuncio fijo en un único lugar
   reutilizable por el router y el worker.
 - `docs/INTEGRATION.md` — declarar `speech synthesize` y `speech play` como superficies
   5 y 6 consumidas por el plugin.

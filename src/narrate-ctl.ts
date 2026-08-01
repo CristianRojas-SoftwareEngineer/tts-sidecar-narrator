@@ -7,12 +7,12 @@
 //   mode <llm|local>   fija el modo de generación
 //   status             muestra el estado (sin revelar las claves)
 //   say "<texto>"      narra un texto a demanda vía tts-sidecar
-//   presynth           pre-sintetiza los avisos estáticos (idempotente)
+//   presynth           pre-sintetiza los anuncios estáticos (idempotente)
 import { spawnSync } from "node:child_process";
 import { loadConfig, updateConfig } from "./lib/config.js";
 import { configPath, stateDir } from "./lib/state-dir.js";
 import { resolveCli, needsShell } from "./lib/resolve-cli.js";
-import { AVISOS } from "./message/static-avisos.js";
+import { ANNOUNCEMENTS } from "./message/static-announcements.js";
 
 function printStatus(): void {
   const cfg = loadConfig();
@@ -42,7 +42,7 @@ function say(text: string): number {
 }
 
 /**
- * Pre-sintetiza los avisos del catálogo con `speech synthesize --daemon`.
+ * Pre-sintetiza los anuncios del catálogo con `speech synthesize --daemon`.
  * Idempotente por construcción: el label es hash del texto, así que la
  * colisión de label (exit `6`) significa «ya pre-sintetizado» y cuenta como
  * éxito. Requiere el daemon caliente (exit `5` si está caído) y el modelo
@@ -55,7 +55,7 @@ function presynth(): number {
     return 1;
   }
   let failed = false;
-  for (const [evento, { text, label }] of Object.entries(AVISOS)) {
+  for (const [evento, { text, label }] of Object.entries(ANNOUNCEMENTS)) {
     const res = spawnSync(
       cli,
       ["speech", "synthesize", "--text", text, "--label", label, "--daemon"],

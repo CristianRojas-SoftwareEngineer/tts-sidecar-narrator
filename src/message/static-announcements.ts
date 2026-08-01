@@ -1,4 +1,4 @@
-// Registro único de los avisos estáticos pre-sintetizados: texto canónico y
+// Registro único de los anuncios estáticos pre-sintetizados: texto canónico y
 // label derivado del hash del texto. El worker deriva el label para
 // `speech play`, `narrate-ctl presynth` lo deriva para `speech synthesize` y el
 // builder decide qué eventos lo usan — todos desde este catálogo, así una frase
@@ -6,14 +6,14 @@
 // accidente.
 import { createHash } from "node:crypto";
 
-/** Aviso estático: texto canónico y label estable derivado de él. */
-export interface Aviso {
+/** Anuncio estático: texto canónico y label estable derivado de él. */
+export interface Announcement {
   text: string;
   label: string;
 }
 
 /**
- * Petición de narración que el builder entrega al worker: reproducir un aviso
+ * Petición de narración que el builder entrega al worker: reproducir un anuncio
  * pre-sintetizado (`speech play`, sin modelo ni daemon) o sintetizar un texto
  * dinámico (`speech say`, exige daemon).
  */
@@ -31,20 +31,20 @@ export function labelFor(text: string): string {
   return `narrator-${hash.slice(0, 12)}`;
 }
 
-function aviso(text: string): Aviso {
+function announcement(text: string): Announcement {
   return { text, label: labelFor(text) };
 }
 
 /**
- * Catálogo de los seis avisos pre-sintetizados: el acuse fijo de
+ * Catálogo de los seis anuncios pre-sintetizados: el acuse fijo de
  * `UserPromptSubmit` y los fallbacks estáticos de último recurso por evento
  * (más el default para eventos desconocidos).
  */
-export const AVISOS = {
-  UserPromptSubmit: aviso("Procesando con Claude"),
-  Stop: aviso("El asistente terminó su turno."),
-  SubagentStop: aviso("El subagente completó su trabajo."),
-  StopFailure: aviso("Ocurrió un error durante la ejecución."),
-  Notification: aviso("Claude necesita tu atención"),
-  Default: aviso("Procesando."),
-} as const satisfies Record<string, Aviso>;
+export const ANNOUNCEMENTS = {
+  UserPromptSubmit: announcement("Procesando con Claude"),
+  Stop: announcement("El asistente terminó su turno."),
+  SubagentStop: announcement("El subagente completó su trabajo."),
+  StopFailure: announcement("Ocurrió un error durante la ejecución."),
+  Notification: announcement("Claude necesita tu atención"),
+  Default: announcement("Procesando."),
+} as const satisfies Record<string, Announcement>;

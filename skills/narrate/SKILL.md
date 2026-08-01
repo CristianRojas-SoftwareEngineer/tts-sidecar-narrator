@@ -23,11 +23,11 @@ Ejecuta ese comando con la herramienta de shell. Es multiplataforma (Node ya est
 | Usar LLM (mensajes elaborados) | `narrate-ctl.js mode llm` |
 | Solo local (sin red, privado) | `narrate-ctl.js mode local` |
 | Narrar un texto ahora | `narrate-ctl.js say "texto a narrar"` |
-| Pre-sintetizar los avisos | `narrate-ctl.js presynth` |
+| Pre-sintetizar los anuncios | `narrate-ctl.js presynth` |
 
 Tras `on`/`off`/`mode`, confirma al usuario el nuevo estado en una frase. Para `status`, resume la salida (no vuelques rutas si el usuario solo preguntó si está activa).
 
-`presynth` pre-sintetiza de una vez los avisos estáticos del plugin (acuse de `UserPromptSubmit` y fallbacks por evento) con `speech synthesize`, para que luego se reproduzcan al instante con `speech play`. Es **idempotente** (un aviso ya pre-sintetizado no se re-sintetiza) y **requiere el daemon caliente**; normalmente lo ejecuta la instalación guiada, y solo hay que re-ejecutarlo tras borrar la caché del motor o cambiar una frase de los avisos.
+`presynth` pre-sintetiza de una vez los anuncios estáticos del plugin (acuse de `UserPromptSubmit` y fallbacks por evento) con `speech synthesize`, para que luego se reproduzcan al instante con `speech play`. Es **idempotente** (un anuncio ya pre-sintetizado no se re-sintetiza) y **requiere el daemon caliente**; normalmente lo ejecuta la instalación guiada, y solo hay que re-ejecutarlo tras borrar la caché del motor o cambiar una frase de los anuncios.
 
 ## Narración a demanda ("léeme esto")
 
