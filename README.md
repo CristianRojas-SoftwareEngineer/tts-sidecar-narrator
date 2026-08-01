@@ -59,8 +59,8 @@ El flujo para el usuario final es de **dos pasos**:
    ```
 2. **Instalar y configurar el motor** invocando el comando de instalación
    guiado, que detecta el SO, instala el binario TTS-Sidecar (vía `uv`/`pipx` o
-   el instalador nativo), descarga el modelo, deja el daemon listo, hornea los
-   avisos pre-sintetizados (`narrate-ctl bake`) y activa la narración:
+   el instalador nativo), descarga el modelo, deja el daemon listo,
+   pre-sintetiza los avisos (`narrate-ctl presynth`) y activa la narración:
    ```
    /tts-sidecar-narrator:install
    ```
@@ -109,7 +109,7 @@ El archivo se crea con permisos restrictivos donde el SO lo soporta: `0600` en P
 
 ## Privacidad
 
-El modo `llm` envía el último mensaje del asistente (`last_assistant_message`, sin transcript ni historial) a un tercero (Google u OpenRouter), y solo en la ruta `Stop`: el resto de eventos siempre reproduce su aviso horneado, sin red. Es un cambio de postura respecto al motor TTS-Sidecar, que sintetiza 100 % offline. Por eso:
+El modo `llm` envía el último mensaje del asistente (`last_assistant_message`, sin transcript ni historial) a un tercero (Google u OpenRouter), y solo en la ruta `Stop`: el resto de eventos siempre reproduce su aviso pre-sintetizado, sin red. Es un cambio de postura respecto al motor TTS-Sidecar, que sintetiza 100 % offline. Por eso:
 
 1. El modo `llm` **solo se activa cuando configuras tus claves** — un opt-in
    explícito.

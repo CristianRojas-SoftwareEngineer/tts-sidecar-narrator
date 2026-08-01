@@ -1,5 +1,5 @@
 // El catálogo de avisos pre-sintetizados es contrato triple: el worker
-// reproduce por label, `bake` hornea por label y ambos deben derivarlo del
+// reproduce por label, `presynth` pre-sintetiza por label y ambos deben derivarlo del
 // mismo texto. Si un texto cambia, su label debe cambiar con él.
 import { test } from "node:test";
 import assert from "node:assert/strict";

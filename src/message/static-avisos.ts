@@ -1,6 +1,6 @@
 // Registro único de los avisos estáticos pre-sintetizados: texto canónico y
 // label derivado del hash del texto. El worker deriva el label para
-// `speech play`, `narrate-ctl bake` lo deriva para `speech synthesize` y el
+// `speech play`, `narrate-ctl presynth` lo deriva para `speech synthesize` y el
 // builder decide qué eventos lo usan — todos desde este catálogo, así una frase
 // que cambia produce un label nuevo y nunca se reproduce el WAV viejo por
 // accidente.

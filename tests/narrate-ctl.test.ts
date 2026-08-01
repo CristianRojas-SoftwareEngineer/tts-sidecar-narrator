@@ -185,13 +185,13 @@ test("say invoca speech say --text --daemon (contrato v0.9.1)", () => {
   }
 });
 
-test("bake hornea los seis avisos con speech synthesize --label --daemon", () => {
+test("presynth pre-sintetiza los seis avisos con speech synthesize --label --daemon", () => {
   const dir = makeTempDir("narrator-fakecli-");
   try {
     const { argvLog } = makeFakeCli(dir, [0, 0, 0, 0, 0, 0]);
-    const res = runCtl(["bake"], fakeCliEnv(dir));
+    const res = runCtl(["presynth"], fakeCliEnv(dir));
     assert.equal(res.status, 0);
-    assert.equal(res.stdout.match(/: horneado /g)?.length, 6);
+    assert.equal(res.stdout.match(/: pre-sintetizado /g)?.length, 6);
 
     const argvs = loggedArgvs(argvLog);
     assert.equal(argvs.length, 6);
@@ -209,24 +209,24 @@ test("bake hornea los seis avisos con speech synthesize --label --daemon", () =>
   }
 });
 
-test("bake es idempotente: exit 6 (label ya existe) cuenta como éxito", () => {
+test("presynth es idempotente: exit 6 (label ya existe) cuenta como éxito", () => {
   const dir = makeTempDir("narrator-fakecli-");
   try {
     makeFakeCli(dir, [0, 6, 6, 0, 6, 6]);
-    const res = runCtl(["bake"], fakeCliEnv(dir));
+    const res = runCtl(["presynth"], fakeCliEnv(dir));
     assert.equal(res.status, 0);
-    assert.equal(res.stdout.match(/: ya horneado /g)?.length, 4);
-    assert.equal(res.stdout.match(/: horneado /g)?.length, 2);
+    assert.equal(res.stdout.match(/: ya pre-sintetizado /g)?.length, 4);
+    assert.equal(res.stdout.match(/: pre-sintetizado /g)?.length, 2);
   } finally {
     removeDir(dir);
   }
 });
 
-test("bake propaga el fallo (exit 5, daemon caído) con código ≠ 0", () => {
+test("presynth propaga el fallo (exit 5, daemon caído) con código ≠ 0", () => {
   const dir = makeTempDir("narrator-fakecli-");
   try {
     makeFakeCli(dir, [5, 0, 0, 0, 0, 0]);
-    const res = runCtl(["bake"], fakeCliEnv(dir));
+    const res = runCtl(["presynth"], fakeCliEnv(dir));
     assert.equal(res.status, 1);
     assert.match(res.stderr, /exit 5/);
     assert.match(res.stderr, /daemon caído/);
@@ -235,10 +235,10 @@ test("bake propaga el fallo (exit 5, daemon caído) con código ≠ 0", () => {
   }
 });
 
-test("bake sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
+test("presynth sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
   const emptyPath = makeTempDir("narrator-empty-");
   try {
-    const res = runCtl(["bake"], { PATH: emptyPath, Path: emptyPath });
+    const res = runCtl(["presynth"], { PATH: emptyPath, Path: emptyPath });
     assert.equal(res.status, 1);
     assert.match(res.stderr, /no está en el PATH/);
   } finally {

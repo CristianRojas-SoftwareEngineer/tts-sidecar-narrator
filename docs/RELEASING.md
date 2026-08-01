@@ -230,7 +230,7 @@ narrate-ctl say "Prueba de audio local"
 
 #### Paso 5 — Verificación completa por superficie del contrato (audible)
 
-Cada ítem deja el entorno en la condición indicada, dispara la narración y **escucha** el resultado. El plugin registra **cinco hooks de narración** (todos vía `dist/narrate-hook.js`, ver `hooks/hooks.json`): `UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`. Solo `Stop` cambia entre modos (única ruta dinámica que enruta al LLM); las otras cuatro superficies reproducen siempre su aviso horneado, en `local` y en `llm` por igual. El smoke test debe ejercitar **las cinco** en modo `local` y, en `llm`, confirmar que `Stop` se oye distinto (parafraseado) y que el resto suena idéntico a `local`.
+Cada ítem deja el entorno en la condición indicada, dispara la narración y **escucha** el resultado. El plugin registra **cinco hooks de narración** (todos vía `dist/narrate-hook.js`, ver `hooks/hooks.json`): `UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`. Solo `Stop` cambia entre modos (única ruta dinámica que enruta al LLM); las otras cuatro superficies reproducen siempre su aviso pre-sintetizado, en `local` y en `llm` por igual. El smoke test debe ejercitar **las cinco** en modo `local` y, en `llm`, confirmar que `Stop` se oye distinto (parafraseado) y que el resto suena idéntico a `local`.
 
 ```powershell
 # Lanzar Claude Code con el plugin del clon limpio (se abre por ítem).
@@ -268,7 +268,7 @@ claude --plugin-dir $PLUGIN_E2E
   4. **Comprobación:** la locución de `Stop` suena **parafraseada** (cadena
      LLM), distinta del resumen local determinista. `UserPromptSubmit`,
      `SubagentStop`, `StopFailure` y `Notification` no tienen paráfrasis que
-     verificar: siempre reproducen su aviso horneado, sin LLM, igual que en
+     verificar: siempre reproducen su aviso pre-sintetizado, sin LLM, igual que en
      modo `local`.
   5. Diagnóstico:
      ```powershell

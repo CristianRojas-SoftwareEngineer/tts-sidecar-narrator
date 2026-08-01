@@ -4,7 +4,7 @@
 // para evento desconocido/ausente) genera locución dinámica, y el LLM recibe
 // ÚNICAMENTE `last_assistant_message` — ni transcript ni historial. El resto de
 // eventos (`Notification`, `SubagentStop`, `StopFailure`, `UserPromptSubmit`)
-// reproduce su aviso horneado (`play`), sin LLM ni síntesis por evento.
+// reproduce su aviso pre-sintetizado (`play`), sin LLM ni síntesis por evento.
 // Degradación de la ruta `Stop`: cadena LLM (input acotado con clampHead) →
 // resumen local determinista (clampSentences) → aviso estático por evento.
 import type { Config } from "../lib/config.js";

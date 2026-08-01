@@ -1,6 +1,6 @@
 // Caracterización de buildMessage: enrutado MVP determinista. Solo `Stop` (y el
 // default) genera locución dinámica sobre `last_assistant_message`; el resto de
-// eventos reproduce su aviso horneado (`play`). Blinda el invariante «el LLM
+// eventos reproduce su aviso pre-sintetizado (`play`). Blinda el invariante «el LLM
 // nunca recibe nada que no sea last_assistant_message» y el caso «Hola».
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -30,7 +30,7 @@ const LLM: Config = {
 
 // --- Enrutado de eventos con aviso fijo (`play`), sin LLM ---
 
-test("UserPromptSubmit es un acuse fijo: play del aviso horneado, ignora el prompt", async () => {
+test("UserPromptSubmit es un acuse fijo: play del aviso pre-sintetizado, ignora el prompt", async () => {
   const out = await buildMessage(
     { hook_event_name: "UserPromptSubmit", prompt: "haz X" },
     LOCAL,
@@ -38,7 +38,7 @@ test("UserPromptSubmit es un acuse fijo: play del aviso horneado, ignora el prom
   assert.deepEqual(out, { kind: "play", label: AVISOS.UserPromptSubmit.label });
 });
 
-test("Notification reproduce su aviso horneado (play fijo), ignora el mensaje", async () => {
+test("Notification reproduce su aviso pre-sintetizado (play fijo), ignora el mensaje", async () => {
   const out = await buildMessage(
     { hook_event_name: "Notification", message: "**Atención** necesita permiso" },
     LOCAL,
@@ -46,12 +46,12 @@ test("Notification reproduce su aviso horneado (play fijo), ignora el mensaje", 
   assert.deepEqual(out, { kind: "play", label: AVISOS.Notification.label });
 });
 
-test("SubagentStop reproduce su aviso horneado (play fijo)", async () => {
+test("SubagentStop reproduce su aviso pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "SubagentStop" }, LOCAL);
   assert.deepEqual(out, { kind: "play", label: AVISOS.SubagentStop.label });
 });
 
-test("StopFailure reproduce su aviso horneado (play fijo)", async () => {
+test("StopFailure reproduce su aviso pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "StopFailure" }, LOCAL);
   assert.deepEqual(out, { kind: "play", label: AVISOS.StopFailure.label });
 });

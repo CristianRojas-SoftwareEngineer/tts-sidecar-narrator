@@ -152,10 +152,10 @@ function say(text) {
   });
   return res.status ?? 0;
 }
-function bake() {
+function presynth() {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no est\xE1 en el PATH; no se puede hornear.");
+    console.error("tts-sidecar no est\xE1 en el PATH; no se puede pre-sintetizar.");
     return 1;
   }
   let failed = false;
@@ -170,8 +170,8 @@ function bake() {
       }
     );
     const code = res.status ?? 1;
-    if (code === 0) console.log(`${evento}: horneado (${label})`);
-    else if (code === 6) console.log(`${evento}: ya horneado (${label})`);
+    if (code === 0) console.log(`${evento}: pre-sintetizado (${label})`);
+    else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
       const motivo = code === 5 ? " \u2014 daemon ca\xEDdo; lev\xE1ntalo con `tts-sidecar daemon start`" : code === 4 ? " \u2014 modelo ausente; provisi\xF3nalo con `tts-sidecar setup`" : "";
@@ -213,8 +213,8 @@ function main() {
       }
       return say(text);
     }
-    case "bake":
-      return bake();
+    case "presynth":
+      return presynth();
     default:
       console.error(`Comando desconocido: ${cmd}`);
       return 2;

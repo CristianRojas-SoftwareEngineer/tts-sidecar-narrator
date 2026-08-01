@@ -203,7 +203,7 @@ Lista accionable derivada de lo anterior (**ejecutada**; estado final):
 
 El rediseño de `UserPromptSubmit` descrito abajo también quedó **implementado**:
 catálogo de avisos en `src/message/static-avisos.ts` (labels
-`narrator-<sha256:12>`), subcomando `narrate-ctl bake` (idempotente, integrado
+`narrator-<sha256:12>`), subcomando `narrate-ctl presynth` (idempotente, integrado
 en `commands/install.md`), `runPlay` en el worker con política de fallo visible
 (log y silencio, sin auto-sanación), y eliminación del modo prompt del LLM
 (`buildPromptMessage`, `PROMPT_SYSTEM_PROMPT`).
@@ -247,7 +247,7 @@ recibo determinista. Consecuencias de la especificación:
 
 - Ese hook **ya no invoca ningún LLM** ni resume el prompt: no hay interpretación que
   pueda divergir, y no hay red en la ruta caliente.
-- La reproducción es un `speech play` de un WAV ya horneado: **sin modelo y sin
+- La reproducción es un `speech play` de un WAV ya pre-sintetizado: **sin modelo y sin
   daemon**, es decir, prácticamente instantánea y robusta ante un daemon frío o caído.
 - Los eventos **dinámicos no cambian**. Stop / SubagentStop / StopFailure resumen *lo
   que ya ocurrió* —varía de turno a turno y ese es su valor— y siguen usando
@@ -261,7 +261,7 @@ El rediseño añade **dos**, ambas del grupo `speech` estabilizado en v0.9.x:
 
 | Superficie | Rol | Modelo/daemon | Persiste | Códigos de salida relevantes |
 |---|---|---|---|---|
-| `speech synthesize -t "<aviso>" -l <label>` | Hornea el aviso una vez y lo guarda | **sí** (o `--no-daemon` para carga directa) | sí (`synthetic-speech/<voz>/<label>.wav`) | `0` ok · `6` label ya existe sin `-f` · `5` daemon caído con `--daemon` · `4` modelo no provisionado · `2` etiqueta ilegal · `3` voz inexistente |
+| `speech synthesize -t "<aviso>" -l <label>` | Pre-sintetiza el aviso una vez y lo guarda | **sí** (o `--no-daemon` para carga directa) | sí (`synthetic-speech/<voz>/<label>.wav`) | `0` ok · `6` label ya existe sin `-f` · `5` daemon caído con `--daemon` · `4` modelo no provisionado · `2` etiqueta ilegal · `3` voz inexistente |
 | `speech play -l <label>` | Reproduce el aviso guardado | **no** | — | `0` existe · **`3` no existe** (cache miss) · `2` etiqueta ilegal |
 
 Notas de contrato que condicionan el diseño:
@@ -269,10 +269,10 @@ Notas de contrato que condicionan el diseño:
 - **`speech play` no toca el modelo ni el daemon**: por eso es el camino instantáneo
   y resiliente. Sus únicos flags son `--label/-l` (requerido), `--voice/-v` y `--json`.
 - **El *cache miss* es un código limpio (`3`)**, no una excepción ambigua: es la señal
-  que el plugin registra como "aviso no horneado" (la resolución del miss es manual;
+  que el plugin registra como "aviso no pre-sintetizado" (la resolución del miss es manual;
   ver [Diseño de la resolución](#diseño-de-la-resolución)).
 - **`speech synthesize` sí exige el modelo cargado** (con `--daemon` sale `5` si el
-  daemon está caído; con `--no-daemon` carga el modelo directo). Esto obliga a hornear
+  daemon está caído; con `--no-daemon` carga el modelo directo). Esto obliga a pre-sintetizar
   cuando el daemon ya está caliente, no en cualquier momento.
 - **No hay exportación del WAV** fuera de la CLI (coste declarado en `CLI-CONTRACT.md`
   §"Coste declarado"): toda reutilización pasa por `speech play`, que es justo lo que
@@ -283,19 +283,19 @@ Notas de contrato que condicionan el diseño:
 1. **Aviso fijo con label estable.** El label del aviso se deriva de un **hash del
    texto** (p. ej. `narrator-<hash>`). Así, si algún día cambia la frase del aviso, el
    nuevo texto produce un label nuevo: nunca se reproduce el WAV viejo por accidente,
-   y basta repetir el paso de horneado con la frase nueva.
+   y basta repetir el paso de pre-síntesis con la frase nueva.
 2. **Almacenamiento consciente de la voz.** El almacén es por voz
    (`synthetic-speech/<voz>/<label>.wav`). El plugin debe pasar `--voice` de forma
    **consistente** en `synthesize` y `play`; si el usuario cambia de voz, debe
-   repetirse manualmente el paso de horneado para la voz nueva. Con la voz por defecto, ambos comandos usan `default` sin
+   repetirse manualmente el paso de pre-síntesis para la voz nueva. Con la voz por defecto, ambos comandos usan `default` sin
    flag, de forma coherente.
-3. **Horneado explícito, una sola vez.** El aviso se hornea con
+3. **Pre-síntesis explícita, una sola vez.** El aviso se pre-sintetiza con
    `speech synthesize -t "<aviso>" -l <label>` en un **paso explícito** de
    instalación/`setup` del plugin, no en la ruta caliente. Si la caché se borra o
    cambia la voz, la recuperación es **manual**: repetir ese mismo paso. En cada
    turno, el hook ejecuta únicamente `speech play`.
 4. **Fallo visible, sin auto-sanación.** Si `speech play` sale con código no-cero
-   —incluido el `3` de *cache miss*—, el hook **no** re-hornea ni degrada a
+   —incluido el `3` de *cache miss*—, el hook **no** re-sintetiza ni degrada a
    `speech say`: registra el fallo en `worker.log` (o emite un warning) y ese turno
    queda sin aviso sonoro. La auto-sanación (detectar el miss y re-sintetizar en
    caliente) queda **fuera del alcance de esta versión**.
@@ -309,8 +309,8 @@ posterior):
   del aviso fijo, **no** a `buildMessage`.
 - `src/narrate-worker.ts` — además del arreglo `speak → speech say` (Ruptura 1) para
   los eventos dinámicos, añadir `runPlay(label)`; ante cualquier exit no-cero,
-  registrar el fallo en `worker.log` y terminar (sin re-horneado ni fallback).
-- Paso de instalación/`setup` — invocar `speech synthesize` una sola vez para hornear
+  registrar el fallo en `worker.log` y terminar (sin re-sintetizado ni fallback).
+- Paso de instalación/`setup` — invocar `speech synthesize` una sola vez para pre-sintetizar
   el aviso, y documentar su re-ejecución manual (borrado de caché, cambio de voz o de
   frase).
 - `src/message/build-message.ts` — `UserPromptSubmit` deja de pasar por

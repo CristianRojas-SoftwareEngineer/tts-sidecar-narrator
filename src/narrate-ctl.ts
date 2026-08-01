@@ -7,7 +7,7 @@
 //   mode <llm|local>   fija el modo de generación
 //   status             muestra el estado (sin revelar las claves)
 //   say "<texto>"      narra un texto a demanda vía tts-sidecar
-//   bake               hornea los avisos estáticos pre-sintetizados (idempotente)
+//   presynth           pre-sintetiza los avisos estáticos (idempotente)
 import { spawnSync } from "node:child_process";
 import { loadConfig, updateConfig } from "./lib/config.js";
 import { configPath, stateDir } from "./lib/state-dir.js";
@@ -42,15 +42,16 @@ function say(text: string): number {
 }
 
 /**
- * Hornea los avisos del catálogo con `speech synthesize --daemon`. Idempotente
- * por construcción: el label es hash del texto, así que la colisión de label
- * (exit `6`) significa «ya horneado» y cuenta como éxito. Requiere el daemon
- * caliente (exit `5` si está caído) y el modelo provisionado (exit `4`).
+ * Pre-sintetiza los avisos del catálogo con `speech synthesize --daemon`.
+ * Idempotente por construcción: el label es hash del texto, así que la
+ * colisión de label (exit `6`) significa «ya pre-sintetizado» y cuenta como
+ * éxito. Requiere el daemon caliente (exit `5` si está caído) y el modelo
+ * provisionado (exit `4`).
  */
-function bake(): number {
+function presynth(): number {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no está en el PATH; no se puede hornear.");
+    console.error("tts-sidecar no está en el PATH; no se puede pre-sintetizar.");
     return 1;
   }
   let failed = false;
@@ -65,8 +66,8 @@ function bake(): number {
       },
     );
     const code = res.status ?? 1;
-    if (code === 0) console.log(`${evento}: horneado (${label})`);
-    else if (code === 6) console.log(`${evento}: ya horneado (${label})`);
+    if (code === 0) console.log(`${evento}: pre-sintetizado (${label})`);
+    else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
       const motivo =
@@ -114,8 +115,8 @@ function main(): number {
       }
       return say(text);
     }
-    case "bake":
-      return bake();
+    case "presynth":
+      return presynth();
     default:
       console.error(`Comando desconocido: ${cmd}`);
       return 2;

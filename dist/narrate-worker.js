@@ -469,7 +469,7 @@ function runPlay(cliPath, label) {
     });
     child.on("exit", (code) => {
       if (code !== 0) {
-        const hint = code === 3 ? " (aviso no horneado; ejecuta narrate-ctl bake)" : "";
+        const hint = code === 3 ? " (aviso no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
         log(`speech play sali\xF3 con c\xF3digo ${code}${hint}`);
       }
       resolve();

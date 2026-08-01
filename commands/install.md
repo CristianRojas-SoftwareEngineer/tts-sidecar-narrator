@@ -32,7 +32,7 @@ Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidec
 2. Si **está presente**, corre `tts-sidecar doctor --json` y analiza el JSON
    (`checks[].status`, `failed`). Con esto sabes qué falta realmente:
    - Si no hay `FAIL` → el motor ya está listo; salta al **Paso 3** (daemon) y
-     luego al **Paso 4** (horneado) y al **Paso 6** (verificación).
+     luego al **Paso 4** (pre-síntesis) y al **Paso 6** (verificación).
    - Si el check `Chatterbox model` es `FAIL` → falta el modelo; salta al **Paso 2**.
 3. Si **no está presente**, continúa al **Paso 1**.
 
@@ -109,18 +109,18 @@ tts-sidecar daemon status
 
 Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual: el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión nueva (siempre que la narración esté activada y el modelo en caché). Este arranque durante la instalación es solo para dejarlo caliente ya mismo.
 
-## Paso 4 — Hornear los avisos pre-sintetizados
+## Paso 4 — Pre-sintetizar los avisos
 
-Con el daemon recién levantado (precondición exacta de este paso), hornea los avisos estáticos del plugin — el acuse de `UserPromptSubmit` («Procesando con Claude») y los fallbacks por evento — para que en cada turno se reproduzcan al instante con `speech play`, sin modelo ni daemon:
+Con el daemon recién levantado (precondición exacta de este paso), pre-sintetiza los avisos estáticos del plugin — el acuse de `UserPromptSubmit` («Procesando con Claude») y los fallbacks por evento — para que en cada turno se reproduzcan al instante con `speech play`, sin modelo ni daemon:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" bake
+node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth
 ```
 
 Interpreta el resultado:
 
-- **Exit `0`** → todos los avisos quedaron horneados (los ya existentes se
-  reportan como «ya horneado»: el comando es idempotente y es seguro repetirlo).
+- **Exit `0`** → todos los avisos quedaron pre-sintetizados (los ya existentes se
+  reportan como «ya pre-sintetizado»: el comando es idempotente y es seguro repetirlo).
 - **Fallo con «daemon caído» (exit `5` del motor)** → vuelve al **Paso 3** y
   reintenta.
 - **Fallo con «modelo ausente» (exit `4` del motor)** → vuelve al **Paso 2**
@@ -156,7 +156,7 @@ Interpreta el resultado:
    node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" say "La narración por voz quedó lista"
    ```
 
-3. Reproducción de un aviso horneado (verifica la ruta `speech play` que usará
+3. Reproducción de un aviso pre-sintetizado (verifica la ruta `speech play` que usará
    `UserPromptSubmit`): toma un label de la salida del Paso 4 (por ejemplo el de
    `UserPromptSubmit`, con forma `narrator-<hash>`) y reprodúcelo:
 
@@ -165,7 +165,7 @@ Interpreta el resultado:
    ```
 
    Debe sonar el aviso con exit `0`. Un exit `3` significa que el aviso no está
-   horneado: repite el **Paso 4**.
+   pre-sintetizado: repite el **Paso 4**.
 
    Pregunta al usuario si escuchó las locuciones. Si no:
    - Reconfirma que el daemon está `running` (Paso 3).
@@ -174,6 +174,6 @@ Interpreta el resultado:
 
 ## Cierre
 
-Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno y levanta el daemon si hace falta; luego **cada evento registrado** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`/`bake`).
+Confirma al usuario, en pocas frases, que a partir de ahora **cada sesión de Claude Code narrará automáticamente**: el hook `SessionStart` verifica el entorno y levanta el daemon si hace falta; luego **cada evento registrado** (`UserPromptSubmit`, `Stop`, `SubagentStop`, `StopFailure` y `Notification`) genera y reproduce una locución corta. El daemon se relevanta solo en la primera sesión tras un reinicio (hook `SessionStart`), así que no hay mantenimiento manual. Recuérdale los controles a demanda de la skill `/tts-sidecar-narrator:narrate` (`on`/`off`/`mode`/`status`/`say`/`presynth`).
 
-Menciona también el mantenimiento de los avisos pre-sintetizados: si se borra la caché del motor (`synthetic-speech/`) o cambia alguna frase de los avisos en una actualización del plugin, basta re-ejecutar `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" bake` con el daemon caliente (es idempotente; los avisos vigentes no se re-sintetizan).
+Menciona también el mantenimiento de los avisos pre-sintetizados: si se borra la caché del motor (`synthetic-speech/`) o cambia alguna frase de los avisos en una actualización del plugin, basta re-ejecutar `node "${CLAUDE_PLUGIN_ROOT}/dist/narrate-ctl.js" presynth` con el daemon caliente (es idempotente; los avisos vigentes no se re-sintetizan).

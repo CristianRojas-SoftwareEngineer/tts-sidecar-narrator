@@ -38,8 +38,8 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
 | 2 | `tts-sidecar doctor --json` | Verificación del entorno al iniciar sesión. Se parsea `checks[]` buscando `name == "Chatterbox model"` y su `status` (`PASS`/`FAIL`). Con FAIL emite **un solo objeto** JSON (salida por veredicto, exit `1` sin clave `error`; contrato §10 del motor, desde v0.9.1). |
 | 3 | `tts-sidecar daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
 | 4 | `tts-sidecar daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
-| 5 | `tts-sidecar speech synthesize --text "<aviso>" --label <label> --daemon` | Horneado único de los avisos estáticos (`narrate-ctl bake`, invocado por la instalación guiada). El label es hash del texto; exit `6` (label ya existe) se trata como «ya horneado» (idempotencia). Exit `5` daemon caído, `4` modelo ausente. |
-| 6 | `tts-sidecar speech play --label <label>` | Reproducción instantánea de un aviso horneado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no horneado): se registra en `worker.log` y el turno queda sin audio, sin re-horneado ni fallback. Exit `2` = label ilegal. |
+| 5 | `tts-sidecar speech synthesize --text "<aviso>" --label <label> --daemon` | Pre-síntesis única de los avisos estáticos (`narrate-ctl presynth`, invocado por la instalación guiada). El label es hash del texto; exit `6` (label ya existe) se trata como «ya pre-sintetizado» (idempotencia). Exit `5` daemon caído, `4` modelo ausente. |
+| 6 | `tts-sidecar speech play --label <label>` | Reproducción instantánea de un aviso pre-sintetizado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no pre-sintetizado): se registra en `worker.log` y el turno queda sin audio, sin re-sintetizado ni fallback. Exit `2` = label ilegal. |
 
 ## Cómo lo usan los hooks
 
@@ -50,17 +50,17 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
   `last_assistant_message` del payload (y **solo** ese campo: ni transcript ni
   historial) vía LLM y llama a `speech say --text … --daemon`. Si el mensaje
   final no tiene material narrable, o el LLM cae, degrada al resumen local
-  acotado o al aviso estático horneado (`speech play`). El worker corre
+  acotado o al aviso estático pre-sintetizado (`speech play`). El worker corre
   desanclado; nunca bloquea el turno.
 - **`SubagentStop` / `StopFailure` / `Notification`** → reproducen su aviso
-  horneado con `speech play --label …`: sin LLM ni síntesis por evento. Para
+  pre-sintetizado con `speech play --label …`: sin LLM ni síntesis por evento. Para
   `Notification` el mensaje específico sigue visible en pantalla.
 - **`SessionStart`** → `health-check` corre `doctor --json`. Si el modelo está en
   caché (`PASS`) y el daemon no corre, lo levanta con `daemon start`
   (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía
   `systemMessage` y no hace nada más.
-- **Instalación** (`/tts-sidecar-narrator:install`) → `narrate-ctl bake` hornea
-  los avisos del catálogo (`src/message/static-avisos.ts`) con
+- **Instalación** (`/tts-sidecar-narrator:install`) → `narrate-ctl presynth`
+  pre-sintetiza los avisos del catálogo (`src/message/static-avisos.ts`) con
   `speech synthesize … --daemon`, una sola vez y de forma idempotente.
 
 La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH` (honrando `PATHEXT` en Windows).
