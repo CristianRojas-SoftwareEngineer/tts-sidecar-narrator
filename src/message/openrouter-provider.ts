@@ -8,7 +8,7 @@ import {
   type GenerationInput,
   type TextProvider,
 } from "./provider-chain.js";
-import { systemPromptFor } from "./prompts.js";
+import { SUMMARY_SYSTEM_PROMPT } from "./prompts.js";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/messages";
 
@@ -37,7 +37,7 @@ export class OpenRouterProvider implements TextProvider {
     const body = {
       model: MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: systemPromptFor(input.mode),
+      system: SUMMARY_SYSTEM_PROMPT,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     };
 

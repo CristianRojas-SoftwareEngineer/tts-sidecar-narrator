@@ -8,7 +8,7 @@ import {
   type GenerationInput,
   type TextProvider,
 } from "./provider-chain.js";
-import { systemPromptFor } from "./prompts.js";
+import { SUMMARY_SYSTEM_PROMPT } from "./prompts.js";
 
 // Modelo del Orchestrator (§5.4): gemini-3.1-flash-lite, probado en
 // producción. Verificar vigencia si Gemini cambia su catálogo.
@@ -36,10 +36,10 @@ export class GeminiProvider implements TextProvider {
 
     const body = {
       systemInstruction: {
-        parts: [{ text: systemPromptFor(input.mode) }],
+        parts: [{ text: SUMMARY_SYSTEM_PROMPT }],
       },
       contents: messages.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
+        role: "user",
         parts: [{ text: m.content }],
       })),
       generationConfig: {

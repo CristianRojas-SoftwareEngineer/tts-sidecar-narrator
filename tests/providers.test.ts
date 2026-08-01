@@ -1,21 +1,15 @@
 // Tests de contrato de los adaptadores Gemini/OpenRouter con fetch mockeado:
-// parseo de la respuesta, HTTP no-ok y respuesta vacía. Nunca tocan la red.
+// serialización del mensaje único, parseo de la respuesta, HTTP no-ok y
+// respuesta vacía. Nunca tocan la red.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { GeminiProvider } from "../src/message/gemini-provider.js";
 import { OpenRouterProvider } from "../src/message/openrouter-provider.js";
-import type { GenerationInput, SessionMessage } from "../src/message/provider-chain.js";
+import type { GenerationInput } from "../src/message/provider-chain.js";
+import { SUMMARY_CLOSING } from "../src/message/prompts.js";
 
-const MESSAGES: SessionMessage[] = [
-  { role: "user", content: "Hola" },
-  { role: "assistant", content: "Hola, ¿en qué ayudo?" },
-];
-
-const INPUT: GenerationInput = {
-  mode: "summary",
-  text: "Terminé la tarea.",
-  messages: MESSAGES,
-};
+const INPUT: GenerationInput = { text: "Terminé la tarea." };
+const EXPECTED_CONTENT = `Material del turno:\n\nTerminé la tarea.\n\n${SUMMARY_CLOSING}`;
 
 const realFetch = globalThis.fetch;
 let lastRequest: { url: string; init: RequestInit } | undefined;
@@ -53,26 +47,16 @@ test("Gemini: manda la clave por header, nunca en la URL", async () => {
   assert.ok(!lastRequest?.url.includes("clave-secreta"));
 });
 
-test("Gemini: serializa messages con rol model para assistant", async () => {
+test("Gemini: serializa el único mensaje user con material y cierre", async () => {
   mockFetch(200, {
     candidates: [{ content: { parts: [{ text: "ok" }] } }],
   });
   await new GeminiProvider("clave").generate(INPUT);
   const body = JSON.parse(lastRequest!.init.body as string);
   assert.deepEqual(body.contents, [
-    { role: "user", parts: [{ text: "Hola" }] },
-    { role: "model", parts: [{ text: "Hola, ¿en qué ayudo?" }] },
-    { role: "model", parts: [{ text: "Terminé la tarea." }] },
-    {
-      role: "user",
-      parts: [
-        {
-          text: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
-        },
-      ],
-    },
+    { role: "user", parts: [{ text: EXPECTED_CONTENT }] },
   ]);
-  assert.ok(body.systemInstruction.parts[0].text.includes("primera persona"));
+  assert.ok(body.systemInstruction.parts[0].text.includes("No inventes"));
 });
 
 test("Gemini: extrae y une el texto de las parts de la respuesta", async () => {
@@ -118,15 +102,15 @@ test("OpenRouter: usa el modelo :free configurado y el endpoint /api/v1/messages
   assert.equal(body.model, "poolside/laguna-xs-2.1:free");
 });
 
-test("OpenRouter: manda system + messages (formato Anthropic), no chat/completions", async () => {
+test("OpenRouter: manda system + el único mensaje user (formato Anthropic), no chat/completions", async () => {
   mockFetch(200, { content: [{ type: "text", text: "ok" }] });
   await new OpenRouterProvider("clave").generate(INPUT);
   const body = JSON.parse(lastRequest!.init.body as string);
-  assert.ok("system" in body);
+  assert.ok(body.system.includes("No inventes"));
   assert.ok(Array.isArray(body.messages));
+  assert.equal(body.messages.length, 1);
   assert.equal(body.messages[0].role, "user");
-  assert.equal(body.messages[0].content, "Hola");
-  assert.equal(body.messages[1].role, "assistant");
+  assert.equal(body.messages[0].content, EXPECTED_CONTENT);
   assert.ok(!("choices" in body));
 });
 

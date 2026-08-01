@@ -1,15 +1,21 @@
-// Caracterización del system prompt de resumen adoptado del Orchestrator
-// (§3.1–3.2, decisión §5.2): NO prohibe rutas/archivos. El modo prompt se
-// eliminó con el acuse fijo pre-sintetizado de UserPromptSubmit.
+// Caracterización del contrato anti-invención: el system prompt
+// prohíbe inventar y nombra el turno trivial; existe el cierre no presuntivo.
+// El modo único eliminó GenerationMode y systemPromptFor.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SUMMARY_SYSTEM_PROMPT, systemPromptFor } from "../src/message/prompts.js";
+import { SUMMARY_SYSTEM_PROMPT, SUMMARY_CLOSING } from "../src/message/prompts.js";
 
-test("SUMMARY_SYSTEM_PROMPT exige precisión técnica y primera persona", () => {
-  assert.ok(SUMMARY_SYSTEM_PROMPT.includes("precisión técnica"));
+test("SUMMARY_SYSTEM_PROMPT prohíbe inventar y narra en primera persona", () => {
+  assert.ok(SUMMARY_SYSTEM_PROMPT.includes("No inventes"));
   assert.ok(SUMMARY_SYSTEM_PROMPT.includes("primera persona"));
 });
 
-test("systemPromptFor mapea modo → prompt", () => {
-  assert.equal(systemPromptFor("summary"), SUMMARY_SYSTEM_PROMPT);
+test("SUMMARY_SYSTEM_PROMPT contempla el turno trivial (saludo/conversación breve)", () => {
+  assert.ok(SUMMARY_SYSTEM_PROMPT.includes("saludo"));
+  assert.ok(SUMMARY_SYSTEM_PROMPT.includes("naturalidad"));
+});
+
+test("SUMMARY_CLOSING es el cierre no presuntivo, fiel al turno", () => {
+  assert.ok(SUMMARY_CLOSING.includes("fiel a lo que ocurrió en este turno"));
+  assert.ok(!SUMMARY_CLOSING.includes("lograste"));
 });

@@ -1,26 +1,17 @@
 // El corazón del «costo cero con degradación local»: el orden de fallback y
-// que ningún fallo de un proveedor se propague al llamante. Además, el mapeo
-// de roles de buildUserContent (§3.3 del plan).
+// que ningún fallo de un proveedor se propague al llamante. Además,
+// buildUserContent construye el ÚNICO mensaje `user` con el material del turno.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   runChain,
   buildUserContent,
   type GenerationInput,
-  type SessionMessage,
   type TextProvider,
 } from "../src/message/provider-chain.js";
+import { SUMMARY_CLOSING } from "../src/message/prompts.js";
 
-const MESSAGES: SessionMessage[] = [
-  { role: "user", content: "Hola" },
-  { role: "assistant", content: "Hola, ¿en qué ayudo?" },
-];
-
-const INPUT: GenerationInput = {
-  mode: "summary",
-  text: "Último mensaje.",
-  messages: MESSAGES,
-};
+const INPUT: GenerationInput = { text: "Último mensaje." };
 
 function provider(
   name: string,
@@ -99,61 +90,31 @@ test("runChain recorta espacios del texto devuelto", async () => {
   assert.equal(result, "con espacios");
 });
 
-// --- buildUserContent (mapeo de roles §3.3) ---
+// --- buildUserContent (mensaje único) ---
 
-test("buildUserContent conserva user/assistant y aplana system a user con prefijo en modo summary", () => {
-  const out = buildUserContent({
-    mode: "summary",
-    text: "",
-    messages: [
-      { role: "system", content: "regla" },
-      { role: "user", content: "hola" },
-      { role: "assistant", content: "hola" },
-    ],
-  });
+test("buildUserContent devuelve un único mensaje user con material y cierre", () => {
+  const out = buildUserContent({ text: "Creé el componente principal." });
   assert.deepEqual(out, [
-    { role: "user", content: "[Sistema]: regla" },
-    { role: "user", content: "hola" },
-    { role: "assistant", content: "hola" },
     {
       role: "user",
-      content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
+      content: `Material del turno:\n\nCreé el componente principal.\n\n${SUMMARY_CLOSING}`,
     },
   ]);
 });
 
-test("buildUserContent anexa input.text como assistant en modo summary si no está al final", () => {
-  const out = buildUserContent({
-    mode: "summary",
-    text: "respuesta actual",
-    messages: [{ role: "user", content: "hola" }],
-  });
-  assert.deepEqual(out, [
-    { role: "user", content: "hola" },
-    { role: "assistant", content: "respuesta actual" },
-    {
-      role: "user",
-      content: "Cuéntame en voz alta en primera persona y de forma técnica qué lograste avanzar.",
-    },
-  ]);
-});
-
-test("buildUserContent filtra mensajes vacíos", () => {
-  const out = buildUserContent({
-    mode: "summary",
-    text: "",
-    messages: [
-      { role: "user", content: "  " },
-      { role: "user", content: "útil" },
-      { role: "assistant", content: "" },
-    ],
-  });
-  assert.deepEqual(out, [{ role: "user", content: "útil" }]);
-});
-
-test("buildUserContent con lista vacía y sin texto devuelve []", () => {
-  assert.deepEqual(
-    buildUserContent({ mode: "summary", text: "", messages: [] }),
-    [],
+test("buildUserContent recorta el material y nunca inyecta historial", () => {
+  const out = buildUserContent({ text: "  Hola.  " });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].role, "user");
+  assert.equal(
+    out[0].content,
+    `Material del turno:\n\nHola.\n\n${SUMMARY_CLOSING}`,
   );
+});
+
+test("buildUserContent con texto vacío conserva un único mensaje user", () => {
+  const out = buildUserContent({ text: "" });
+  assert.deepEqual(out, [
+    { role: "user", content: `Material del turno:\n\n\n\n${SUMMARY_CLOSING}` },
+  ]);
 });

@@ -41,10 +41,13 @@ de cola (tope, descarte, estado en `status`).
 Áreas identificadas como candidatas a optimización, sin órdenes de magnitud
 medidos aún (se determinarán con uso real):
 
-- **`buildLocalSummary`:** el parsing del transcript JSONL (`readTranscriptMessages`)
-  recorre el archivo de atrás hacia adelante en bloques; si el transcript crece
-  mucho en sesiones largas, convendría cachear la cola o limitar la profundidad
-  de lectura.
+- **Degradación local:** en el MVP determinista el transcript ya **no** alimenta
+  al LLM (el input es solo `last_assistant_message`), por lo que
+  `readTranscriptMessages` y el parseo JSONL fueron retirados. La degradación
+  local usa `clampSentences` (recorte determinista por oraciones completas) sobre
+  el texto ya saneado; su costo es acotado y no depende del tamaño del
+  transcript. Si una iteración futura reintroduce contexto al LLM, volvería a
+  aplicar el punto sobre cachear/limitar la cola.
 - **Cadena de providers:** hoy los tres providers (`gemini`, `openrouter`,
   `local`) se intentan en secuencia; un timeout temprano en los providers
   externos aceleraría la caída a `local` cuando no hay conectividad.

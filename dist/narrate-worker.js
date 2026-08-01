@@ -144,8 +144,9 @@ function parsePayload(raw) {
   return {};
 }
 
-// src/message/build-message.ts
-import { closeSync, openSync, readSync, statSync as statSync2 } from "node:fs";
+// src/message/prompts.ts
+var SUMMARY_SYSTEM_PROMPT = "Eres un desarrollador que habla por voz sintetizada en tiempo real. Narra en primera persona, en una o dos frases breves en espa\xF1ol, \xFAnicamente lo que muestra el material de este turno. Si el turno fue una conversaci\xF3n breve, un saludo o una respuesta sin cambios t\xE9cnicos, n\xE1rralo con naturalidad como tal. No inventes trabajo, comandos, rutas ni identificadores que no aparezcan expl\xEDcitos. Conserva los identificadores y rutas que s\xED est\xE9n presentes cuando aporten claridad. Texto plano, sin markdown ni s\xEDmbolos.";
+var SUMMARY_CLOSING = "Cu\xE9ntamelo en voz alta en primera persona, de forma fiel a lo que ocurri\xF3 en este turno.";
 
 // src/message/provider-chain.ts
 var REQUEST_TIMEOUT_MS = 8e3;
@@ -161,36 +162,17 @@ async function runChain(providers, input) {
   return void 0;
 }
 function buildUserContent(input) {
-  const { mode, text, messages } = input;
-  const trimmedText = (text ?? "").trim();
-  const history = (messages ?? []).filter((m) => m && m.content && m.content.trim().length > 0).map(
-    (m) => m.role === "system" ? { role: "user", content: `[Sistema]: ${m.content.trim()}` } : { role: m.role, content: m.content.trim() }
-  );
-  if (mode === "summary") {
-    if (trimmedText) {
-      const last = history.length > 0 ? history[history.length - 1] : void 0;
-      if (!last || last.role !== "assistant" || last.content !== trimmedText) {
-        history.push({ role: "assistant", content: trimmedText });
-      }
-    }
-    if (history.length > 0 && history[history.length - 1].role !== "user") {
-      history.push({
-        role: "user",
-        content: "Cu\xE9ntame en voz alta en primera persona y de forma t\xE9cnica qu\xE9 lograste avanzar."
-      });
-    }
-    return history;
-  }
-  return history;
-}
+  const text = (input.text ?? "").trim();
+  return [
+    {
+      role: "user",
+      content: `Material del turno:
 
-// src/message/prompts.ts
-var SUMMARY_SYSTEM_PROMPT = "Eres un desarrollador experto, asertivo y directo que habla por voz sintetizada en tiempo real. Sintetiza lo realizado en una o dos oraciones breves, bien articuladas en espa\xF1ol y en primera persona. Mant\xE9n la precisi\xF3n t\xE9cnica: conserva expl\xEDcitamente identificadores, rutas de archivo, comandos o funciones relevantes cuando aporte claridad sobre lo que se hizo. Cierra de forma conversacional invitando a continuar. Responde en texto plano para ser le\xEDdo en voz alta: sin markdown, sin asteriscos, ni s\xEDmbolos.";
-function systemPromptFor(mode) {
-  switch (mode) {
-    case "summary":
-      return SUMMARY_SYSTEM_PROMPT;
-  }
+${text}
+
+${SUMMARY_CLOSING}`
+    }
+  ];
 }
 
 // src/message/gemini-provider.ts
@@ -209,10 +191,10 @@ var GeminiProvider = class {
     }
     const body = {
       systemInstruction: {
-        parts: [{ text: systemPromptFor(input.mode) }]
+        parts: [{ text: SUMMARY_SYSTEM_PROMPT }]
       },
       contents: messages.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
+        role: "user",
         parts: [{ text: m.content }]
       })),
       generationConfig: {
@@ -255,7 +237,7 @@ var OpenRouterProvider = class {
     const body = {
       model: MODEL2,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: systemPromptFor(input.mode),
+      system: SUMMARY_SYSTEM_PROMPT,
       messages: messages.map((m) => ({ role: m.role, content: m.content }))
     };
     const res = await fetch(ENDPOINT2, {
@@ -275,28 +257,6 @@ var OpenRouterProvider = class {
     return text;
   }
 };
-
-// src/message/sanitize.ts
-function toPlainText(input) {
-  let t = input ?? "";
-  t = t.replace(/```([\s\S]*?)```/g, "$1");
-  t = t.replace(/~~~([\s\S]*?)~~~/g, "$1");
-  t = t.replace(/`([^`]*)`/g, "$1");
-  t = t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
-  t = t.replace(/https?:\/\/\S+/g, " ");
-  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-  t = t.replace(/^\s{0,3}>\s?/gm, "");
-  t = t.replace(/^\s{0,3}[-*+]\s+/gm, "");
-  t = t.replace(/^\s{0,3}\d+[.)]\s+/gm, "");
-  t = t.replace(/[*_~]{1,3}/g, "");
-  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!()'"-]/gu, " ");
-  t = t.replace(/\s+/g, " ").trim();
-  return t;
-}
-function sanitizeForSpeech(input) {
-  const plain = toPlainText(input);
-  return plain ? plain.replace(/\s+/g, " ").trim() : "";
-}
 
 // src/message/static-avisos.ts
 import { createHash } from "node:crypto";
@@ -324,38 +284,105 @@ var AVISO_BY_EVENT = {
   StopFailure: AVISOS.StopFailure,
   Notification: AVISOS.Notification
 };
-function buildLocalSummary(text) {
-  return sanitizeForSpeech(text);
-}
 function staticForEvent(eventName) {
   return AVISO_BY_EVENT[eventName ?? ""] ?? AVISOS.Default;
 }
-function buildNotice(message) {
-  const clean = sanitizeForSpeech(message ?? "");
-  if (clean) return { kind: "say", text: clean };
-  return { kind: "play", label: staticForEvent("Notification").label };
+
+// src/message/sanitize.ts
+function toPlainText(input) {
+  let t = input ?? "";
+  t = t.replace(/```([\s\S]*?)```/g, "$1");
+  t = t.replace(/~~~([\s\S]*?)~~~/g, "$1");
+  t = t.replace(/`([^`]*)`/g, "$1");
+  t = t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
+  t = t.replace(/https?:\/\/\S+/g, " ");
+  t = t.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+  t = t.replace(/^\s{0,3}>\s?/gm, "");
+  t = t.replace(/^\s{0,3}[-*+]\s+/gm, "");
+  t = t.replace(/^\s{0,3}\d+[.)]\s+/gm, "");
+  t = t.replace(/[*_~]{1,3}/g, "");
+  t = t.replace(/[^\p{L}\p{N}\s.,;:¿?¡!()'"-]/gu, " ");
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
+function sanitizeForSpeech(input) {
+  const plain = toPlainText(input);
+  return plain ? plain.replace(/\s+/g, " ").trim() : "";
+}
+
+// src/message/clamp.ts
+var LLM_INPUT_MAX_CHARS = 16e3;
+var LOCAL_SPEECH_MAX_CHARS = 400;
+var SENTENCE_TERMINATORS = /* @__PURE__ */ new Set([".", "!", "?", "\u2026"]);
+function clampHead(text) {
+  const t = text ?? "";
+  if (t.length <= LLM_INPUT_MAX_CHARS) return t;
+  const window = t.slice(0, LLM_INPUT_MAX_CHARS);
+  const lastPara = window.lastIndexOf("\n\n");
+  if (lastPara > 0) return window.slice(0, lastPara).trimEnd();
+  const lastSpace = window.lastIndexOf(" ");
+  if (lastSpace > 0) return window.slice(0, lastSpace).trimEnd();
+  return window;
+}
+function clampSentences(text, maxChars) {
+  const t = (text ?? "").trim();
+  if (!t) return "";
+  if (t.length <= maxChars) return t;
+  const sentences = splitSentences(t);
+  let acc = "";
+  for (const sentence of sentences) {
+    const next = acc ? `${acc} ${sentence}` : sentence;
+    if (next.length > maxChars) break;
+    acc = next;
+  }
+  if (acc) return acc;
+  const window = t.slice(0, maxChars);
+  const lastSpace = window.lastIndexOf(" ");
+  if (lastSpace > 0) return window.slice(0, lastSpace).trimEnd();
+  return window;
+}
+function splitSentences(text) {
+  const sentences = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (SENTENCE_TERMINATORS.has(text[i])) {
+      let end = i + 1;
+      while (end < text.length && SENTENCE_TERMINATORS.has(text[end])) end++;
+      const sentence = text.slice(start, end).trim();
+      if (sentence) sentences.push(sentence);
+      start = end;
+      i = end - 1;
+    }
+  }
+  const tail = text.slice(start).trim();
+  if (tail) sentences.push(tail);
+  return sentences;
 }
 
 // src/message/build-message.ts
-var TRANSCRIPT_TAIL_MESSAGES = 10;
-var TRANSCRIPT_TAIL_BYTES = 256 * 1024;
 async function buildMessage(payload, cfg) {
   const event = payload.hook_event_name;
   if (event === "Notification") {
-    return buildNotice(payload.message);
+    return { kind: "play", label: AVISOS.Notification.label };
   }
   if (event === "UserPromptSubmit") {
     return { kind: "play", label: AVISOS.UserPromptSubmit.label };
   }
-  const primary = (payload.last_assistant_message ?? "").trim();
+  if (event === "SubagentStop") {
+    return { kind: "play", label: AVISOS.SubagentStop.label };
+  }
+  if (event === "StopFailure") {
+    return { kind: "play", label: AVISOS.StopFailure.label };
+  }
+  const raw = payload.last_assistant_message ?? "";
+  const primary = sanitizeForSpeech(raw);
+  if (primary === "") {
+    return { kind: "play", label: staticForEvent(event).label };
+  }
   if (cfg.messageMode === "llm") {
     const providers = buildProviders(cfg);
     if (providers.length > 0) {
-      const input = {
-        mode: "summary",
-        text: primary,
-        messages: readTranscriptMessages(payload.transcript_path)
-      };
+      const input = { text: clampHead(raw) };
       const llm = await runChain(providers, input);
       if (llm) {
         const clean = sanitizeForSpeech(llm);
@@ -363,112 +390,13 @@ async function buildMessage(payload, cfg) {
       }
     }
   }
-  const localSummary = buildLocalSummary(primary);
-  if (localSummary) return { kind: "say", text: localSummary };
-  return { kind: "play", label: staticForEvent(event).label };
+  return { kind: "say", text: clampSentences(primary, LOCAL_SPEECH_MAX_CHARS) };
 }
 function buildProviders(cfg) {
   const providers = [];
   if (cfg.geminiApiKey) providers.push(new GeminiProvider(cfg.geminiApiKey));
   if (cfg.openRouterApiKey) providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
   return providers;
-}
-function readTranscriptMessages(transcriptPath) {
-  if (!transcriptPath) return [];
-  let fd;
-  try {
-    const size = statSync2(transcriptPath).size;
-    const start = Math.max(0, size - TRANSCRIPT_TAIL_BYTES);
-    const length = size - start;
-    if (length <= 0) return [];
-    const buf = Buffer.alloc(length);
-    fd = openSync(transcriptPath, "r");
-    readSync(fd, buf, 0, length, start);
-    const chunk = buf.toString("utf8");
-    const lines = chunk.split("\n");
-    if (start > 0) lines.shift();
-    const messages = [];
-    for (const line of lines) {
-      const entry = extractMessage(line);
-      if (entry) messages.push(entry);
-    }
-    return messages.slice(-TRANSCRIPT_TAIL_MESSAGES);
-  } catch {
-    return [];
-  } finally {
-    if (fd !== void 0) {
-      try {
-        closeSync(fd);
-      } catch {
-      }
-    }
-  }
-}
-function extractMessage(line) {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-  try {
-    const obj = JSON.parse(trimmed);
-    if (!obj || typeof obj !== "object") return null;
-    const role = parseRole(obj);
-    if (!role) return null;
-    const rawContent = extractContent(obj);
-    const text = extractText(rawContent);
-    if (!text) return null;
-    return { role, content: text };
-  } catch {
-    return null;
-  }
-}
-function parseRole(obj) {
-  const rawRole = obj.message?.role ?? obj.role ?? obj.source ?? obj.type;
-  if (typeof rawRole !== "string") return null;
-  const normalized = rawRole.toLowerCase().trim();
-  if (normalized === "user" || normalized === "user_input" || normalized === "user_explicit") {
-    return "user";
-  }
-  if (normalized === "assistant" || normalized === "model" || normalized === "planner_response") {
-    return "assistant";
-  }
-  if (normalized === "system") {
-    return "system";
-  }
-  return null;
-}
-function extractContent(obj) {
-  if (obj.message?.content !== void 0) {
-    return obj.message.content;
-  }
-  if (obj.content !== void 0) return obj.content;
-  if (obj.message?.text !== void 0) {
-    return obj.message.text;
-  }
-  if (obj.text !== void 0) return obj.text;
-  if (obj.payload?.content !== void 0) {
-    return obj.payload.content;
-  }
-  if (obj.payload?.text !== void 0) {
-    return obj.payload.text;
-  }
-  return void 0;
-}
-function extractText(content) {
-  if (typeof content === "string") return content.trim();
-  if (Array.isArray(content)) {
-    return content.map((item) => {
-      if (typeof item === "string") return item;
-      if (item && typeof item === "object") {
-        const t = item.text ?? item.content;
-        if (typeof t === "string") return t;
-      }
-      return "";
-    }).filter((s) => s.length > 0).join(" ").replace(/\s+/g, " ").trim();
-  }
-  if (content && typeof content === "object") {
-    const t = content.text ?? content.content;
-    if (typeof t === "string") return t.trim();
-  }
-  return "";
 }
 
 // src/narrate-worker.ts

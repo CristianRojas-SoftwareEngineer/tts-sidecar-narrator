@@ -46,10 +46,15 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
 - **`UserPromptSubmit`** → `narrate-worker` reproduce el acuse fijo pre-sintetizado
   («Procesando con Claude») con `speech play --label …`: sin LLM, sin resumen y
   sin daemon en la ruta caliente.
-- **`Stop` / `SubagentStop` / `StopFailure` / `Notification`** → `narrate-worker`
-  construye el mensaje dinámico y llama a `speech say --text … --daemon`; si no
-  hay material utilizable, cae al aviso estático horneado vía `speech play`.
-  El worker corre desanclado; nunca bloquea el turno.
+- **`Stop`** → única ruta de locución dinámica. `narrate-worker` resume el
+  `last_assistant_message` del payload (y **solo** ese campo: ni transcript ni
+  historial) vía LLM y llama a `speech say --text … --daemon`. Si el mensaje
+  final no tiene material narrable, o el LLM cae, degrada al resumen local
+  acotado o al aviso estático horneado (`speech play`). El worker corre
+  desanclado; nunca bloquea el turno.
+- **`SubagentStop` / `StopFailure` / `Notification`** → reproducen su aviso
+  horneado con `speech play --label …`: sin LLM ni síntesis por evento. Para
+  `Notification` el mensaje específico sigue visible en pantalla.
 - **`SessionStart`** → `health-check` corre `doctor --json`. Si el modelo está en
   caché (`PASS`) y el daemon no corre, lo levanta con `daemon start`
   (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía

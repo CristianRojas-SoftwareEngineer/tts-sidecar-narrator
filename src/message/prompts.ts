@@ -1,22 +1,18 @@
-// System prompts por modo de generación. Solo el modo `summary` usa LLM; el
-// modo `notice` (Notification) no pasa por aquí (el mensaje ya viene redactado)
-// y `UserPromptSubmit` reproduce un aviso pre-sintetizado (sin LLM).
-// Contrato común impuesto a los modelos y verificado luego por sanitize.ts:
-// texto plano, español, 1-2 frases, primera persona, sin markdown ni símbolos.
-
-export type GenerationMode = "summary";
+// System prompt y cierre para la única ruta de generación dinámica (`Stop`).
+// El LLM recibe únicamente `last_assistant_message` (ni transcript ni
+// historial), así que el contrato es anti-invención: narrar solo lo presente.
+// Contrato común impuesto al modelo y verificado luego por sanitize.ts: texto
+// plano, español, 1-2 frases, primera persona, sin markdown ni símbolos.
 
 export const SUMMARY_SYSTEM_PROMPT =
-  "Eres un desarrollador experto, asertivo y directo que habla por voz sintetizada en tiempo real. " +
-  "Sintetiza lo realizado en una o dos oraciones breves, bien articuladas en español y en primera persona. " +
-  "Mantén la precisión técnica: conserva explícitamente identificadores, rutas de archivo, comandos o " +
-  "funciones relevantes cuando aporte claridad sobre lo que se hizo. " +
-  "Cierra de forma conversacional invitando a continuar. " +
-  "Responde en texto plano para ser leído en voz alta: sin markdown, sin asteriscos, ni símbolos.";
+  "Eres un desarrollador que habla por voz sintetizada en tiempo real. " +
+  "Narra en primera persona, en una o dos frases breves en español, únicamente " +
+  "lo que muestra el material de este turno. Si el turno fue una conversación " +
+  "breve, un saludo o una respuesta sin cambios técnicos, nárralo con " +
+  "naturalidad como tal. No inventes trabajo, comandos, rutas ni identificadores " +
+  "que no aparezcan explícitos. Conserva los identificadores y rutas que sí " +
+  "estén presentes cuando aporten claridad. Texto plano, sin markdown ni símbolos.";
 
-export function systemPromptFor(mode: GenerationMode): string {
-  switch (mode) {
-    case "summary":
-      return SUMMARY_SYSTEM_PROMPT;
-  }
-}
+/** Cierre no presuntivo que se anexa al material del turno (no presupone trabajo). */
+export const SUMMARY_CLOSING =
+  "Cuéntamelo en voz alta en primera persona, de forma fiel a lo que ocurrió en este turno.";
