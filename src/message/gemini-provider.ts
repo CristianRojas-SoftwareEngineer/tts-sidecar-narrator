@@ -29,19 +29,13 @@ export class GeminiProvider implements TextProvider {
   async generate(input: GenerationInput): Promise<string> {
     if (!this.apiKey) throw new Error("Gemini: sin API key");
 
-    const messages = buildUserContent(input);
-    if (messages.length === 0) {
-      throw new Error("Gemini: sin contenido para generar");
-    }
+    const content = buildUserContent(input);
 
     const body = {
       systemInstruction: {
         parts: [{ text: SUMMARY_SYSTEM_PROMPT }],
       },
-      contents: messages.map((m) => ({
-        role: "user",
-        parts: [{ text: m.content }],
-      })),
+      contents: [{ role: "user", parts: [{ text: content }] }],
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0.7,

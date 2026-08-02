@@ -163,16 +163,11 @@ async function runChain(providers, input) {
 }
 function buildUserContent(input) {
   const text = (input.text ?? "").trim();
-  return [
-    {
-      role: "user",
-      content: `Material del turno:
+  return `Material del turno:
 
 ${text}
 
-${SUMMARY_CLOSING}`
-    }
-  ];
+${SUMMARY_CLOSING}`;
 }
 
 // src/message/gemini-provider.ts
@@ -185,18 +180,12 @@ var GeminiProvider = class {
   name = "gemini";
   async generate(input) {
     if (!this.apiKey) throw new Error("Gemini: sin API key");
-    const messages = buildUserContent(input);
-    if (messages.length === 0) {
-      throw new Error("Gemini: sin contenido para generar");
-    }
+    const content = buildUserContent(input);
     const body = {
       systemInstruction: {
         parts: [{ text: SUMMARY_SYSTEM_PROMPT }]
       },
-      contents: messages.map((m) => ({
-        role: "user",
-        parts: [{ text: m.content }]
-      })),
+      contents: [{ role: "user", parts: [{ text: content }] }],
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0.7,
@@ -230,15 +219,12 @@ var OpenRouterProvider = class {
   name = "openrouter";
   async generate(input) {
     if (!this.apiKey) throw new Error("OpenRouter: sin API key");
-    const messages = buildUserContent(input);
-    if (messages.length === 0) {
-      throw new Error("OpenRouter: sin contenido para generar");
-    }
+    const content = buildUserContent(input);
     const body = {
       model: MODEL2,
       max_tokens: MAX_OUTPUT_TOKENS,
       system: SUMMARY_SYSTEM_PROMPT,
-      messages: messages.map((m) => ({ role: m.role, content: m.content }))
+      messages: [{ role: "user", content }]
     };
     const res = await fetch(ENDPOINT2, {
       method: "POST",

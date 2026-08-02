@@ -39,18 +39,13 @@ export async function runChain(
 }
 
 /**
- * Construye el ÚNICO mensaje `user` para los proveedores LLM: el material del
- * turno más el cierre no presuntivo. Sin historial ni mapeo de roles: el LLM
- * nunca recibe nada que no sea el `last_assistant_message` del payload.
+ * Construye el contenido del ÚNICO mensaje `user` para los proveedores LLM:
+ * el material del turno más el cierre no presuntivo. Sin historial ni mapeo
+ * de roles: el LLM nunca recibe nada que no sea el `last_assistant_message`
+ * del payload. Cada proveedor envuelve este string en su propio formato de
+ * mensaje.
  */
-export function buildUserContent(
-  input: GenerationInput,
-): Array<{ role: "user"; content: string }> {
+export function buildUserContent(input: GenerationInput): string {
   const text = (input.text ?? "").trim();
-  return [
-    {
-      role: "user",
-      content: `Material del turno:\n\n${text}\n\n${SUMMARY_CLOSING}`,
-    },
-  ];
+  return `Material del turno:\n\n${text}\n\n${SUMMARY_CLOSING}`;
 }

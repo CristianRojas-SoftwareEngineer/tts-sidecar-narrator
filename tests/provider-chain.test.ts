@@ -90,31 +90,22 @@ test("runChain recorta espacios del texto devuelto", async () => {
   assert.equal(result, "con espacios");
 });
 
-// --- buildUserContent (mensaje único) ---
+// --- buildUserContent (contenido del mensaje único) ---
 
-test("buildUserContent devuelve un único mensaje user con material y cierre", () => {
+test("buildUserContent devuelve el contenido del mensaje user con material y cierre", () => {
   const out = buildUserContent({ text: "Creé el componente principal." });
-  assert.deepEqual(out, [
-    {
-      role: "user",
-      content: `Material del turno:\n\nCreé el componente principal.\n\n${SUMMARY_CLOSING}`,
-    },
-  ]);
+  assert.equal(
+    out,
+    `Material del turno:\n\nCreé el componente principal.\n\n${SUMMARY_CLOSING}`,
+  );
 });
 
 test("buildUserContent recorta el material y nunca inyecta historial", () => {
   const out = buildUserContent({ text: "  Hola.  " });
-  assert.equal(out.length, 1);
-  assert.equal(out[0].role, "user");
-  assert.equal(
-    out[0].content,
-    `Material del turno:\n\nHola.\n\n${SUMMARY_CLOSING}`,
-  );
+  assert.equal(out, `Material del turno:\n\nHola.\n\n${SUMMARY_CLOSING}`);
 });
 
-test("buildUserContent con texto vacío conserva un único mensaje user", () => {
+test("buildUserContent con texto vacío conserva el contenido del mensaje user", () => {
   const out = buildUserContent({ text: "" });
-  assert.deepEqual(out, [
-    { role: "user", content: `Material del turno:\n\n\n\n${SUMMARY_CLOSING}` },
-  ]);
+  assert.equal(out, `Material del turno:\n\n\n\n${SUMMARY_CLOSING}`);
 });
