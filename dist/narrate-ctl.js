@@ -123,7 +123,7 @@ var ANNOUNCEMENTS = {
   SubagentStop: announcement("El subagente complet\xF3 su trabajo."),
   StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n."),
   Notification: announcement("Claude necesita tu atenci\xF3n"),
-  Default: announcement("Procesando.")
+  Default: announcement("Notificaci\xF3n de Claude.")
 };
 
 // src/narrate-ctl.ts

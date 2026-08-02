@@ -46,5 +46,5 @@ export const ANNOUNCEMENTS = {
   SubagentStop: announcement("El subagente completó su trabajo."),
   StopFailure: announcement("Ocurrió un error durante la ejecución."),
   Notification: announcement("Claude necesita tu atención"),
-  Default: announcement("Procesando."),
+  Default: announcement("Notificación de Claude."),
 } as const satisfies Record<string, Announcement>;

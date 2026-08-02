@@ -11,7 +11,7 @@ test("el catálogo fija el texto literal de los seis anuncios", () => {
   assert.equal(ANNOUNCEMENTS.SubagentStop.text, "El subagente completó su trabajo.");
   assert.equal(ANNOUNCEMENTS.StopFailure.text, "Ocurrió un error durante la ejecución.");
   assert.equal(ANNOUNCEMENTS.Notification.text, "Claude necesita tu atención");
-  assert.equal(ANNOUNCEMENTS.Default.text, "Procesando.");
+  assert.equal(ANNOUNCEMENTS.Default.text, "Notificación de Claude.");
   assert.equal(Object.keys(ANNOUNCEMENTS).length, 6);
 });
 
