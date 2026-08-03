@@ -109,21 +109,16 @@ function needsShell(cliPath) {
 }
 
 // src/message/static-announcements.ts
-import { createHash } from "node:crypto";
-function labelFor(text) {
-  const hash = createHash("sha256").update(text, "utf8").digest("hex");
-  return `narrator-${hash.slice(0, 12)}`;
-}
-function announcement(text) {
-  return { text, label: labelFor(text) };
+function announcement(text, label) {
+  return { text, label };
 }
 var ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude"),
-  Stop: announcement("El asistente termin\xF3 su turno."),
-  SubagentStop: announcement("El subagente complet\xF3 su trabajo."),
-  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n."),
-  Notification: announcement("Claude necesita tu atenci\xF3n"),
-  Default: announcement("Notificaci\xF3n de Claude.")
+  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  Stop: announcement("El asistente termin\xF3 su turno.", "narrator-stop"),
+  SubagentStop: announcement("El subagente complet\xF3 su trabajo.", "narrator-subagent-stop"),
+  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n.", "narrator-stop-failure"),
+  Notification: announcement("Claude necesita tu atenci\xF3n.", "narrator-notification"),
+  Default: announcement("Notificaci\xF3n de Claude.", "narrator-default")
 };
 
 // src/narrate-ctl.ts
@@ -152,7 +147,7 @@ function say(text) {
   });
   return res.status ?? 0;
 }
-function presynth() {
+function presynth(force) {
   const cli = resolveCli();
   if (!cli) {
     console.error("tts-sidecar no est\xE1 en el PATH; no se puede pre-sintetizar.");
@@ -160,17 +155,19 @@ function presynth() {
   }
   let failed = false;
   for (const [evento, { text, label }] of Object.entries(ANNOUNCEMENTS)) {
-    const res = spawnSync(
-      cli,
-      ["speech", "synthesize", "--text", text, "--label", label, "--daemon"],
-      {
-        stdio: ["ignore", "ignore", "inherit"],
-        windowsHide: true,
-        shell: needsShell(cli)
-      }
-    );
+    const args = ["speech", "synthesize", "--text", text, "--label", label];
+    if (force) args.push("--force");
+    args.push("--daemon");
+    const res = spawnSync(cli, args, {
+      stdio: ["ignore", "ignore", "inherit"],
+      windowsHide: true,
+      shell: needsShell(cli)
+    });
     const code = res.status ?? 1;
-    if (code === 0) console.log(`${evento}: pre-sintetizado (${label})`);
+    if (code === 0)
+      console.log(
+        `${evento}: ${force ? "re-sintetizado" : "pre-sintetizado"} (${label})`
+      );
     else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
@@ -213,8 +210,14 @@ function main() {
       }
       return say(text);
     }
-    case "presynth":
-      return presynth();
+    case "presynth": {
+      const force = rest[0] === "--force" || rest[0] === "-f";
+      if (rest.length > 1 || rest.length === 1 && !force) {
+        console.error("Uso: presynth [--force]");
+        return 2;
+      }
+      return presynth(force);
+    }
     default:
       console.error(`Comando desconocido: ${cmd}`);
       return 2;

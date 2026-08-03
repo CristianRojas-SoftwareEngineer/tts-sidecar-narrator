@@ -245,21 +245,16 @@ var OpenRouterProvider = class {
 };
 
 // src/message/static-announcements.ts
-import { createHash } from "node:crypto";
-function labelFor(text) {
-  const hash = createHash("sha256").update(text, "utf8").digest("hex");
-  return `narrator-${hash.slice(0, 12)}`;
-}
-function announcement(text) {
-  return { text, label: labelFor(text) };
+function announcement(text, label) {
+  return { text, label };
 }
 var ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude"),
-  Stop: announcement("El asistente termin\xF3 su turno."),
-  SubagentStop: announcement("El subagente complet\xF3 su trabajo."),
-  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n."),
-  Notification: announcement("Claude necesita tu atenci\xF3n"),
-  Default: announcement("Notificaci\xF3n de Claude.")
+  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  Stop: announcement("El asistente termin\xF3 su turno.", "narrator-stop"),
+  SubagentStop: announcement("El subagente complet\xF3 su trabajo.", "narrator-subagent-stop"),
+  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n.", "narrator-stop-failure"),
+  Notification: announcement("Claude necesita tu atenci\xF3n.", "narrator-notification"),
+  Default: announcement("Notificaci\xF3n de Claude.", "narrator-default")
 };
 
 // src/message/sanitize.ts

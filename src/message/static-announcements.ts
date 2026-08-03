@@ -1,12 +1,13 @@
 // Registro único de los anuncios estáticos pre-sintetizados: texto canónico y
-// label derivado del hash del texto. El worker deriva el label para
-// `speech play`, `narrate-ctl presynth` lo deriva para `speech synthesize` y el
-// builder decide qué eventos lo usan — todos desde este catálogo, así una frase
-// que cambia produce un label nuevo y nunca se reproduce el WAV viejo por
-// accidente.
-import { createHash } from "node:crypto";
+// label semántico fijo. El worker reproduce por label con `speech play`,
+// `narrate-ctl presynth` sintetiza por label con `speech synthesize` y el
+// builder decide qué eventos lo usan — todos desde este catálogo. El label es un
+// slug estable asignado por anuncio, no derivado del texto: cambiar una frase no
+// cambia su label, así que el re-sync tras un cambio se hace a mano con
+// `presynth --force`. Convención de texto: toda frase termina en punto, para una
+// entonación final consistente al sintetizar.
 
-/** Anuncio estático: texto canónico y label estable derivado de él. */
+/** Anuncio estático: texto canónico y label semántico fijo. */
 export interface Announcement {
   text: string;
   label: string;
@@ -21,18 +22,8 @@ export type NarrationRequest =
   | { kind: "play"; label: string }
   | { kind: "say"; text: string };
 
-/**
- * Label estable para un texto: `narrator-<sha256 hex truncado a 12>`. Cumple el
- * contrato de labels del motor (`[a-z0-9._-]+`, minúsculas) y es determinista:
- * mismo texto → mismo label; texto distinto → label distinto.
- */
-export function labelFor(text: string): string {
-  const hash = createHash("sha256").update(text, "utf8").digest("hex");
-  return `narrator-${hash.slice(0, 12)}`;
-}
-
-function announcement(text: string): Announcement {
-  return { text, label: labelFor(text) };
+function announcement(text: string, label: string): Announcement {
+  return { text, label };
 }
 
 /**
@@ -41,10 +32,10 @@ function announcement(text: string): Announcement {
  * (más el default para eventos desconocidos).
  */
 export const ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude"),
-  Stop: announcement("El asistente terminó su turno."),
-  SubagentStop: announcement("El subagente completó su trabajo."),
-  StopFailure: announcement("Ocurrió un error durante la ejecución."),
-  Notification: announcement("Claude necesita tu atención"),
-  Default: announcement("Notificación de Claude."),
+  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  Stop: announcement("El asistente terminó su turno.", "narrator-stop"),
+  SubagentStop: announcement("El subagente completó su trabajo.", "narrator-subagent-stop"),
+  StopFailure: announcement("Ocurrió un error durante la ejecución.", "narrator-stop-failure"),
+  Notification: announcement("Claude necesita tu atención.", "narrator-notification"),
+  Default: announcement("Notificación de Claude.", "narrator-default"),
 } as const satisfies Record<string, Announcement>;

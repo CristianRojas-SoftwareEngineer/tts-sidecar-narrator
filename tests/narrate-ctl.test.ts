@@ -2,7 +2,8 @@
 // subproceso real sobre dist/narrate-ctl.js (check-dist garantiza que dist/
 // refleja src/), con el state dir redirigido a un temporal vía env vars del SO
 // anfitrión. El test de status fija por contrato que las claves jamás se
-// imprimen.
+// imprimen. Cubre presynth idempotente y presynth --force (que pasa --force al
+// motor para reescribir los WAV existentes).
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -198,6 +199,7 @@ test("presynth pre-sintetiza los seis anuncios con speech synthesize --label --d
     const labels = argvs.map((argv) => {
       assert.deepEqual(argv.slice(0, 2), ["speech", "synthesize"]);
       assert.ok(argv.includes("--daemon"));
+      assert.ok(!argv.includes("--force"));
       return argv[argv.indexOf("--label") + 1];
     });
     assert.deepEqual(
@@ -207,6 +209,32 @@ test("presynth pre-sintetiza los seis anuncios con speech synthesize --label --d
   } finally {
     removeDir(dir);
   }
+});
+
+test("presynth --force pasa --force al motor y reporta re-sintetizado", () => {
+  const dir = makeTempDir("narrator-fakecli-");
+  try {
+    const { argvLog } = makeFakeCli(dir, [0, 0, 0, 0, 0, 0]);
+    const res = runCtl(["presynth", "--force"], fakeCliEnv(dir));
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout.match(/: re-sintetizado /g)?.length, 6);
+
+    const argvs = loggedArgvs(argvLog);
+    assert.equal(argvs.length, 6);
+    for (const argv of argvs) {
+      assert.deepEqual(argv.slice(0, 2), ["speech", "synthesize"]);
+      assert.ok(argv.includes("--force"));
+      assert.ok(argv.includes("--daemon"));
+    }
+  } finally {
+    removeDir(dir);
+  }
+});
+
+test("presynth con un argumento inválido devuelve 2 con uso", () => {
+  const res = runCtl(["presynth", "turbo"]);
+  assert.equal(res.status, 2);
+  assert.match(res.stderr, /Uso: presynth/);
 });
 
 test("presynth es idempotente: exit 6 (label ya existe) cuenta como éxito", () => {

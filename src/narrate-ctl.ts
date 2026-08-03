@@ -7,7 +7,7 @@
 //   mode <llm|local>   fija el modo de generación
 //   status             muestra el estado (sin revelar las claves)
 //   say "<texto>"      narra un texto a demanda vía tts-sidecar
-//   presynth           pre-sintetiza los anuncios estáticos (idempotente)
+//   presynth [--force] pre-sintetiza los anuncios estáticos (idempotente; --force reescribe)
 import { spawnSync } from "node:child_process";
 import { loadConfig, updateConfig } from "./lib/config.js";
 import { configPath, stateDir } from "./lib/state-dir.js";
@@ -43,12 +43,14 @@ function say(text: string): number {
 
 /**
  * Pre-sintetiza los anuncios del catálogo con `speech synthesize --daemon`.
- * Idempotente por construcción: el label es hash del texto, así que la
- * colisión de label (exit `6`) significa «ya pre-sintetizado» y cuenta como
- * éxito. Requiere el daemon caliente (exit `5` si está caído) y el modelo
+ * Idempotente por defecto: la colisión de label (exit `6`) significa «ya
+ * pre-sintetizado» y cuenta como éxito. Con `force`, pasa `--force` al motor
+ * para sobrescribir el WAV del label existente: el re-sync manual tras un
+ * cambio de frase (el label es fijo, así que `presynth` a secas no lo
+ * detectaría). Requiere el daemon caliente (exit `5` si está caído) y el modelo
  * provisionado (exit `4`).
  */
-function presynth(): number {
+function presynth(force: boolean): number {
   const cli = resolveCli();
   if (!cli) {
     console.error("tts-sidecar no está en el PATH; no se puede pre-sintetizar.");
@@ -56,17 +58,19 @@ function presynth(): number {
   }
   let failed = false;
   for (const [evento, { text, label }] of Object.entries(ANNOUNCEMENTS)) {
-    const res = spawnSync(
-      cli,
-      ["speech", "synthesize", "--text", text, "--label", label, "--daemon"],
-      {
-        stdio: ["ignore", "ignore", "inherit"],
-        windowsHide: true,
-        shell: needsShell(cli),
-      },
-    );
+    const args = ["speech", "synthesize", "--text", text, "--label", label];
+    if (force) args.push("--force");
+    args.push("--daemon");
+    const res = spawnSync(cli, args, {
+      stdio: ["ignore", "ignore", "inherit"],
+      windowsHide: true,
+      shell: needsShell(cli),
+    });
     const code = res.status ?? 1;
-    if (code === 0) console.log(`${evento}: pre-sintetizado (${label})`);
+    if (code === 0)
+      console.log(
+        `${evento}: ${force ? "re-sintetizado" : "pre-sintetizado"} (${label})`,
+      );
     else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
@@ -115,8 +119,14 @@ function main(): number {
       }
       return say(text);
     }
-    case "presynth":
-      return presynth();
+    case "presynth": {
+      const force = rest[0] === "--force" || rest[0] === "-f";
+      if (rest.length > 1 || (rest.length === 1 && !force)) {
+        console.error("Uso: presynth [--force]");
+        return 2;
+      }
+      return presynth(force);
+    }
     default:
       console.error(`Comando desconocido: ${cmd}`);
       return 2;

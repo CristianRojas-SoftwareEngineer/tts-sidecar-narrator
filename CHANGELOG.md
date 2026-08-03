@@ -32,16 +32,20 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
   la latencia de red en el momento más visible del ciclo.
 - **Los fallbacks estáticos se reproducen desde su WAV pre-sintetizado** (`speech
   play`) en vez de re-sintetizarse en cada aparición: el catálogo único de
-  anuncios vive en `src/message/static-announcements.ts`, con label derivado del hash
-  del texto (si una frase cambia, su label cambia y nunca suena el WAV viejo).
+  anuncios vive en `src/message/static-announcements.ts`, con un label semántico
+  fijo por anuncio (p. ej. `narrator-stop`) asignado explícitamente, no derivado
+  del texto.
 
 ### Añadido
 
 - **Subcomando `narrate-ctl presynth`**: pre-sintetiza los seis anuncios del catálogo con
-  `speech synthesize --daemon`, idempotente por construcción (exit `6` del
+  `speech synthesize --daemon`, idempotente por defecto (exit `6` del
   motor = «ya pre-sintetizado»). Integrado en la instalación guiada
   (`/tts-sidecar-narrator:install`) y re-ejecutable a mano tras borrar la caché
-  del motor o cambiar una frase.
+  del motor. Acepta `--force` (alias `-f`), que pasa `--force` al motor para
+  sobrescribir el WAV de un label existente: el re-sync manual tras cambiar la
+  frase de un anuncio (como el label es fijo, `presynth` a secas no detecta el
+  cambio).
 
 ### Eliminado
 
