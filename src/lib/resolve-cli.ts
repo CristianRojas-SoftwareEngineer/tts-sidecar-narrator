@@ -1,14 +1,15 @@
-// Resuelve el ejecutable `tts-sidecar` recorriendo el PATH, con las extensiones
-// adecuadas por SO. Cubre las seis combinaciones SO × canal (binario nativo y
-// uv tool install), que en los tres SO dejan el CLI en el PATH.
+// Resuelve el ejecutable `ai-voice-interconnector` recorriendo el PATH, con las
+// extensiones adecuadas por SO. Los instaladores nativos por SO
+// (install-windows.ps1, install-linux.sh, install-macos.sh) dejan el CLI en el
+// PATH en los tres SO.
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
-const BASE = "tts-sidecar";
+const BASE = "ai-voice-interconnector";
 
 function candidateNames(): string[] {
   if (process.platform !== "win32") return [BASE];
-  // En Windows prioriza el .exe (Inno Setup / uv). Los shims .cmd/.bat exigen
+  // En Windows prioriza el .exe (instalador nativo). Los shims .cmd/.bat exigen
   // shell al ejecutarse (ver runViaShell en el worker).
   const exts = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT")
     .split(";")

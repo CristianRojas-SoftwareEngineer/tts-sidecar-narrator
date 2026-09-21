@@ -6,7 +6,7 @@
 //   off                desactiva la narración
 //   mode <llm|local>   fija el modo de generación
 //   status             muestra el estado (sin revelar las claves)
-//   say "<texto>"      narra un texto a demanda vía tts-sidecar
+//   say "<texto>"      narra un texto a demanda vía ai-voice-interconnector
 //   presynth [--force] pre-sintetiza los anuncios estáticos (idempotente; --force reescribe)
 import { spawnSync } from "node:child_process";
 import { loadConfig, updateConfig } from "./lib/config.js";
@@ -30,7 +30,7 @@ function printStatus(): void {
 function say(text: string): number {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no está en el PATH; no se puede narrar.");
+    console.error("ai-voice-interconnector no está en el PATH; no se puede narrar.");
     return 1;
   }
   const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
@@ -53,7 +53,7 @@ function say(text: string): number {
 function presynth(force: boolean): number {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no está en el PATH; no se puede pre-sintetizar.");
+    console.error("ai-voice-interconnector no está en el PATH; no se puede pre-sintetizar.");
     return 1;
   }
   let failed = false;
@@ -76,9 +76,9 @@ function presynth(force: boolean): number {
       failed = true;
       const motivo =
         code === 5
-          ? " — daemon caído; levántalo con `tts-sidecar daemon start`"
+          ? " — daemon caído; levántalo con `ai-voice-interconnector daemon start`"
           : code === 4
-            ? " — modelo ausente; provisiónalo con `tts-sidecar setup`"
+            ? " — modelo ausente; provisiónalo con `ai-voice-interconnector setup`"
             : "";
       console.error(`${evento}: fallo (exit ${code})${motivo}`);
     }

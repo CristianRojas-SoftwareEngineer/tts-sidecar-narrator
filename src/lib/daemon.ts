@@ -1,4 +1,4 @@
-// Consulta y arranque del daemon de TTS-Sidecar vía su CLI pública. El daemon
+// Consulta y arranque del daemon de AI-Voice-InterConnector vía su CLI pública. El daemon
 // mantiene el modelo en memoria: `speak --daemon` lo requiere corriendo (no lo
 // arranca solo). El health-check lo levanta de forma desanclada al iniciar sesión.
 import { spawn, spawnSync } from "node:child_process";
@@ -19,8 +19,8 @@ export function isDaemonRunning(cliPath: string): boolean {
     if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) {
       return false;
     }
-    const status = JSON.parse(res.stdout) as { running?: unknown };
-    return status.running === true;
+    const status = JSON.parse(res.stdout) as { daemon?: unknown };
+    return status.daemon === "running";
   } catch {
     return false;
   }

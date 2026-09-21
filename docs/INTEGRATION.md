@@ -1,9 +1,9 @@
-# Integración con TTS-Sidecar
+# Integración con AI-Voice-InterConnector
 
-Este documento describe la integración de `tts-sidecar-narrator` con el motor de síntesis **TTS-Sidecar**, desde la perspectiva del **plugin (el consumidor)**.
+Este documento describe la integración de `tts-sidecar-narrator` con el motor de síntesis **AI-Voice-InterConnector**, desde la perspectiva del **plugin (el consumidor)**.
 
-La contraparte, escrita desde la perspectiva del motor, está en el repositorio de TTS-Sidecar:
-[docs/CLAUDE-CODE-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/CLAUDE-CODE-INTEGRATION.md).
+La contraparte, escrita desde la perspectiva del motor, está en el repositorio de AI-Voice-InterConnector:
+[docs/CLAUDE-CODE-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/blob/main/docs/CLAUDE-CODE-INTEGRATION.md).
 
 ## Tabla de contenidos
 
@@ -22,24 +22,24 @@ El sistema de narración por voz tiene dos componentes con repositorios y ciclos
 | Componente | Repositorio | Rol |
 |------------|-------------|-----|
 | **tts-sidecar-narrator** (este) | `tts-sidecar-narrator` | **Cliente**: detecta eventos de la sesión de Claude Code, construye un mensaje corto y pide su síntesis. |
-| **TTS-Sidecar** | [`TTS-Sidecar`](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar) | **Motor**: sintetiza voz 100 % offline y expone una CLI pública. |
+| **AI-Voice-InterConnector** | [`AI-Voice-InterConnector`](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector) | **Motor**: sintetiza voz 100 % offline y expone una CLI pública. |
 
-El plugin **depende** de TTS-Sidecar; TTS-Sidecar **no** conoce ni depende del plugin. La relación es unidireccional.
+El plugin **depende** de AI-Voice-InterConnector; AI-Voice-InterConnector **no** conoce ni depende del plugin. La relación es unidireccional.
 
 ## Contrato: solo la CLI pública
 
-El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su interfaz de línea de comandos. El plugin **no** importa el paquete Python `tts_sidecar`, no comparte código ni necesita el árbol fuente del motor — es un consumidor externo idéntico a cualquier script de usuario. Esto mantiene ambos proyectos desacoplados: mientras la CLI sea estable, cada uno evoluciona a su ritmo.
+El único punto de acoplamiento es el ejecutable `ai-voice-interconnector` en el `PATH` y su interfaz de línea de comandos. El plugin **no** enlaza ni importa nada del motor, no comparte código ni necesita su árbol fuente — es un consumidor externo idéntico a cualquier script de usuario. Esto mantiene ambos proyectos desacoplados: mientras la CLI sea estable, cada uno evoluciona a su ritmo.
 
 ## Superficies del CLI que consume
 
 | # | Superficie | Uso en el plugin |
 |---|------------|------------------|
-| 1 | `tts-sidecar speech say --text "<msg>" --daemon` | Síntesis y reproducción de cada locución dinámica. **Requiere el daemon vivo** (exit `5` si está caído; no lo arranca solo); por eso el plugin lo mantiene caliente. |
-| 2 | `tts-sidecar doctor --json` | Verificación del entorno al iniciar sesión. Se parsea `checks[]` buscando `name == "Chatterbox model"` y su `status` (`PASS`/`FAIL`). Con FAIL emite **un solo objeto** JSON (salida por veredicto, exit `1` sin clave `error`; contrato §10 del motor, desde v0.9.1). |
-| 3 | `tts-sidecar daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
-| 4 | `tts-sidecar daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
-| 5 | `tts-sidecar speech synthesize --text "<aviso>" --label <label> --daemon` | Pre-síntesis única de los avisos estáticos (`narrate-ctl presynth`, invocado por la instalación guiada). El label es un slug semántico fijo; exit `6` (label ya existe) se trata como «ya pre-sintetizado» (idempotencia). `narrate-ctl presynth --force` añade `--force` para sobrescribir el WAV existente (re-sync tras cambiar una frase). Exit `5` daemon caído, `4` modelo ausente. |
-| 6 | `tts-sidecar speech play --label <label>` | Reproducción instantánea de un aviso pre-sintetizado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no pre-sintetizado): se registra en `worker.log` y el turno queda sin audio, sin re-sintetizado ni fallback. Exit `2` = label ilegal. |
+| 1 | `ai-voice-interconnector speech say --text "<msg>" --daemon` | Síntesis y reproducción de cada locución dinámica. **Requiere el daemon vivo** (exit `5` si está caído; no lo arranca solo); por eso el plugin lo mantiene caliente. |
+| 2 | `ai-voice-interconnector doctor --json` | Verificación del entorno al iniciar sesión. Se parsea el objeto plano `{ status, issues[], data_dir, hf_cache, base_status }`: `status` es `ok` o `failed`, y `issues` lista los problemas como cadenas. En caso de fallo el `stdout` trae **dos objetos** JSON concatenados (el reporte y luego un `{error,…}`); solo se toma el **primero** (contrato `docs/CLI/CONTRACT.md §12` del motor). |
+| 3 | `ai-voice-interconnector daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
+| 4 | `ai-voice-interconnector daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
+| 5 | `ai-voice-interconnector speech synthesize --text "<aviso>" --label <label> --daemon` | Pre-síntesis única de los avisos estáticos (`narrate-ctl presynth`, invocado por la instalación guiada). El label es un slug semántico fijo; exit `6` (label ya existe) se trata como «ya pre-sintetizado» (idempotencia). `narrate-ctl presynth --force` añade `--force` para sobrescribir el WAV existente (re-sync tras cambiar una frase). Exit `5` daemon caído, `4` modelo ausente. |
+| 6 | `ai-voice-interconnector speech play --label <label>` | Reproducción instantánea de un aviso pre-sintetizado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no pre-sintetizado): se registra en `worker.log` y el turno queda sin audio, sin re-sintetizado ni fallback. Exit `2` = label ilegal. |
 
 ## Cómo lo usan los hooks
 
@@ -55,10 +55,10 @@ El único punto de acoplamiento es el ejecutable `tts-sidecar` en el `PATH` y su
 - **`SubagentStop` / `StopFailure` / `Notification`** → reproducen su anuncio
   pre-sintetizado con `speech play --label …`: sin LLM ni síntesis por evento. Para
   `Notification` el mensaje específico sigue visible en pantalla.
-- **`SessionStart`** → `health-check` corre `doctor --json`. Si el modelo está en
-  caché (`PASS`) y el daemon no corre, lo levanta con `daemon start`
-  (fire-and-forget). Si falta el CLI o el modelo, avisa al usuario vía
-  `systemMessage` y no hace nada más.
+- **`SessionStart`** → `health-check` corre `doctor --json`. Si el entorno está
+  provisionado (`status == "ok"`) y el daemon no corre, lo levanta con `daemon start`
+  (fire-and-forget). Si falta el CLI o el entorno falla (`status == "failed"`), avisa
+  al usuario vía `systemMessage` y no hace nada más.
 - **Instalación** (`/tts-sidecar-narrator:install`) → `narrate-ctl presynth`
   pre-sintetiza los anuncios del catálogo (`src/message/static-announcements.ts`) con
   `speech synthesize … --daemon`, una sola vez y de forma idempotente.
@@ -69,13 +69,12 @@ La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH
 
 Para que la narración funcione, en la máquina del usuario debe existir:
 
-1. `tts-sidecar` en el `PATH` (instalado por cualquier canal: `uv`, `pipx` o el
-instalador nativo por SO), en la **versión mínima verificada: v0.9.1**. El
-    rediseño de CLI de v0.9.x eliminó el comando `speak` y añadió el grupo
-    `speech` (superficies 1, 5 y 6), así que **versiones anteriores a v0.9.1 no
-    funcionan** con este plugin (esta declaración se actualiza en cada corte;
-    ver [RELEASING.md](RELEASING.md)).
-2. El modelo `es-mx-latam` en caché, descargado con `tts-sidecar setup`.
+1. `ai-voice-interconnector` en el `PATH`, instalado con el instalador nativo por SO
+    (`install-linux.sh`, `install-macos.sh`, `install-windows.ps1`). El motor expone
+    el grupo `speech` (superficies 1, 5 y 6) que el plugin consume.
+2. El modelo `qwen3-tts-0.6b` en caché, descargado con `ai-voice-interconnector setup`
+    (los instaladores nativos lo encadenan). La narración usa la voz de fábrica
+    `default` y no pasa `--voice`.
 
 El comando `/tts-sidecar-narrator:install` del plugin guía ambos pasos.
 
@@ -85,4 +84,4 @@ Si el CLI no está en el `PATH`, el modelo no está en caché, o el daemon no re
 
 ## Estabilidad del contrato
 
-El plugin asume estables los flags y el esquema JSON de las seis superficies de arriba. El contrato del motor (`CLI-CONTRACT.md` §12) declara formalmente las superficies 1–4; las superficies 5 y 6 (`speech synthesize` / `speech play`) las adopta este plugin bajo el compromiso de estabilidad publicado del grupo `speech` en v0.9.x, y se declaran solo de este lado. Si una versión de TTS-Sidecar cambia, por ejemplo, el `name` del check del modelo en `doctor --json`, o el campo `running` de `daemon status --json`, la integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar; su contraparte formal vive en el documento de integración del motor.
+El plugin asume estables los flags y el esquema JSON de las seis superficies de arriba. El contrato del motor (`docs/CLI/CONTRACT.md §12`) declara formalmente las superficies 1–4; las superficies 5 y 6 (`speech synthesize` / `speech play`) las adopta este plugin bajo el compromiso de estabilidad publicado del grupo `speech`, y se declaran solo de este lado. Si una versión de AI-Voice-InterConnector cambia, por ejemplo, el campo `status` de `doctor --json`, o el campo `running` de `daemon status --json`, la integración se rompe. Esa lista es el contrato que ambos proyectos deben cuidar; su contraparte formal vive en el documento de integración del motor.

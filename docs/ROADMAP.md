@@ -4,7 +4,7 @@ Este documento fue originalmente el registro de preparación del primer release
 (`RELEASE-READINESS.md`). Ahora que `v0.1.0` está publicado
 ([commit `f55e8c0`](https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/tree/v0.1.0),
 tag `v0.1.0`, 2026-07-22), se convierte en el **roadmap vivo** del plugin
-— el análogo del `ROADMAP.md` del motor TTS-Sidecar, a escala de plugin.
+— el análogo del `ROADMAP.md` del motor AI-Voice-InterConnector, a escala de plugin.
 
 Las secciones que siguen describen **direcciones posibles**, no compromisos.
 Cada idea se concretará o descartará según el feedback que llegue tras el
@@ -19,7 +19,7 @@ implementada en `src/narrate-worker.ts` y resuelve el solapamiento para el caso
 de uso habitual (5 hooks, disparos ocasionales). Una mejora posterior sería
 reemplazar el esquema actual —un worker efímero por hook que espera— por un
 único worker persistente con una cola FIFO interna: cada hook apenda su texto a
-la cola y el worker los reproduce uno a uno con `tts-sidecar speak --daemon`.
+la cola y el worker los reproduce uno a uno con `ai-voice-interconnector speech say --daemon`.
 
 Ventajas respecto al esquema actual:
 
@@ -67,9 +67,9 @@ son la primera línea de defensa; el canal de reporte es
 
 ### Gobernanza de versión del motor
 
-`health-check` podría consultar `tts-sidecar version` y avisar —sin
-bloquear— si el motor instalado es más viejo que la versión verificada
-(`v0.8.0`). Hoy la degradación silenciosa es el comportamiento base y está
+`health-check` podría consultar `ai-voice-interconnector version` y avisar —sin
+bloquear— si el motor instalado es más viejo que la versión con la que se
+verificó el plugin. Hoy la degradación silenciosa es el comportamiento base y está
 documentado en `docs/INTEGRATION.md`; la verificación programática sería una
 capa adicional de cortesía para el usuario.
 
@@ -82,7 +82,7 @@ de narración.
 
 ## Versionado
 
-El plugin y el motor TTS-Sidecar llevan versionados **independientes**, cada
+El plugin y el motor AI-Voice-InterConnector llevan versionados **independientes**, cada
 uno reflejo de su propia historia de desarrollo — lo que se sincroniza entre
 ambos es el lanzamiento, no el número. La disparidad de números es temporal
 por decisión.
@@ -90,7 +90,7 @@ por decisión.
 **Convergencia planificada en v1.0.0:** durante el tramo pre-1.0 el plugin
 publica sus versiones intermedias (`v0.2.0`, `v0.3.0`, …) al ritmo que
 dicten sus correcciones y mejoras, sin relación con los números del motor.
-Cuando TTS-Sidecar alcance su `v1.0.0`, el plugin avanzará desde la versión
+Cuando AI-Voice-InterConnector alcance su `v1.0.0`, el plugin avanzará desde la versión
 que haya alcanzado hasta ese momento directamente a `1.0.0`, en un release
 que acumule las correcciones implementadas hasta entonces. Ese salto está
 registrado en el `CHANGELOG.md` para que no parezca un error de versionado.
@@ -101,7 +101,7 @@ El diseño actual sigue buenas prácticas y **no requiere `.env`/`.env.example`*
 el plugin se distribuye clonando el repo (`dist/` commiteado), así que un
 `.env` en la raíz viviría dentro del árbol compartido por todos los usuarios
 del clon y se pisaría en cada actualización — el lugar correcto para el
-secreto de cada usuario es fuera del repo, igual que TTS-Sidecar resuelve su
+secreto de cada usuario es fuera del repo, igual que AI-Voice-InterConnector resuelve su
 `data_root()`.
 
 Resumen del diseño (`src/lib/config.ts`, `src/lib/state-dir.ts`):
@@ -127,7 +127,7 @@ Se conserva como referencia de las decisiones tomadas.
 
 ### Contexto del release
 
-Primer release público, lanzado en conjunto con TTS-Sidecar v0.7.8.
+Primer release público, lanzado en conjunto con AI-Voice-InterConnector v0.7.8.
 El plugin llegó con cobertura de tests y documentación equiparable a la
 del motor — no en cantidad, sino en las categorías que aplican a su
 superficie propia (~17 módulos TypeScript, sin runtime extra, distribuido
@@ -174,7 +174,7 @@ Las tres piezas documentales requeridas se escribieron:
 ### Sincronización con el motor
 
 El release del motor (v0.7.8) precedió al del plugin. La secuencia fue:
-1. Motor corta tag, CI publica binarios y PyPI
+1. Motor corta tag, CI publica binarios nativos por SO
 2. Plugin se verifica contra el motor instalado **desde artefactos publicados**
 3. Recién entonces se corta el tag del plugin
 

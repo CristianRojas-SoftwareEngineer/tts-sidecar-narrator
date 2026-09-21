@@ -112,7 +112,7 @@ test("say sin texto devuelve 2 con uso", () => {
   assert.match(res.stderr, /Uso: say/);
 });
 
-test("say sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
+test("say sin ai-voice-interconnector en el PATH devuelve 1 con aviso", () => {
   const emptyPath = makeTempDir("narrator-empty-");
   try {
     const res = runCtl(["say", "hola"], { PATH: emptyPath, Path: emptyPath });
@@ -126,7 +126,7 @@ test("say sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
 // --- CLI falso: registra argv por invocación y sale con códigos de una secuencia ---
 
 /**
- * Crea un `tts-sidecar` falso en `dir` (shim .cmd en Windows, script sh en
+ * Crea un `ai-voice-interconnector` falso en `dir` (shim .cmd en Windows, script sh en
  * Unix, ambos delegando en un impl Node). Cada invocación anota su argv en
  * `argv.log` y consume el siguiente código de la secuencia (0 si se agota).
  */
@@ -148,11 +148,11 @@ function makeFakeCli(dir: string, codes: number[]): { argvLog: string } {
   );
   if (process.platform === "win32") {
     writeFileSync(
-      join(dir, "tts-sidecar.cmd"),
+      join(dir, "ai-voice-interconnector.cmd"),
       '@node "%~dp0impl.cjs" %*\r\n@exit /b %errorlevel%\r\n',
     );
   } else {
-    const sh = join(dir, "tts-sidecar");
+    const sh = join(dir, "ai-voice-interconnector");
     writeFileSync(sh, '#!/bin/sh\nexec node "$(dirname "$0")/impl.cjs" "$@"\n');
     chmodSync(sh, 0o755);
   }
@@ -172,7 +172,7 @@ function loggedArgvs(argvLog: string): string[][] {
     .map((line) => JSON.parse(line) as string[]);
 }
 
-test("say invoca speech say --text --daemon (contrato v0.9.1)", () => {
+test("say invoca speech say --text --daemon (contrato §12)", () => {
   const dir = makeTempDir("narrator-fakecli-");
   try {
     const { argvLog } = makeFakeCli(dir, [0]);
@@ -263,7 +263,7 @@ test("presynth propaga el fallo (exit 5, daemon caído) con código ≠ 0", () =
   }
 });
 
-test("presynth sin tts-sidecar en el PATH devuelve 1 con aviso", () => {
+test("presynth sin ai-voice-interconnector en el PATH devuelve 1 con aviso", () => {
   const emptyPath = makeTempDir("narrator-empty-");
   try {
     const res = runCtl(["presynth"], { PATH: emptyPath, Path: emptyPath });

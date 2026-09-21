@@ -5,12 +5,12 @@ Todos los cambios notables de `tts-sidecar-narrator` se documentan en este archi
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
 > **Nota sobre el versionado**: este plugin y su motor,
-> [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar),
+> [AI-Voice-InterConnector](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector),
 > llevan versionados **independientes**, cada uno reflejo de su propia historia
 > de desarrollo — lo que se sincroniza entre ambos es el lanzamiento, no el
 > número. La disparidad de números es temporal por decisión: durante el tramo
 > pre-1.0 el plugin publica sus versiones intermedias (`0.2.0`, `0.3.0`, …) a
-> su propio ritmo, y cuando TTS-Sidecar alcance su `v1.0.0`, el plugin
+> su propio ritmo, y cuando AI-Voice-InterConnector alcance su `v1.0.0`, el plugin
 > **avanzará desde la versión que haya alcanzado hasta ese momento
 > directamente a `1.0.0`**, en un release que acumule las correcciones
 > implementadas hasta entonces. Ese salto final de numeración será entonces
@@ -20,11 +20,10 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ### Cambiado
 
-- **Migración al motor TTS-Sidecar v0.9.1** (versión mínima verificada; antes
-  v0.8.0): la narración invoca `speech say --text … --daemon` en lugar del
-  comando `speak`, eliminado sin alias en el rediseño de CLI de v0.9.x — con
-  motores v0.9.x el plugin quedaba mudo por un fallo silencioso (exit `2` solo
-  visible en `worker.log`).
+- **Migración al motor AI-Voice-InterConnector**: la narración invoca
+  `speech say --text … --daemon` en lugar del comando `speak`, eliminado sin
+  alias en el rediseño de CLI — con el comando anterior el plugin quedaba mudo
+  por un fallo silencioso (exit `2` solo visible en `worker.log`).
 - **`UserPromptSubmit` es ahora un acuse fijo pre-sintetizado**: reproduce el
   anuncio pre-sintetizado «Procesando con Claude» vía `speech play` (sin modelo ni
   daemon), en lugar de invocar un LLM de narración más síntesis en la ruta
@@ -56,13 +55,13 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
 
 ## [0.1.0] — 2026-07-22
 
-Primera versión pública, lanzada en conjunto con el primer release público del motor TTS-Sidecar. Verificada contra **TTS-Sidecar v0.7.8** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
+Primera versión pública, lanzada en conjunto con el primer release público del motor AI-Voice-InterConnector. Verificada contra **AI-Voice-InterConnector v0.7.8** (el número final se fija en el corte sincronizado; ver [docs/RELEASING.md](docs/RELEASING.md)).
 
 ### Añadido
 
 - **Narración automática por hooks**: al final de cada turno (`Stop`) y en
   avisos relevantes (`Notification`), el plugin construye una locución corta
-  en español y la sintetiza vía el CLI `tts-sidecar` (daemon caliente).
+  en español y la sintetiza vía el CLI `ai-voice-interconnector` (daemon caliente).
   El worker corre desanclado y nunca bloquea ni retrasa el turno.
 - **Verificación del entorno en `SessionStart`** (`health-check`): comprueba
   CLI y modelo con `doctor --json`, levanta el daemon si hace falta y avisa —

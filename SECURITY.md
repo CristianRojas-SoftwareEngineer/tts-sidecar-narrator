@@ -22,7 +22,7 @@ Usa el canal privado de [**GitHub Security Advisories**](https://github.com/Cris
 
 Recibirás una respuesta inicial en un plazo razonable. Te pedimos no divulgar públicamente el problema hasta que exista una corrección disponible.
 
-Si la vulnerabilidad está en el motor de síntesis y no en el plugin, repórtala en el canal equivalente de [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/security/advisories/new) (ver su [SECURITY.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/SECURITY.md)).
+Si la vulnerabilidad está en el motor de síntesis y no en el plugin, repórtala en el canal equivalente de [AI-Voice-InterConnector](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/security/advisories/new) (ver su [SECURITY.md](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/blob/main/SECURITY.md)).
 
 ## Modelo de amenaza
 
@@ -39,7 +39,7 @@ El plugin es un cliente delgado que corre dentro de la sesión de Claude Code de
 
 - En modo `llm` — **que solo se activa si el usuario configura una clave**, es un opt-in explícito — solo la ruta `Stop` puede enviar contenido a un tercero: el `last_assistant_message` del payload (ni transcript ni historial) viaja a la API de Gemini (Google) o de OpenRouter para redactar la locución. El texto pasa antes por `src/message/sanitize.ts`, que elimina bloques de código (y su contenido), código en línea, URLs y markdown; aún así, la prosa del último mensaje sí viaja al proveedor. Trata el modo `llm` como lo que es: compartir la prosa de ese mensaje con un tercero.
 - Los eventos `Notification`, `SubagentStop`, `StopFailure` y `UserPromptSubmit` **nunca** usan el modo `llm`: da igual la configuración de `messageMode` o las claves presentes, su locución es siempre un anuncio pre-sintetizado del catálogo (`src/message/static-announcements.ts`), reproducido con `speech play` y sin invocar ningún proveedor. Es una barrera estructural, no una omisión: `Notification` en particular suele dispararse en contextos sensibles (peticiones de permiso, alertas) y su texto ya viene redactado por Claude Code, así que no hay valor en parafrasearlo y sí riesgo en enviarlo a un tercero. En consecuencia, en modo `llm` el único evento que puede llegar a salir a la red es `Stop`, y solo si hay material narrable y una clave configurada.
-- En modo `local` (el comportamiento sin claves) **nada sale a la red**: el mensaje se construye de forma determinista y se sintetiza con el motor TTS-Sidecar, que es 100 % offline.
+- En modo `local` (el comportamiento sin claves) **nada sale a la red**: el mensaje se construye de forma determinista y se sintetiza con el motor AI-Voice-InterConnector, que es 100 % offline.
 - Las claves viajan **solo en headers** (`x-goog-api-key` / `Authorization: Bearer`), nunca en URLs (que suelen quedar en logs), y las peticiones van únicamente a los endpoints oficiales de cada proveedor. Esto está fijado por tests de contrato (`tests/providers.test.ts`).
 
 ### Qué no hace el plugin
@@ -47,7 +47,7 @@ El plugin es un cliente delgado que corre dentro de la sesión de Claude Code de
 - **No pide ni maneja claves dentro del chat**: ni la skill ni el comando de instalación piden la clave en la conversación (evita que quede en el transcript); ambos guían al usuario a la variable de entorno o a editar el archivo directamente.
 - **No imprime el valor de una clave**: `narrate-ctl status` reporta solo `configurada`/`ausente`. Esta garantía está fijada por contrato en `tests/narrate-ctl.test.ts`.
 - **No manda nada a la red en modo `local`**, ni telemetría en ningún modo.
-- **No ejecuta contenido de la sesión**: el payload de los hooks se parsea de forma tolerante (`src/lib/hook-payload.ts`) y su texto solo se usa como entrada de saneamiento; el único proceso que el plugin lanza es el ejecutable `tts-sidecar` resuelto del `PATH`, con argumentos fijos.
+- **No ejecuta contenido de la sesión**: el payload de los hooks se parsea de forma tolerante (`src/lib/hook-payload.ts`) y su texto solo se usa como entrada de saneamiento; el único proceso que el plugin lanza es el ejecutable `ai-voice-interconnector` resuelto del `PATH`, con argumentos fijos.
 
 ### Cadena de suministro
 

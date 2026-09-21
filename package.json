@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Plugin de Claude Code: narración por voz con TTS-Sidecar.",
+  "description": "Plugin de Claude Code: narración por voz con AI-Voice-InterConnector.",
   "author": "Cristián Rojas Arredondo",
   "license": "GPL-3.0-or-later",
   "scripts": {

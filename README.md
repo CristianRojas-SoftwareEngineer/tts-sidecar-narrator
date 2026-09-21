@@ -1,10 +1,10 @@
 # tts-sidecar-narrator
 
-Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la actividad de la sesión usando [TTS-Sidecar](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar). Al final de cada turno (y en anuncios relevantes) escuchas un mensaje conversacional corto — no el texto en bruto del asistente, sino una locución procesada, en español.
+Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la actividad de la sesión usando [AI-Voice-InterConnector](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector). Al final de cada turno (y en anuncios relevantes) escuchas un mensaje conversacional corto — no el texto en bruto del asistente, sino una locución procesada, en español.
 
 - **Automático**: disparado por hooks; sin intervención del modelo ni tuya.
 - **No intrusivo**: nunca bloquea ni retrasa el turno; falla en silencio si
-  TTS-Sidecar no está disponible.
+  AI-Voice-InterConnector no está disponible.
 - **Multiplataforma**: Windows / Linux / macOS, misma experiencia.
 - **Sin prerequisitos de runtime**: los scripts corren sobre el Node.js que
   Claude Code ya trae; no exige Python.
@@ -13,8 +13,8 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
 - **Controlable**: activa/desactiva la narración sin desinstalar.
 
 > Este repositorio es la fuente de verdad del plugin. El documento de diseño
-> original (`TTS-Sidecar/docs/CLAUDE-CODE-PLUGIN.md`, en el repo del motor) sirvió de
-> especificación inicial y hoy es solo un puntero histórico a este repo.
+> original (hoy consolidado en `AI-Voice-InterConnector/docs/DESIGN.md`, en el repo
+> del motor) sirvió de especificación inicial y hoy es solo un puntero histórico a este repo.
 
 ## Tabla de contenidos
 
@@ -28,17 +28,14 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
 
 ## Prerequisitos
 
-1. **TTS-Sidecar ≥ v0.9.1** instalado (instalador nativo o
-   `uv tool install tts-sidecar`) y aprovisionado — v0.9.1 es la versión del
-   motor contra la que este plugin fue verificado; versiones anteriores **no
-   funcionan** (el rediseño de CLI de v0.9.x reemplazó `speak` por el grupo
-   `speech` que consume el contrato de
-   [`docs/INTEGRATION.md`](docs/INTEGRATION.md)):
+1. **AI-Voice-InterConnector** instalado (instalador nativo por SO) y
+   aprovisionado — el plugin consume su grupo de comandos `speech`, definido en
+   el contrato de [`docs/INTEGRATION.md`](docs/INTEGRATION.md):
    ```bash
-   tts-sidecar setup
+   ai-voice-interconnector setup
    ```
    El plugin lo verifica al iniciar la sesión (`SessionStart`) y te avisa si
-   falta el CLI o el modelo. El plugin **no** instala TTS-Sidecar.
+   falta el CLI o el modelo. El plugin **no** instala AI-Voice-InterConnector.
 2. *(Opcional)* **API keys gratuitas** para mensajes generados por LLM:
    - [Gemini API](https://ai.google.dev/) (free tier) — principal.
    - [OpenRouter](https://openrouter.ai/) (modelos `:free`) — fallback.
@@ -58,8 +55,8 @@ El flujo para el usuario final es de **dos pasos**:
    /plugin install tts-sidecar-narrator@tts-sidecar-narrator
    ```
 2. **Instalar y configurar el motor** invocando el comando de instalación
-   guiado, que detecta el SO, instala el binario TTS-Sidecar (vía `uv`/`pipx` o
-   el instalador nativo), descarga el modelo, deja el daemon listo,
+   guiado, que detecta el SO, instala el binario AI-Voice-InterConnector
+   (instalador nativo por SO), descarga el modelo, deja el daemon listo,
    pre-sintetiza los anuncios (`narrate-ctl presynth`) y activa la narración:
    ```
    /tts-sidecar-narrator:install
@@ -109,7 +106,7 @@ El archivo se crea con permisos restrictivos donde el SO lo soporta: `0600` en P
 
 ## Privacidad
 
-El modo `llm` envía el último mensaje del asistente (`last_assistant_message`, sin transcript ni historial) a un tercero (Google u OpenRouter), y solo en la ruta `Stop`: el resto de eventos siempre reproduce su anuncio pre-sintetizado, sin red. Es un cambio de postura respecto al motor TTS-Sidecar, que sintetiza 100 % offline. Por eso:
+El modo `llm` envía el último mensaje del asistente (`last_assistant_message`, sin transcript ni historial) a un tercero (Google u OpenRouter), y solo en la ruta `Stop`: el resto de eventos siempre reproduce su anuncio pre-sintetizado, sin red. Es un cambio de postura respecto al motor AI-Voice-InterConnector, que sintetiza 100 % offline. Por eso:
 
 1. El modo `llm` **solo se activa cuando configuras tus claves** — un opt-in
    explícito.
@@ -133,10 +130,10 @@ El CI (CircleCI, [.circleci/config.yml](.circleci/config.yml)) corre `typecheck`
 ## Documentación
 
 - [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — integración con el motor
-  TTS-Sidecar desde la perspectiva del plugin: contrato del CLI, uso por cada
+  AI-Voice-InterConnector desde la perspectiva del plugin: contrato del CLI, uso por cada
   hook, requisitos y degradación. Su contraparte, desde la perspectiva del
   motor, está en
-  [TTS-Sidecar/docs/NARRATION-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/NARRATION-INTEGRATION.md).
+  [AI-Voice-InterConnector/docs/CLAUDE-CODE-INTEGRATION.md](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/blob/main/docs/CLAUDE-CODE-INTEGRATION.md).
 - [`docs/RELEASING.md`](docs/RELEASING.md) — proceso de release del plugin y
   su sincronización con los releases del motor.
 - [`SECURITY.md`](SECURITY.md) — política de seguridad y modelo de amenaza del

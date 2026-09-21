@@ -90,7 +90,7 @@ function readPayload(): HookPayload {
 }
 
 /**
- * Ejecuta `tts-sidecar speech play --label <label>`: reproduce un anuncio
+ * Ejecuta `ai-voice-interconnector speech play --label <label>`: reproduce un anuncio
  * pre-sintetizado, sin modelo ni daemon. Política de fallo: cualquier exit ≠ 0
  * (incluido el `3` de cache miss, anuncio no pre-sintetizado) se registra en worker.log
  * y el turno queda sin audio — sin re-sintetizado ni fallback a `speech say`.
@@ -117,7 +117,7 @@ function runPlay(cliPath: string, label: string): Promise<void> {
   });
 }
 
-/** Ejecuta `tts-sidecar speech say --text <texto> --daemon`. Resuelve al terminar. */
+/** Ejecuta `ai-voice-interconnector speech say --text <texto> --daemon`. Resuelve al terminar. */
 function runSay(cliPath: string, text: string): Promise<void> {
   return new Promise((resolve) => {
     const args = ["speech", "say", "--text", text, "--daemon"];
@@ -157,7 +157,7 @@ async function main(): Promise<void> {
 
   const cli = resolveCli();
   if (!cli) {
-    log("tts-sidecar no encontrado en PATH; se omite la narración");
+    log("ai-voice-interconnector no encontrado en PATH; se omite la narración");
     return;
   }
 

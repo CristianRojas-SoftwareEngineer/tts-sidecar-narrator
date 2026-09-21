@@ -10,14 +10,49 @@ import { resolveCli, needsShell } from "./lib/resolve-cli.js";
 import { readStdin } from "./lib/hook-payload.js";
 import { isDaemonRunning, startDaemonDetached } from "./lib/daemon.js";
 
-interface DoctorCheck {
-  status?: string;
-  name?: string;
-  detail?: string;
-}
 interface DoctorReport {
-  checks?: DoctorCheck[];
-  failed?: number;
+  status: "ok" | "failed";
+  issues?: string[];
+  data_dir?: string;
+  hf_cache?: string;
+  base_status?: string;
+}
+
+/**
+ * Extrae el primer objeto JSON de nivel superior del texto y lo parsea. En caso
+ * de fallo, `doctor --json` concatena dos objetos (el reporte y un {error,…});
+ * el recorrido por profundidad de llaves (respetando cadenas y escapes) toma
+ * solo el primero e ignora cualquier objeto posterior. Devuelve undefined si no
+ * hay un objeto balanceado o el fragmento no parsea.
+ */
+function parseFirstJsonObject(text: string): DoctorReport | undefined {
+  const start = text.indexOf("{");
+  if (start < 0) return undefined;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1)) as DoctorReport;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 /** Emite un aviso al usuario y termina la sesión sin bloquearla. */
@@ -39,8 +74,8 @@ async function main(): Promise<void> {
   const cli = resolveCli();
   if (!cli) {
     notify(
-      "tts-sidecar-narrator: TTS-Sidecar no está en el PATH. Instálalo y ejecuta " +
-        "tts-sidecar setup para habilitar la narración por voz.",
+      "tts-sidecar-narrator: AI-Voice-InterConnector no está en el PATH. Instálalo y ejecuta " +
+        "ai-voice-interconnector setup para habilitar la narración por voz.",
     );
   }
 
@@ -55,25 +90,22 @@ async function main(): Promise<void> {
   // Si no se pudo ejecutar el diagnóstico, no molestar (no hay dato accionable).
   if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) ok();
 
-  let report: DoctorReport;
-  try {
-    report = JSON.parse(res.stdout) as DoctorReport;
-  } catch {
-    ok();
-  }
+  // Se toma solo el primer objeto JSON: en caso de fallo el stdout trae el
+  // reporte y un {error,…} concatenado que rompería un JSON.parse del total.
+  const report = parseFirstJsonObject(res.stdout);
+  if (!report) ok();
 
-  const modelCheck = (report.checks ?? []).find((c) => c.name === "Chatterbox model");
-  if (modelCheck?.status === "FAIL") {
+  if (report.status === "failed") {
     notify(
-      "tts-sidecar-narrator: el modelo de voz no está descargado. Ejecuta " +
-        "tts-sidecar setup para habilitar la narración por voz.",
+      "tts-sidecar-narrator: el entorno de voz no está provisionado. Ejecuta " +
+        "ai-voice-interconnector setup para habilitar la narración por voz.",
     );
   }
 
-  // Todo listo (CLI + modelo cacheado) y la narración está activada (se comprobó
-  // arriba): deja el daemon caliente para la sesión. Fire-and-forget, sin
-  // bloquear ni molestar si falla. Solo si el modelo está confirmado en caché.
-  if (modelCheck?.status === "PASS" && !isDaemonRunning(cli)) {
+  // Todo listo (status ok) y la narración está activada (se comprobó arriba):
+  // deja el daemon caliente para la sesión. Fire-and-forget, sin bloquear ni
+  // molestar si falla.
+  if (report.status === "ok" && !isDaemonRunning(cli)) {
     startDaemonDetached(cli);
   }
 

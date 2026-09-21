@@ -1,11 +1,11 @@
 ---
-description: Instala y configura TTS-Sidecar (binario + modelo + daemon) y activa la narración por voz de este plugin. Procedimiento guiado, multiplataforma e idempotente.
+description: Instala y configura AI-Voice-InterConnector (binario + modelo + daemon) y activa la narración por voz de este plugin. Procedimiento guiado, multiplataforma e idempotente.
 argument-hint: "(sin argumentos)"
 ---
 
-# Instalación guiada de TTS-Sidecar para la narración por voz
+# Instalación guiada de AI-Voice-InterConnector para la narración por voz
 
-Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidecar-narrator`: instalar el motor **TTS-Sidecar**, descargar su modelo, dejar el daemon listo y activar la narración. Ejecuta este procedimiento paso a paso con la herramienta de shell, **informando antes de cada acción** y pidiendo confirmación antes de descargar o instalar algo.
+Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidecar-narrator`: instalar el motor **AI-Voice-InterConnector**, descargar su modelo, dejar el daemon listo y activar la narración. Ejecuta este procedimiento paso a paso con la herramienta de shell, **informando antes de cada acción** y pidiendo confirmación antes de descargar o instalar algo.
 
 ## Reglas de conducta (obligatorias)
 
@@ -13,7 +13,7 @@ Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidec
   Linux/macOS, PowerShell en Windows). No asumas el SO.
 - **Idempotente**: cada paso debe comprobar si ya está satisfecho y saltarlo si es
   así. Es seguro re-ejecutar el comando completo.
-- **Nunca** ejecutes acciones destructivas ni uses `sudo`. TTS-Sidecar se instala
+- **Nunca** ejecutes acciones destructivas ni uses `sudo`. AI-Voice-InterConnector se instala
   a nivel de usuario.
 - **No manejes claves de API en el chat** (quedarían en el transcript). Para las
   claves, guía al usuario a definir variables de entorno o editar `config.json`.
@@ -27,71 +27,49 @@ Eres el asistente que guía al usuario para dejar operativo el plugin `tts-sidec
 ## Paso 0 — Diagnóstico del estado actual
 
 1. Comprueba si el CLI ya está en el PATH:
-   - Linux/macOS: `command -v tts-sidecar`
-   - Windows: `where tts-sidecar` (o `Get-Command tts-sidecar`)
-2. Si **está presente**, corre `tts-sidecar doctor --json` y analiza el JSON
-   (`checks[].status`, `failed`). Con esto sabes qué falta realmente:
-   - Si no hay `FAIL` → el motor ya está listo; salta al **Paso 3** (daemon) y
+   - Linux/macOS: `command -v ai-voice-interconnector`
+   - Windows: `where ai-voice-interconnector` (o `Get-Command ai-voice-interconnector`)
+2. Si **está presente**, corre `ai-voice-interconnector doctor --json` y analiza el JSON
+   (campo `status`: `ok`/`failed`, y la lista `issues`). Con esto sabes qué falta realmente:
+   - Si `status` es `ok` → el motor ya está listo; salta al **Paso 3** (daemon) y
      luego al **Paso 4** (pre-síntesis) y al **Paso 6** (verificación).
-   - Si el check `Chatterbox model` es `FAIL` → falta el modelo; salta al **Paso 2**.
+   - Si `status` es `failed` → falta el modelo o el entorno; revisa `issues` y salta al **Paso 2**.
 3. Si **no está presente**, continúa al **Paso 1**.
 
 Resume al usuario en una frase qué encontraste y qué vas a hacer.
 
-## Paso 1 — Instalar el binario TTS-Sidecar (detección de canal)
+## Paso 1 — Instalar el binario AI-Voice-InterConnector (instalador nativo por SO)
 
-Elige el canal automáticamente, en este orden:
+Usa el instalador nativo que corresponde al SO. Cada uno descarga el binario, lo
+agrega al PATH del usuario (sin `sudo`) y encadena `setup` automáticamente:
 
-1. **¿Está `uv`?** (`command -v uv` / `where uv`). Si sí:
+- **Linux**:
 
-   ```bash
-   uv tool install "tts-sidecar>=0.9.1"
-   ```
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/main/install-linux.sh | sh
+  ```
 
-   (si ya estaba instalado, `uv tool upgrade tts-sidecar`). Es el camino más
-   simple y multiplataforma; `uv` provee su propio runtime, el usuario no
-   necesita Python.
+- **macOS**:
 
-2. **¿Está `pipx`?** (`command -v pipx`). Si sí:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/main/install-macos.sh | sh
+  ```
 
-   ```bash
-   pipx install "tts-sidecar>=0.9.1"
-   ```
+- **Windows** (PowerShell):
 
-3. **Si no hay ninguno**, ofrece al usuario elegir entre dos opciones y espera su
-   decisión:
+  ```powershell
+  irm https://raw.githubusercontent.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/main/install-windows.ps1 | iex
+  ```
 
-   **Opción A — Instalar `uv` (recomendada, totalmente automatizable).** `uv` es
-   un binario independiente, no requiere Python previo. Instálalo con el
-   instalador oficial y luego `uv tool install tts-sidecar`:
-   - Linux/macOS: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-   - Windows (PowerShell): `powershell -ExecutionPolicy Bypass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-
-     Tras instalar `uv`, puede hacer falta reiniciar la terminal o recargar el
-     PATH antes de que `uv` esté disponible; adviértelo.
-
-   **Opción B — Instalador nativo por SO** (mejor si el usuario prefiere no tener
-   ningún runtime tipo Python/uv). Descarga desde las releases de TTS-Sidecar
-   (`https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/releases`) y
-   lanza el instalador que corresponda al SO:
-   - **Windows**: descargar el instalador Inno Setup (`.exe`) de las releases
-     y ejecutarlo. Agrega el binario al PATH y ofrece una casilla para correr
-     `setup`. Es interactivo: guía al usuario a completar el asistente.
-   - **macOS**: montar el `.dmg` de las releases y correr el script de
-     instalación (symlink en `~/.local/bin`, sin `sudo`), o el one-liner
-     `install-macos.sh` si el proyecto lo publica.
-   - **Linux**: correr `install-linux.sh` (instala el AppImage e integra el PATH)
-     o descargar el AppImage y hacerlo ejecutable.
-
-Tras instalar por cualquier vía, **verifica**: `tts-sidecar version`. Si el comando no se encuentra, probablemente el PATH aún no se recargó: indica al usuario abrir una terminal nueva (o reiniciar Claude Code) y reanuda.
+Tras instalar por cualquier vía, **verifica**: `ai-voice-interconnector version`. Si el comando no se encuentra, probablemente el PATH aún no se recargó: indica al usuario abrir una terminal nueva (o reiniciar Claude Code) y reanuda.
 
 ## Paso 2 — Descargar el modelo de voz
 
 ```bash
-tts-sidecar setup
+ai-voice-interconnector setup
 ```
 
-Corre los chequeos de `doctor` y descarga el modelo `es-mx-latam` a la caché de HuggingFace **solo si falta** (idempotente). Advertencias a comunicar:
+Corre los chequeos de `doctor` y descarga el modelo `qwen3-tts-0.6b` a la caché de HuggingFace **solo si falta** (idempotente; el instalador del Paso 1 ya lo encadena, así que normalmente esto solo confirma el estado). Advertencias a comunicar:
 
 - La descarga es **grande** (varios cientos de MB) y puede tardar.
 - El modelo puede estar **gated** en HuggingFace: si `setup` reporta un problema
@@ -103,8 +81,8 @@ Corre los chequeos de `doctor` y descarga el modelo `es-mx-latam` a la caché de
 El plugin narra con `speech say --daemon`, que **usa el daemon y falla si no está levantado** (no lo arranca solo). El daemon mantiene el modelo en memoria, así cada narración tarda segundos en vez de decenas.
 
 ```bash
-tts-sidecar daemon start
-tts-sidecar daemon status
+ai-voice-interconnector daemon start
+ai-voice-interconnector daemon status
 ```
 
 Explica que el daemon queda vivo en segundo plano y sobrevive al cierre de Claude Code (no a un reinicio del equipo). Tras un reinicio no hace falta acción manual: el hook `SessionStart` del plugin lo vuelve a levantar solo en la primera sesión nueva (siempre que la narración esté activada y el modelo en caché). Este arranque durante la instalación es solo para dejarlo caliente ya mismo.
@@ -124,7 +102,7 @@ Interpreta el resultado:
 - **Fallo con «daemon caído» (exit `5` del motor)** → vuelve al **Paso 3** y
   reintenta.
 - **Fallo con «modelo ausente» (exit `4` del motor)** → vuelve al **Paso 2**
-  (`tts-sidecar setup`) y reintenta.
+  (`ai-voice-interconnector setup`) y reintenta.
 
 ## Paso 5 — Activar la narración y, opcionalmente, el modo LLM
 
@@ -148,8 +126,8 @@ Interpreta el resultado:
 
 ## Paso 6 — Verificación de extremo a extremo
 
-1. Diagnóstico final: `tts-sidecar doctor --json`. Confirma que `failed` es 0
-   (los `WARN`/`SKIP` no cuentan).
+1. Diagnóstico final: `ai-voice-interconnector doctor --json`. Confirma que `status`
+   es `ok` (la lista `issues` queda vacía).
 2. Narración de prueba real (debe sonar audio):
 
    ```bash
@@ -162,7 +140,7 @@ Interpreta el resultado:
    reprodúcelo:
 
    ```bash
-   tts-sidecar speech play --label <label-del-anuncio>
+   ai-voice-interconnector speech play --label <label-del-anuncio>
    ```
 
    Debe sonar el anuncio con exit `0`. Un exit `3` significa que el anuncio no está

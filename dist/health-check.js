@@ -66,7 +66,7 @@ function emptyToUndef(v) {
 // src/lib/resolve-cli.ts
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
-var BASE = "tts-sidecar";
+var BASE = "ai-voice-interconnector";
 function candidateNames() {
   if (process.platform !== "win32") return [BASE];
   const exts = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").map((e) => e.trim()).filter(Boolean);
@@ -125,7 +125,7 @@ function isDaemonRunning(cliPath) {
       return false;
     }
     const status = JSON.parse(res.stdout);
-    return status.running === true;
+    return status.daemon === "running";
   } catch {
     return false;
   }
@@ -144,6 +144,35 @@ function startDaemonDetached(cliPath) {
 }
 
 // src/health-check.ts
+function parseFirstJsonObject(text) {
+  const start = text.indexOf("{");
+  if (start < 0) return void 0;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1));
+        } catch {
+          return void 0;
+        }
+      }
+    }
+  }
+  return void 0;
+}
 function notify(message) {
   process.stdout.write(JSON.stringify({ systemMessage: message }));
   process.exit(0);
@@ -158,7 +187,7 @@ async function main() {
   const cli = resolveCli();
   if (!cli) {
     notify(
-      "tts-sidecar-narrator: TTS-Sidecar no est\xE1 en el PATH. Inst\xE1lalo y ejecuta tts-sidecar setup para habilitar la narraci\xF3n por voz."
+      "tts-sidecar-narrator: AI-Voice-InterConnector no est\xE1 en el PATH. Inst\xE1lalo y ejecuta ai-voice-interconnector setup para habilitar la narraci\xF3n por voz."
     );
   }
   const res = spawnSync2(cli, ["doctor", "--json"], {
@@ -168,19 +197,14 @@ async function main() {
     shell: needsShell(cli)
   });
   if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) ok();
-  let report;
-  try {
-    report = JSON.parse(res.stdout);
-  } catch {
-    ok();
-  }
-  const modelCheck = (report.checks ?? []).find((c) => c.name === "Chatterbox model");
-  if (modelCheck?.status === "FAIL") {
+  const report = parseFirstJsonObject(res.stdout);
+  if (!report) ok();
+  if (report.status === "failed") {
     notify(
-      "tts-sidecar-narrator: el modelo de voz no est\xE1 descargado. Ejecuta tts-sidecar setup para habilitar la narraci\xF3n por voz."
+      "tts-sidecar-narrator: el entorno de voz no est\xE1 provisionado. Ejecuta ai-voice-interconnector setup para habilitar la narraci\xF3n por voz."
     );
   }
-  if (modelCheck?.status === "PASS" && !isDaemonRunning(cli)) {
+  if (report.status === "ok" && !isDaemonRunning(cli)) {
     startDaemonDetached(cli);
   }
   ok();

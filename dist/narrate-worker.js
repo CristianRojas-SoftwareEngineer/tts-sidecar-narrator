@@ -107,7 +107,7 @@ function killWorkerTree(pid) {
 // src/lib/resolve-cli.ts
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
-var BASE = "tts-sidecar";
+var BASE = "ai-voice-interconnector";
 function candidateNames() {
   if (process.platform !== "win32") return [BASE];
   const exts = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").map((e) => e.trim()).filter(Boolean);
@@ -478,7 +478,7 @@ async function main() {
   }
   const cli = resolveCli();
   if (!cli) {
-    log("tts-sidecar no encontrado en PATH; se omite la narraci\xF3n");
+    log("ai-voice-interconnector no encontrado en PATH; se omite la narraci\xF3n");
     return;
   }
   if (request.kind === "play") await runPlay(cli, request.label);

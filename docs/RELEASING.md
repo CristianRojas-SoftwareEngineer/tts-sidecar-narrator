@@ -1,6 +1,6 @@
 # Proceso de release
 
-Cómo se corta y publica una versión de `tts-sidecar-narrator`. El proceso es deliberadamente más simple que el del motor ([TTS-Sidecar/docs/RELEASING.md](https://github.com/CristianRojas-SoftwareEngineer/TTS-Sidecar/blob/main/docs/RELEASING.md)): aquí no hay CI de publicación, artefactos nativos ni PyPI — el plugin se distribuye clonando el repo con `dist/` commiteado, y **el release es un tag de git precedido por este checklist**. El CI de CircleCI corre en cada push como verificación continua (no participa del corte); el marketplace de plugins de Claude Code resuelve las versiones desde los tags del repo.
+Cómo se corta y publica una versión de `tts-sidecar-narrator`. El proceso es deliberadamente más simple que el del motor ([AI-Voice-InterConnector/docs/RELEASING.md](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/blob/main/docs/RELEASING.md)): aquí no hay CI de publicación ni artefactos binarios por plataforma — el plugin se distribuye clonando el repo con `dist/` commiteado, y **el release es un tag de git precedido por este checklist**. El CI de CircleCI corre en cada push como verificación continua (no participa del corte); el marketplace de plugins de Claude Code resuelve las versiones desde los tags del repo.
 
 ## Tabla de contenidos
 
@@ -23,7 +23,7 @@ Cómo se corta y publica una versión de `tts-sidecar-narrator`. El proceso es d
   `package.json` y `.claude-plugin/plugin.json`. Un release con los dos números
   distintos es un release inválido.
 - El versionado es **independiente del motor**: cada proyecto numera según su
-  propia historia. Excepción planificada: cuando TTS-Sidecar alcance su
+  propia historia. Excepción planificada: cuando AI-Voice-InterConnector alcance su
   `v1.0.0`, el plugin avanzará desde la versión que haya alcanzado
   directamente a `v1.0.0` (ver la nota de versionado en
   [CHANGELOG.md](../CHANGELOG.md)).
@@ -56,13 +56,13 @@ En orden; cada paso asume el anterior.
    `check-dist` en verde es obligatorio: lo que ejecutan los usuarios es el `dist/` del árbol de git.
    El hook en `.githooks/pre-commit` corre `npm run build` y staggea `dist/` en cada commit, así que no
    hace falta invocarlo manualmente.
-4. **Verificar la versión mínima del motor declarada**: la versión de
-   TTS-Sidecar declarada en el README («Prerequisitos») y en
+4. **Verificar la versión del motor declarada**: la versión de
+   AI-Voice-InterConnector declarada en el README («Prerequisitos») y en
    [`docs/INTEGRATION.md`](INTEGRATION.md) («Requisitos sobre el motor») debe
    ser la que efectivamente se usó en el smoke test del paso 6.
 5. **Verificar referencias cruzadas en ambos repos**: el motor referencia al
-   plugin en `docs/NARRATION-INTEGRATION.md` y `docs/CLAUDE-CODE-PLUGIN.md` (del
-   repo del motor);
+   plugin en `docs/CLAUDE-CODE-INTEGRATION.md` y su diseño en `docs/DESIGN.md`
+   (del repo del motor);
    el plugin referencia al motor en `docs/INTEGRATION.md` y el README. Ambos
    lados deben apuntar a las versiones etiquetadas (o al menos no
    contradecirlas). Esta verificación vive aquí y no en el checklist del
@@ -93,9 +93,9 @@ En orden; cada paso asume el anterior.
 Cuando el release del plugin acompaña a un release del motor (como el primer lanzamiento público conjunto), el orden importa — **primero el motor, después el plugin**:
 
 1. El motor corta su tag; su pipeline de CircleCI construye y publica los
-   artefactos (binarios nativos + PyPI) automáticamente.
+   artefactos (binarios nativos por plataforma) automáticamente.
 2. Se instala el motor **desde los artefactos publicados** (instalador nativo
-   o `uv tool install tts-sidecar`), no desde `main` del motor, y se corre el
+   por SO), no desde `main` del motor, y se corre el
    smoke test del paso 6 contra esa instalación. Esto garantiza que lo que el
    plugin declara compatible es lo que un usuario real puede instalar, no un
    estado intermedio del árbol del motor.
@@ -139,7 +139,7 @@ $STATE_DIR = "$env:LOCALAPPDATA\tts-sidecar-narrator"
 $MOTOR_VERSION = "vX.Y.Z"
 
 # (Opcional) Árbol del repo del motor, para las comprobaciones cruzadas.
-$ENGINE_ROOT = "C:\ruta\a\TTS-Sidecar"
+$ENGINE_ROOT = "C:\ruta\a\AI-Voice-InterConnector"
 
 # Atajo para invocar la CLI de control compilada.
 function narrate-ctl { node "$PLUGIN_E2E\dist\narrate-ctl.js" @args }
@@ -148,10 +148,10 @@ function narrate-ctl { node "$PLUGIN_E2E\dist\narrate-ctl.js" @args }
 Notas de contrato que el runbook asume (verificado en código fuente):
 
 - `narrate-ctl status` **no** reporta el daemon; el estado del daemon se consulta
-  con `tts-sidecar daemon status --json`.
+  con `ai-voice-interconnector daemon status --json`.
 - `narrate-ctl status` **nunca** imprime el valor de ninguna clave: solo muestra
   `gemini key:   configurada|ausente` y `openrouter:   configurada|ausente`.
-- `narrate-ctl say` pasa el texto directo a `tts-sidecar speak --text ... --daemon`
+- `narrate-ctl say` pasa el texto directo a `ai-voice-interconnector speech say --text ... --daemon`
   (pipeline TTS + daemon); **no** ejercita la generación de mensaje (`local`/`llm`).
 - `worker.log` (en `$STATE_DIR`) registra **solo errores** de narración, no qué
   proveedor se usó; la distinción `local` vs `llm` se verifica **por audible**.
@@ -161,14 +161,12 @@ Notas de contrato que el runbook asume (verificado en código fuente):
 El plugin se verifica contra la **última versión publicada del motor**, no contra su árbol de desarrollo (regla «primero el motor, después el plugin»). Esta fase confirma que el release del motor ya está disponible públicamente.
 
 ```powershell
-# 1a. El GitHub Release expone los assets esperados.
-gh release view $MOTOR_VERSION --repo CristianRojas-SoftwareEngineer/TTS-Sidecar
-
-# 1b. PyPI confirma la versión como publicada.
-pip index versions tts-sidecar
+# 1a. El GitHub Release expone los assets esperados (los binarios por
+#     plataforma + SHA256SUMS.txt).
+gh release view $MOTOR_VERSION --repo CristianRojas-SoftwareEngineer/AI-Voice-InterConnector
 
 # Comprobación: la versión $MOTOR_VERSION figura como la más reciente
-# en ambos canales (GitHub Releases y PyPI).
+# en GitHub Releases, con sus artefactos por plataforma publicados.
 ```
 
 ### Fase 2 — Smoke test contra el motor publicado
@@ -178,28 +176,27 @@ Corresponde al paso 6 del [Checklist de release](#checklist-de-release). Es un *
 #### Paso 1 — Instalar y aprovisionar el motor publicado
 
 ```powershell
-# 1a. Instalar el motor fijando la versión verificada (uv tool es opcional;
-#     también sirve el instalador nativo).
-uv tool install "tts-sidecar==$MOTOR_VERSION"
+# 1a. Instalar el motor con el instalador nativo por SO (Windows). Encadena
+#     setup automáticamente.
+irm https://raw.githubusercontent.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector/main/install-windows.ps1 | iex
 
 # 1b. Comprobación: el CLI reporta la versión correcta.
-tts-sidecar version
+ai-voice-interconnector version
 
-# 1c. Aprovisionar el modelo (idempotente).
-tts-sidecar setup
+# 1c. Aprovisionar el modelo (idempotente; el instalador ya lo encadena).
+ai-voice-interconnector setup
 
-# 1d. Comprobación: doctor sin FAIL de modelo.
-tts-sidecar doctor --json | ConvertFrom-Json |
-  ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'FAIL' }
-#     La salida debe estar VACÍA (ningún FAIL).
+# 1d. Comprobación: doctor con status ok.
+ai-voice-interconnector doctor --json | ConvertFrom-Json | ForEach-Object { $_.status }
+#     Debe imprimir: ok
 ```
 
 #### Paso 2 — Dejar el daemon en marcha
 
 ```powershell
-tts-sidecar daemon start
+ai-voice-interconnector daemon start
 # Comprobación: el daemon queda running.
-tts-sidecar daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
+ai-voice-interconnector daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
 #     Debe imprimir: True
 ```
 
@@ -223,7 +220,7 @@ Valida el pipeline TTS + daemon de forma aislada. No requiere claves.
 narrate-ctl on                        # activa la narración
 narrate-ctl mode local                # modo local (determinista, offline)
 narrate-ctl status                    # enabled: true, messageMode: local
-tts-sidecar daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
+ai-voice-interconnector daemon status --json | ConvertFrom-Json | ForEach-Object { $_.running }
 narrate-ctl say "Prueba de audio local"
 # Comprobación AUDIBLE: se escucha la frase en español.
 ```
@@ -287,7 +284,7 @@ claude --plugin-dir $PLUGIN_E2E
   1. Quita el directorio del binario del `PATH` para la sesión:
      ```powershell
      $env:PATH = ($env:PATH -split ';' | Where-Object {
-       $_ -and ($_ -notmatch 'tts-sidecar') } ) -join ';'
+       $_ -and ($_ -notmatch 'ai-voice-interconnector') } ) -join ';'
      ```
   2. Abre Claude desde esa sesión. Debe aparecer el aviso **sin bloquear** la
      sesión.
@@ -330,7 +327,7 @@ Pop-Location
 Select-String -Path "$PLUGIN_DEV\README.md","$PLUGIN_DEV\docs\INTEGRATION.md" `
   -Pattern $MOTOR_VERSION
 # Lado del motor (si está clonado):
-#   Get-Content "$ENGINE_ROOT\docs\NARRATION-INTEGRATION.md" -Tail 40
+#   Get-Content "$ENGINE_ROOT\docs\CLAUDE-CODE-INTEGRATION.md" -Tail 40
 
 # 6. Commit, tag y push.
 Push-Location $PLUGIN_DEV

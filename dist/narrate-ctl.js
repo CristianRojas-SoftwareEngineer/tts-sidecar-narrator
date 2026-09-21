@@ -81,7 +81,7 @@ function emptyToUndef(v) {
 // src/lib/resolve-cli.ts
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
-var BASE = "tts-sidecar";
+var BASE = "ai-voice-interconnector";
 function candidateNames() {
   if (process.platform !== "win32") return [BASE];
   const exts = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").map((e) => e.trim()).filter(Boolean);
@@ -137,7 +137,7 @@ function printStatus() {
 function say(text) {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no est\xE1 en el PATH; no se puede narrar.");
+    console.error("ai-voice-interconnector no est\xE1 en el PATH; no se puede narrar.");
     return 1;
   }
   const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
@@ -150,7 +150,7 @@ function say(text) {
 function presynth(force) {
   const cli = resolveCli();
   if (!cli) {
-    console.error("tts-sidecar no est\xE1 en el PATH; no se puede pre-sintetizar.");
+    console.error("ai-voice-interconnector no est\xE1 en el PATH; no se puede pre-sintetizar.");
     return 1;
   }
   let failed = false;
@@ -171,7 +171,7 @@ function presynth(force) {
     else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
-      const motivo = code === 5 ? " \u2014 daemon ca\xEDdo; lev\xE1ntalo con `tts-sidecar daemon start`" : code === 4 ? " \u2014 modelo ausente; provisi\xF3nalo con `tts-sidecar setup`" : "";
+      const motivo = code === 5 ? " \u2014 daemon ca\xEDdo; lev\xE1ntalo con `ai-voice-interconnector daemon start`" : code === 4 ? " \u2014 modelo ausente; provisi\xF3nalo con `ai-voice-interconnector setup`" : "";
       console.error(`${evento}: fallo (exit ${code})${motivo}`);
     }
   }
