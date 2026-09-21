@@ -15,15 +15,15 @@ Ejecuta ese comando con la herramienta de shell. Es multiplataforma (Node ya est
 
 ## Comandos
 
-| Intención del usuario | Comando |
-|-----------------------|---------|
-| Activar la narración | `narrate-ctl.js on` |
-| Desactivar la narración | `narrate-ctl.js off` |
-| Ver el estado y la configuración | `narrate-ctl.js status` |
-| Usar LLM (mensajes elaborados) | `narrate-ctl.js mode llm` |
-| Solo local (sin red, privado) | `narrate-ctl.js mode local` |
-| Narrar un texto ahora | `narrate-ctl.js say "texto a narrar"` |
-| Pre-sintetizar los anuncios | `narrate-ctl.js presynth` (`--force` para re-sync) |
+| Intención del usuario            | Comando                                            |
+| -------------------------------- | -------------------------------------------------- |
+| Activar la narración             | `narrate-ctl.js on`                                |
+| Desactivar la narración          | `narrate-ctl.js off`                               |
+| Ver el estado y la configuración | `narrate-ctl.js status`                            |
+| Usar LLM (mensajes elaborados)   | `narrate-ctl.js mode llm`                          |
+| Solo local (sin red, privado)    | `narrate-ctl.js mode local`                        |
+| Narrar un texto ahora            | `narrate-ctl.js say "texto a narrar"`              |
+| Pre-sintetizar los anuncios      | `narrate-ctl.js presynth` (`--force` para re-sync) |
 
 Tras `on`/`off`/`mode`, confirma al usuario el nuevo estado en una frase. Para `status`, resume la salida (no vuelques rutas si el usuario solo preguntó si está activa).
 
@@ -40,7 +40,7 @@ El modo `llm` genera los mensajes con niveles gratuitos de LLM: **Gemini** (free
 1. **Variables de entorno** (tienen precedencia): `GEMINI_API_KEY` y/o
    `OPENROUTER_API_KEY`.
 2. **Editar `config.json`** en el state dir (la ruta la da `narrate-ctl.js
-   status`), añadiendo `"geminiApiKey"` y/o `"openRouterApiKey"`.
+status`), añadiendo `"geminiApiKey"` y/o `"openRouterApiKey"`.
 
 Sin claves configuradas, el modo `llm` degrada de facto a `local`, que funciona 100 % offline con mensajes más simples.
 

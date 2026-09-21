@@ -9,7 +9,10 @@ import { loadConfig } from "./lib/config.js";
 import { resolveCli, needsShell } from "./lib/resolve-cli.js";
 import { readStdin } from "./lib/hook-payload.js";
 import { isDaemonRunning, startDaemonDetached } from "./lib/daemon.js";
-import { parseFirstJsonObject, decideHealthAction } from "./lib/health-decision.js";
+import {
+  parseFirstJsonObject,
+  decideHealthAction,
+} from "./lib/health-decision.js";
 
 /** Emite un aviso al usuario y termina la sesión sin bloquearla. */
 function notify(message: string): never {

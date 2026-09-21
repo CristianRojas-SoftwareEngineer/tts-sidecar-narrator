@@ -249,11 +249,23 @@ function announcement(text, label) {
   return { text, label };
 }
 var ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  UserPromptSubmit: announcement(
+    "Procesando con Claude.",
+    "narrator-user-prompt-submit"
+  ),
   Stop: announcement("El asistente termin\xF3 su turno.", "narrator-stop"),
-  SubagentStop: announcement("El subagente complet\xF3 su trabajo.", "narrator-subagent-stop"),
-  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n.", "narrator-stop-failure"),
-  Notification: announcement("Claude necesita tu atenci\xF3n.", "narrator-notification"),
+  SubagentStop: announcement(
+    "El subagente complet\xF3 su trabajo.",
+    "narrator-subagent-stop"
+  ),
+  StopFailure: announcement(
+    "Ocurri\xF3 un error durante la ejecuci\xF3n.",
+    "narrator-stop-failure"
+  ),
+  Notification: announcement(
+    "Claude necesita tu atenci\xF3n.",
+    "narrator-notification"
+  ),
   Default: announcement("Notificaci\xF3n de Claude.", "narrator-default")
 };
 
@@ -365,7 +377,8 @@ async function buildMessage(payload, cfg) {
 function buildProviders(cfg) {
   const providers = [];
   if (cfg.geminiApiKey) providers.push(new GeminiProvider(cfg.geminiApiKey));
-  if (cfg.openRouterApiKey) providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
+  if (cfg.openRouterApiKey)
+    providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
   return providers;
 }
 
@@ -413,7 +426,10 @@ function takeSingleInstance() {
 }
 function releaseSingleInstance() {
   try {
-    const owner = Number.parseInt(readFileSync2(workerPidPath(), "utf8").trim(), 10);
+    const owner = Number.parseInt(
+      readFileSync2(workerPidPath(), "utf8").trim(),
+      10
+    );
     if (owner === process.pid) rmSync(workerPidPath(), { force: true });
   } catch {
   }

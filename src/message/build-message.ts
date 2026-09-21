@@ -9,10 +9,17 @@
 // resumen local determinista (clampSentences) → anuncio estático por evento.
 import type { Config } from "../lib/config.js";
 import type { HookPayload } from "../lib/hook-payload.js";
-import { runChain, type GenerationInput, type TextProvider } from "./provider-chain.js";
+import {
+  runChain,
+  type GenerationInput,
+  type TextProvider,
+} from "./provider-chain.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { OpenRouterProvider } from "./openrouter-provider.js";
-import { ANNOUNCEMENTS, type NarrationRequest } from "./static-announcements.js";
+import {
+  ANNOUNCEMENTS,
+  type NarrationRequest,
+} from "./static-announcements.js";
 import { sanitizeForSpeech } from "./sanitize.js";
 import { clampHead, clampSentences, LOCAL_SPEECH_MAX_CHARS } from "./clamp.js";
 
@@ -44,7 +51,8 @@ export async function buildMessage(
   // Umbral: sin material narrable no se invoca el LLM. En este punto el evento
   // solo puede ser `Stop` (los demás retornaron arriba) o desconocido/ausente.
   if (primary === "") {
-    const fallback = event === "Stop" ? ANNOUNCEMENTS.Stop : ANNOUNCEMENTS.Default;
+    const fallback =
+      event === "Stop" ? ANNOUNCEMENTS.Stop : ANNOUNCEMENTS.Default;
     return { kind: "play", label: fallback.label };
   }
 
@@ -68,6 +76,7 @@ export async function buildMessage(
 function buildProviders(cfg: Config): TextProvider[] {
   const providers: TextProvider[] = [];
   if (cfg.geminiApiKey) providers.push(new GeminiProvider(cfg.geminiApiKey));
-  if (cfg.openRouterApiKey) providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
+  if (cfg.openRouterApiKey)
+    providers.push(new OpenRouterProvider(cfg.openRouterApiKey));
   return providers;
 }

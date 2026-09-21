@@ -30,7 +30,7 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/
   caliente de cada prompt. Elimina la divergencia semántica del LLM narrador y
   la latencia de red en el momento más visible del ciclo.
 - **Los fallbacks estáticos se reproducen desde su WAV pre-sintetizado** (`speech
-  play`) en vez de re-sintetizarse en cada aparición: el catálogo único de
+play`) en vez de re-sintetizarse en cada aparición: el catálogo único de
   anuncios vive en `src/message/static-announcements.ts`, con un label semántico
   fijo por anuncio (p. ej. `narrator-stop`) asignado explícitamente, no derivado
   del texto.
@@ -84,7 +84,7 @@ Primera versión pública, lanzada en conjunto con el primer release público de
   mockeado, y subcomandos de `narrate-ctl` como subproceso real.
 - **CI en CircleCI**: triple puerta `test-linux`/`test-windows`/`test-macos`
   (misma plataforma y nomenclatura que el motor) en cada push, corriendo
-   typecheck, build y la suite completa.
+  typecheck, build y la suite completa.
 - **Documentación**: README, `docs/INTEGRATION.md` (contrato con el motor),
   `SECURITY.md` (modelo de amenaza del plugin, incluida la semántica real de
   la protección del `config.json` en Windows), `docs/RELEASING.md` (proceso

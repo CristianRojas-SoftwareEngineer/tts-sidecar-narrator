@@ -15,7 +15,10 @@ import { makeTempDir, removeDir } from "./helpers.js";
  * ante `daemon status` y sale 0. Devuelve la ruta al ejecutable (shim .cmd en
  * Windows, script sh en Unix, ambos delegando en un impl Node) y un limpiador.
  */
-function makeFakeCli(statusJson: string): { cliPath: string; cleanup: () => void } {
+function makeFakeCli(statusJson: string): {
+  cliPath: string;
+  cleanup: () => void;
+} {
   const dir = makeTempDir("narrator-daemon-cli-");
   writeFileSync(join(dir, "status.json"), statusJson);
   writeFileSync(
@@ -34,17 +37,25 @@ function makeFakeCli(statusJson: string): { cliPath: string; cleanup: () => void
   let cliPath: string;
   if (process.platform === "win32") {
     cliPath = join(dir, "ai-voice-interconnector.cmd");
-    writeFileSync(cliPath, '@node "%~dp0impl.cjs" %*\r\n@exit /b %errorlevel%\r\n');
+    writeFileSync(
+      cliPath,
+      '@node "%~dp0impl.cjs" %*\r\n@exit /b %errorlevel%\r\n',
+    );
   } else {
     cliPath = join(dir, "ai-voice-interconnector");
-    writeFileSync(cliPath, '#!/bin/sh\nexec node "$(dirname "$0")/impl.cjs" "$@"\n');
+    writeFileSync(
+      cliPath,
+      '#!/bin/sh\nexec node "$(dirname "$0")/impl.cjs" "$@"\n',
+    );
     chmodSync(cliPath, 0o755);
   }
   return { cliPath, cleanup: () => removeDir(dir) };
 }
 
 test('daemon running: {"daemon":"running"} → true', () => {
-  const { cliPath, cleanup } = makeFakeCli(JSON.stringify({ daemon: "running" }));
+  const { cliPath, cleanup } = makeFakeCli(
+    JSON.stringify({ daemon: "running" }),
+  );
   try {
     assert.equal(isDaemonRunning(cliPath), true);
   } finally {
@@ -53,7 +64,9 @@ test('daemon running: {"daemon":"running"} → true', () => {
 });
 
 test('daemon stopped: {"daemon":"stopped"} → false', () => {
-  const { cliPath, cleanup } = makeFakeCli(JSON.stringify({ daemon: "stopped" }));
+  const { cliPath, cleanup } = makeFakeCli(
+    JSON.stringify({ daemon: "stopped" }),
+  );
   try {
     assert.equal(isDaemonRunning(cliPath), false);
   } finally {

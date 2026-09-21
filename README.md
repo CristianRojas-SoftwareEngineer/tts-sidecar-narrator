@@ -36,7 +36,7 @@ Plugin de [Claude Code](https://code.claude.com) que **narra por voz** la activi
    ```
    El plugin lo verifica al iniciar la sesión (`SessionStart`) y te avisa si
    falta el CLI o el modelo. El plugin **no** instala AI-Voice-InterConnector.
-2. *(Opcional)* **API keys gratuitas** para mensajes generados por LLM:
+2. _(Opcional)_ **API keys gratuitas** para mensajes generados por LLM:
    - [Gemini API](https://ai.google.dev/) (free tier) — principal.
    - [OpenRouter](https://openrouter.ai/) (modelos `:free`) — fallback.
 
@@ -72,13 +72,13 @@ claude --plugin-dir .
 
 ### Ruta del estado
 
-El estado vive en `config.json` dentro del *state dir* por SO:
+El estado vive en `config.json` dentro del _state dir_ por SO:
 
-| SO | Ruta |
-|----|------|
-| Windows | `%LOCALAPPDATA%\tts-sidecar-narrator\config.json` |
-| Linux | `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator/config.json` |
-| macOS | `~/Library/Application Support/tts-sidecar-narrator/config.json` |
+| SO      | Ruta                                                                 |
+| ------- | -------------------------------------------------------------------- |
+| Windows | `%LOCALAPPDATA%\tts-sidecar-narrator\config.json`                    |
+| Linux   | `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator/config.json` |
+| macOS   | `~/Library/Application Support/tts-sidecar-narrator/config.json`     |
 
 ### Claves de API (modo `llm`)
 

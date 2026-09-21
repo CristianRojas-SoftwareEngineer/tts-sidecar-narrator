@@ -19,8 +19,7 @@ export interface Announcement {
  * dinámico (`speech say`, exige daemon).
  */
 export type NarrationRequest =
-  | { kind: "play"; label: string }
-  | { kind: "say"; text: string };
+  { kind: "play"; label: string } | { kind: "say"; text: string };
 
 function announcement(text: string, label: string): Announcement {
   return { text, label };
@@ -32,10 +31,22 @@ function announcement(text: string, label: string): Announcement {
  * (más el default para eventos desconocidos).
  */
 export const ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  UserPromptSubmit: announcement(
+    "Procesando con Claude.",
+    "narrator-user-prompt-submit",
+  ),
   Stop: announcement("El asistente terminó su turno.", "narrator-stop"),
-  SubagentStop: announcement("El subagente completó su trabajo.", "narrator-subagent-stop"),
-  StopFailure: announcement("Ocurrió un error durante la ejecución.", "narrator-stop-failure"),
-  Notification: announcement("Claude necesita tu atención.", "narrator-notification"),
+  SubagentStop: announcement(
+    "El subagente completó su trabajo.",
+    "narrator-subagent-stop",
+  ),
+  StopFailure: announcement(
+    "Ocurrió un error durante la ejecución.",
+    "narrator-stop-failure",
+  ),
+  Notification: announcement(
+    "Claude necesita tu atención.",
+    "narrator-notification",
+  ),
   Default: announcement("Notificación de Claude.", "narrator-default"),
 } as const satisfies Record<string, Announcement>;

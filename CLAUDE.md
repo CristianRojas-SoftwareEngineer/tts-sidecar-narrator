@@ -25,6 +25,7 @@
   - translation introduces ambiguity (e.g., "prompt", "token", "runtime", "framework", "API").
 - This exception applies equally to user responses and code comments.
 - Do not mix languages unnecessarily. Default to Spanish unless there is a clear technical reason not to.
+
 <!-- </language_efficiency> -->
 
 ---
@@ -41,6 +42,7 @@ Before implementing:
 - If multiple interpretations exist, present them - don't pick silently.
 - If a simpler approach achieves the same result with less code or fewer moving parts, propose it before implementing the requested one. If the request conflicts with an existing requirement, constraint, or invariant, name the conflict and stop instead of resolving it silently.
 - If something is unclear, stop. Name what's confusing. Ask.
+
 <!-- </think_before_coding> -->
 
 ---
@@ -109,6 +111,7 @@ The same principle extends beyond code to files, tooling, and process: do not ad
 - Editing files the user already pointed at or that the task clearly requires.
 - Fixing bugs in scripts/docs that **already exist** when the user asked to fix or use them.
 - Mentioning a possible script or doc in the response **without** writing it.
+
 <!-- </simplicity_first> -->
 
 ---
@@ -143,6 +146,7 @@ The test: Every changed line should trace directly to the user's request.
 **Make every commit self-explanatory and descriptive.**
 
 - The `conventional-commits` skill is the authority on commit message format and structure. Follow it.
+
 <!-- </version_control> -->
 
 ---
@@ -175,4 +179,5 @@ This repository is indexed by the `codebase-memory-mcp` MCP server: a knowledge 
 
 - The index does NOT auto-update (`auto_index=false`). After a merge, refactor, or adding/removing files/functions, resync with the `/cbm-resync` user command (incremental, cheap, idempotent).
 - If graph results look stale or missing recently-added symbols, suggest running `/cbm-resync` instead of silently falling back to Grep.
+
 <!-- </structural_code_intelligence> -->

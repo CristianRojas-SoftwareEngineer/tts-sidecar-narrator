@@ -9,8 +9,14 @@ import { ANNOUNCEMENTS } from "../src/message/static-announcements.js";
 test("el catálogo fija el texto literal de los seis anuncios", () => {
   assert.equal(ANNOUNCEMENTS.UserPromptSubmit.text, "Procesando con Claude.");
   assert.equal(ANNOUNCEMENTS.Stop.text, "El asistente terminó su turno.");
-  assert.equal(ANNOUNCEMENTS.SubagentStop.text, "El subagente completó su trabajo.");
-  assert.equal(ANNOUNCEMENTS.StopFailure.text, "Ocurrió un error durante la ejecución.");
+  assert.equal(
+    ANNOUNCEMENTS.SubagentStop.text,
+    "El subagente completó su trabajo.",
+  );
+  assert.equal(
+    ANNOUNCEMENTS.StopFailure.text,
+    "Ocurrió un error durante la ejecución.",
+  );
   assert.equal(ANNOUNCEMENTS.Notification.text, "Claude necesita tu atención.");
   assert.equal(ANNOUNCEMENTS.Default.text, "Notificación de Claude.");
   assert.equal(Object.keys(ANNOUNCEMENTS).length, 6);
@@ -29,7 +35,10 @@ test("cada label cumple el contrato del motor: [a-z0-9._-]+", () => {
 });
 
 test("cada anuncio tiene su slug semántico fijo y los seis son únicos", () => {
-  assert.equal(ANNOUNCEMENTS.UserPromptSubmit.label, "narrator-user-prompt-submit");
+  assert.equal(
+    ANNOUNCEMENTS.UserPromptSubmit.label,
+    "narrator-user-prompt-submit",
+  );
   assert.equal(ANNOUNCEMENTS.Stop.label, "narrator-stop");
   assert.equal(ANNOUNCEMENTS.SubagentStop.label, "narrator-subagent-stop");
   assert.equal(ANNOUNCEMENTS.StopFailure.label, "narrator-stop-failure");

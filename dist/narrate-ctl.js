@@ -113,11 +113,23 @@ function announcement(text, label) {
   return { text, label };
 }
 var ANNOUNCEMENTS = {
-  UserPromptSubmit: announcement("Procesando con Claude.", "narrator-user-prompt-submit"),
+  UserPromptSubmit: announcement(
+    "Procesando con Claude.",
+    "narrator-user-prompt-submit"
+  ),
   Stop: announcement("El asistente termin\xF3 su turno.", "narrator-stop"),
-  SubagentStop: announcement("El subagente complet\xF3 su trabajo.", "narrator-subagent-stop"),
-  StopFailure: announcement("Ocurri\xF3 un error durante la ejecuci\xF3n.", "narrator-stop-failure"),
-  Notification: announcement("Claude necesita tu atenci\xF3n.", "narrator-notification"),
+  SubagentStop: announcement(
+    "El subagente complet\xF3 su trabajo.",
+    "narrator-subagent-stop"
+  ),
+  StopFailure: announcement(
+    "Ocurri\xF3 un error durante la ejecuci\xF3n.",
+    "narrator-stop-failure"
+  ),
+  Notification: announcement(
+    "Claude necesita tu atenci\xF3n.",
+    "narrator-notification"
+  ),
   Default: announcement("Notificaci\xF3n de Claude.", "narrator-default")
 };
 
@@ -137,7 +149,9 @@ function printStatus() {
 function say(text) {
   const cli = resolveCli();
   if (!cli) {
-    console.error("ai-voice-interconnector no est\xE1 en el PATH; no se puede narrar.");
+    console.error(
+      "ai-voice-interconnector no est\xE1 en el PATH; no se puede narrar."
+    );
     return 1;
   }
   const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
@@ -150,7 +164,9 @@ function say(text) {
 function presynth(force) {
   const cli = resolveCli();
   if (!cli) {
-    console.error("ai-voice-interconnector no est\xE1 en el PATH; no se puede pre-sintetizar.");
+    console.error(
+      "ai-voice-interconnector no est\xE1 en el PATH; no se puede pre-sintetizar."
+    );
     return 1;
   }
   let failed = false;
@@ -168,7 +184,8 @@ function presynth(force) {
       console.log(
         `${evento}: ${force ? "re-sintetizado" : "pre-sintetizado"} (${label})`
       );
-    else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
+    else if (code === 6)
+      console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
       const motivo = code === 5 ? " \u2014 daemon ca\xEDdo; lev\xE1ntalo con `ai-voice-interconnector daemon start`" : code === 4 ? " \u2014 modelo ausente; provisi\xF3nalo con `ai-voice-interconnector setup`" : "";

@@ -49,7 +49,9 @@ if (isCheck) {
     }
     if (current !== out.text) {
       drift = true;
-      console.error(`dist desincronizado: ${rel} difiere de la compilación de src/`);
+      console.error(
+        `dist desincronizado: ${rel} difiere de la compilación de src/`,
+      );
     }
   }
   if (drift) {

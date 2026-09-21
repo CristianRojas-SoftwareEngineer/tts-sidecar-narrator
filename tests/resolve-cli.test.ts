@@ -73,7 +73,10 @@ test("POSIX: un directorio inexistente en el PATH no rompe la búsqueda", () => 
 });
 
 test("Windows: resuelve el .exe respetando el orden de PATHEXT", () => {
-  const bin = makeBinDir("ai-voice-interconnector.exe", "ai-voice-interconnector.cmd");
+  const bin = makeBinDir(
+    "ai-voice-interconnector.exe",
+    "ai-voice-interconnector.cmd",
+  );
   const restoreP = fakePlatform("win32");
   const restoreE = withEnv({ PATH: bin, PATHEXT: ".EXE;.CMD;.BAT" });
   try {

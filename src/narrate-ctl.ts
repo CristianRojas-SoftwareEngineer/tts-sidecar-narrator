@@ -30,7 +30,9 @@ function printStatus(): void {
 function say(text: string): number {
   const cli = resolveCli();
   if (!cli) {
-    console.error("ai-voice-interconnector no está en el PATH; no se puede narrar.");
+    console.error(
+      "ai-voice-interconnector no está en el PATH; no se puede narrar.",
+    );
     return 1;
   }
   const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
@@ -53,7 +55,9 @@ function say(text: string): number {
 function presynth(force: boolean): number {
   const cli = resolveCli();
   if (!cli) {
-    console.error("ai-voice-interconnector no está en el PATH; no se puede pre-sintetizar.");
+    console.error(
+      "ai-voice-interconnector no está en el PATH; no se puede pre-sintetizar.",
+    );
     return 1;
   }
   let failed = false;
@@ -71,7 +75,8 @@ function presynth(force: boolean): number {
       console.log(
         `${evento}: ${force ? "re-sintetizado" : "pre-sintetizado"} (${label})`,
       );
-    else if (code === 6) console.log(`${evento}: ya pre-sintetizado (${label})`);
+    else if (code === 6)
+      console.log(`${evento}: ya pre-sintetizado (${label})`);
     else {
       failed = true;
       const motivo =

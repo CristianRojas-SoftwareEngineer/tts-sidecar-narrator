@@ -273,6 +273,7 @@ claude --plugin-dir $PLUGIN_E2E
      ```
 
 - **(C) `narrate-ctl status` no expone claves:**
+
   ```powershell
   $env:GEMINI_API_KEY = "<tu-clave-gemini>"
   narrate-ctl status        # muestra "configurada", NO el valor

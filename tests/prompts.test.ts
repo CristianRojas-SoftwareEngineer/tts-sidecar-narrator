@@ -3,7 +3,10 @@
 // El modo único eliminó GenerationMode y systemPromptFor.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SUMMARY_SYSTEM_PROMPT, SUMMARY_CLOSING } from "../src/message/prompts.js";
+import {
+  SUMMARY_SYSTEM_PROMPT,
+  SUMMARY_CLOSING,
+} from "../src/message/prompts.js";
 
 test("SUMMARY_SYSTEM_PROMPT prohíbe inventar y narra en primera persona", () => {
   assert.ok(SUMMARY_SYSTEM_PROMPT.includes("No inventes"));

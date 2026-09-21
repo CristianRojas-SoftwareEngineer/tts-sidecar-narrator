@@ -21,9 +21,7 @@ export function fakePlatform(platform: NodeJS.Platform): () => void {
 }
 
 /** Fija (o borra, con undefined) variables de entorno y permite restaurarlas. */
-export function withEnv(
-  vars: Record<string, string | undefined>,
-): () => void {
+export function withEnv(vars: Record<string, string | undefined>): () => void {
   const saved = new Map<string, string | undefined>();
   for (const [key, value] of Object.entries(vars)) {
     saved.set(key, process.env[key]);

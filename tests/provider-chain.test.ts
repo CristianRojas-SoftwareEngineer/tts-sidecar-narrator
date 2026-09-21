@@ -44,7 +44,13 @@ test("runChain cae al siguiente nivel ante una excepción (HTTP, timeout)", asyn
   const calls: string[] = [];
   const result = await runChain(
     [
-      provider("gemini", async () => { throw new Error("Gemini HTTP 429"); }, calls),
+      provider(
+        "gemini",
+        async () => {
+          throw new Error("Gemini HTTP 429");
+        },
+        calls,
+      ),
       provider("openrouter", async () => "Texto de OpenRouter", calls),
     ],
     INPUT,
@@ -69,8 +75,20 @@ test("runChain devuelve undefined si todos los proveedores fallan", async () => 
   const calls: string[] = [];
   const result = await runChain(
     [
-      provider("gemini", async () => { throw new Error("timeout"); }, calls),
-      provider("openrouter", async () => { throw new Error("HTTP 500"); }, calls),
+      provider(
+        "gemini",
+        async () => {
+          throw new Error("timeout");
+        },
+        calls,
+      ),
+      provider(
+        "openrouter",
+        async () => {
+          throw new Error("HTTP 500");
+        },
+        calls,
+      ),
     ],
     INPUT,
   );

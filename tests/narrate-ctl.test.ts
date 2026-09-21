@@ -50,9 +50,7 @@ function runCtl(
 
 function readConfigFile(): Record<string, unknown> {
   const sub =
-    process.platform === "darwin"
-      ? join("Library", "Application Support")
-      : "";
+    process.platform === "darwin" ? join("Library", "Application Support") : "";
   const path = join(stateBase, sub, "tts-sidecar-narrator", "config.json");
   return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
@@ -204,7 +202,9 @@ test("presynth pre-sintetiza los seis anuncios con speech synthesize --label --d
     });
     assert.deepEqual(
       labels.sort(),
-      Object.values(ANNOUNCEMENTS).map((a) => a.label).sort(),
+      Object.values(ANNOUNCEMENTS)
+        .map((a) => a.label)
+        .sort(),
     );
   } finally {
     removeDir(dir);

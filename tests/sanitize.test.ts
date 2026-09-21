@@ -7,11 +7,14 @@ import assert from "node:assert/strict";
 import { toPlainText, sanitizeForSpeech } from "../src/message/sanitize.js";
 
 test("toPlainText quita delimitadores de bloque y conserva el contenido", () => {
-  const input = "Antes.\n```js\nconst clave = \"secreto\";\n```\nDespués.";
+  const input = 'Antes.\n```js\nconst clave = "secreto";\n```\nDespués.';
   const out = toPlainText(input);
-  assert.equal(out, "Antes. js const clave \"secreto\"; Después.");
+  assert.equal(out, 'Antes. js const clave "secreto"; Después.');
   assert.ok(!out.includes("```"), "sin delimitadores");
-  assert.ok(out.includes("secreto"), "contenido conservado (ruta pronunciable)");
+  assert.ok(
+    out.includes("secreto"),
+    "contenido conservado (ruta pronunciable)",
+  );
 });
 
 test("toPlainText quita delimitadores de virgulillas y conserva el contenido", () => {
@@ -46,7 +49,8 @@ test("toPlainText elimina URLs sueltas", () => {
 });
 
 test("toPlainText quita encabezados, citas y viñetas al inicio de línea", () => {
-  const input = "## Título\n> cita\n- punto uno\n* punto dos\n1. numerado\n2) también";
+  const input =
+    "## Título\n> cita\n- punto uno\n* punto dos\n1. numerado\n2) también";
   assert.equal(
     toPlainText(input),
     "Título cita punto uno punto dos numerado también",
@@ -54,7 +58,10 @@ test("toPlainText quita encabezados, citas y viñetas al inicio de línea", () =
 });
 
 test("toPlainText quita énfasis y tachado", () => {
-  assert.equal(toPlainText("**negrita** _cursiva_ ~~tachado~~"), "negrita cursiva tachado");
+  assert.equal(
+    toPlainText("**negrita** _cursiva_ ~~tachado~~"),
+    "negrita cursiva tachado",
+  );
 });
 
 test("toPlainText conserva acentos, eñes y puntuación del español", () => {

@@ -37,7 +37,8 @@ function readFileConfig(): Partial<Config> {
 export function loadConfig(): Config {
   const file = readFileConfig();
   const cfg: Config = {
-    enabled: typeof file.enabled === "boolean" ? file.enabled : DEFAULTS.enabled,
+    enabled:
+      typeof file.enabled === "boolean" ? file.enabled : DEFAULTS.enabled,
     messageMode: file.messageMode === "local" ? "local" : DEFAULTS.messageMode,
     geminiApiKey: emptyToUndef(file.geminiApiKey),
     openRouterApiKey: emptyToUndef(file.openRouterApiKey),

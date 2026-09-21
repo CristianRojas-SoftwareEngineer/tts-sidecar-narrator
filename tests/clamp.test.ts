@@ -64,7 +64,8 @@ test("clampSentences reconoce los terminadores . ! ? …", () => {
 });
 
 test("clampSentences corta la oración-gigante en límite de palabra, sin puntos suspensivos", () => {
-  const text = "Esta primera oración es mucho más larga que el tope permitido aquí.";
+  const text =
+    "Esta primera oración es mucho más larga que el tope permitido aquí.";
   const out = clampSentences(text, 20);
   assert.ok(out.length <= 20);
   assert.ok(!out.endsWith("…"));

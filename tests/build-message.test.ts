@@ -35,25 +35,40 @@ test("UserPromptSubmit es un acuse fijo: play del anuncio pre-sintetizado, ignor
     { hook_event_name: "UserPromptSubmit", prompt: "haz X" },
     LOCAL,
   );
-  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.UserPromptSubmit.label });
+  assert.deepEqual(out, {
+    kind: "play",
+    label: ANNOUNCEMENTS.UserPromptSubmit.label,
+  });
 });
 
 test("Notification reproduce su anuncio pre-sintetizado (play fijo), ignora el mensaje", async () => {
   const out = await buildMessage(
-    { hook_event_name: "Notification", message: "**Atención** necesita permiso" },
+    {
+      hook_event_name: "Notification",
+      message: "**Atención** necesita permiso",
+    },
     LOCAL,
   );
-  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Notification.label });
+  assert.deepEqual(out, {
+    kind: "play",
+    label: ANNOUNCEMENTS.Notification.label,
+  });
 });
 
 test("SubagentStop reproduce su anuncio pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "SubagentStop" }, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.SubagentStop.label });
+  assert.deepEqual(out, {
+    kind: "play",
+    label: ANNOUNCEMENTS.SubagentStop.label,
+  });
 });
 
 test("StopFailure reproduce su anuncio pre-sintetizado (play fijo)", async () => {
   const out = await buildMessage({ hook_event_name: "StopFailure" }, LOCAL);
-  assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.StopFailure.label });
+  assert.deepEqual(out, {
+    kind: "play",
+    label: ANNOUNCEMENTS.StopFailure.label,
+  });
 });
 
 // --- Ruta Stop: umbral y degradación local ---
@@ -114,7 +129,10 @@ test("UserPromptSubmit (llm) NO invoca ningún LLM: acuse fijo play", async () =
       { hook_event_name: "UserPromptSubmit", prompt: "nueva petición" },
       LLM,
     );
-    assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.UserPromptSubmit.label });
+    assert.deepEqual(out, {
+      kind: "play",
+      label: ANNOUNCEMENTS.UserPromptSubmit.label,
+    });
     assert.equal(lastBody, undefined);
   } finally {
     restoreEnv();
@@ -131,7 +149,10 @@ test("Stop (llm) envía a Gemini un único mensaje user derivado solo de last_as
 
     mockGemini("Creé el componente principal");
     const out = await buildMessage(payload, LLM);
-    assert.deepEqual(out, { kind: "say", text: "Creé el componente principal" });
+    assert.deepEqual(out, {
+      kind: "say",
+      text: "Creé el componente principal",
+    });
 
     assert.deepEqual((lastBody as { contents: unknown[] }).contents, [
       {
@@ -151,11 +172,17 @@ test("Stop (llm) envía a Gemini un único mensaje user derivado solo de last_as
 test("Stop (llm) ignora el transcript aunque transcript_path exista: solo va last_assistant_message", async () => {
   const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
   try {
-    const transcriptPath = join(tmpdir(), `narrator-ignored-${Date.now()}.jsonl`);
+    const transcriptPath = join(
+      tmpdir(),
+      `narrator-ignored-${Date.now()}.jsonl`,
+    );
     writeFileSync(
       transcriptPath,
       [
-        JSON.stringify({ type: "user", content: "<command-name>/model</command-name>" }),
+        JSON.stringify({
+          type: "user",
+          content: "<command-name>/model</command-name>",
+        }),
         JSON.stringify({ type: "user", content: "Set model to Sonnet 5" }),
       ].join("\n"),
       "utf8",
@@ -171,8 +198,9 @@ test("Stop (llm) ignora el transcript aunque transcript_path exista: solo va las
     const out = await buildMessage(payload, LLM);
     assert.deepEqual(out, { kind: "say", text: "Respondí la pregunta" });
 
-    const content = (lastBody as { contents: Array<{ parts: Array<{ text: string }> }> })
-      .contents[0].parts[0].text;
+    const content = (
+      lastBody as { contents: Array<{ parts: Array<{ text: string }> }> }
+    ).contents[0].parts[0].text;
     assert.ok(content.includes("Respondí la pregunta."));
     assert.ok(!content.includes("Sonnet 5"));
     assert.ok(!content.includes("command-name"));
@@ -187,7 +215,10 @@ test("Caso «Hola»: turno trivial se narra fielmente, sin confabular", async ()
     // El modelo, bajo el prompt anti-invención, narra el saludo como tal.
     mockGemini("Solo saludé de vuelta, sin cambios técnicos.");
     const out = await buildMessage(
-      { hook_event_name: "Stop", last_assistant_message: "¡Hola! ¿En qué te ayudo?" },
+      {
+        hook_event_name: "Stop",
+        last_assistant_message: "¡Hola! ¿En qué te ayudo?",
+      },
       LLM,
     );
     assert.deepEqual(out, {
@@ -196,8 +227,9 @@ test("Caso «Hola»: turno trivial se narra fielmente, sin confabular", async ()
     });
 
     // Lo enviado al LLM es exactamente el saludo, nada más.
-    const content = (lastBody as { contents: Array<{ parts: Array<{ text: string }> }> })
-      .contents[0].parts[0].text;
+    const content = (
+      lastBody as { contents: Array<{ parts: Array<{ text: string }> }> }
+    ).contents[0].parts[0].text;
     assert.ok(content.includes("¡Hola! ¿En qué te ayudo?"));
   } finally {
     restoreEnv();
@@ -207,9 +239,13 @@ test("Caso «Hola»: turno trivial se narra fielmente, sin confabular", async ()
 test("Stop (llm) con LLM caído degrada al resumen local acotado (clampSentences)", async () => {
   const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
   try {
-    globalThis.fetch = (async () => new Response("{}", { status: 500 })) as typeof fetch;
+    globalThis.fetch = (async () =>
+      new Response("{}", { status: 500 })) as typeof fetch;
     const out = await buildMessage(
-      { hook_event_name: "Stop", last_assistant_message: "Trabajo completado." },
+      {
+        hook_event_name: "Stop",
+        last_assistant_message: "Trabajo completado.",
+      },
       LLM,
     );
     assert.deepEqual(out, { kind: "say", text: "Trabajo completado." });

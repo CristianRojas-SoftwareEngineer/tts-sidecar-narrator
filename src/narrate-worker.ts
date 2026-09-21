@@ -74,7 +74,10 @@ function takeSingleInstance(): void {
 
 function releaseSingleInstance(): void {
   try {
-    const owner = Number.parseInt(readFileSync(workerPidPath(), "utf8").trim(), 10);
+    const owner = Number.parseInt(
+      readFileSync(workerPidPath(), "utf8").trim(),
+      10,
+    );
     if (owner === process.pid) rmSync(workerPidPath(), { force: true });
   } catch {
     // Nada que liberar.
@@ -109,7 +112,10 @@ function runPlay(cliPath: string, label: string): Promise<void> {
     });
     child.on("exit", (code) => {
       if (code !== 0) {
-        const hint = code === 3 ? " (anuncio no pre-sintetizado; ejecuta narrate-ctl presynth)" : "";
+        const hint =
+          code === 3
+            ? " (anuncio no pre-sintetizado; ejecuta narrate-ctl presynth)"
+            : "";
         log(`speech play salió con código ${code}${hint}`);
       }
       resolve();

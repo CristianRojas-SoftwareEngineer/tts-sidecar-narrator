@@ -19,10 +19,10 @@ La contraparte, escrita desde la perspectiva del motor, está en el repositorio 
 
 El sistema de narración por voz tiene dos componentes con repositorios y ciclos de vida independientes:
 
-| Componente | Repositorio | Rol |
-|------------|-------------|-----|
-| **tts-sidecar-narrator** (este) | `tts-sidecar-narrator` | **Cliente**: detecta eventos de la sesión de Claude Code, construye un mensaje corto y pide su síntesis. |
-| **AI-Voice-InterConnector** | [`AI-Voice-InterConnector`](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector) | **Motor**: sintetiza voz 100 % offline y expone una CLI pública. |
+| Componente                      | Repositorio                                                                                            | Rol                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| **tts-sidecar-narrator** (este) | `tts-sidecar-narrator`                                                                                 | **Cliente**: detecta eventos de la sesión de Claude Code, construye un mensaje corto y pide su síntesis. |
+| **AI-Voice-InterConnector**     | [`AI-Voice-InterConnector`](https://github.com/CristianRojas-SoftwareEngineer/AI-Voice-InterConnector) | **Motor**: sintetiza voz 100 % offline y expone una CLI pública.                                         |
 
 El plugin **depende** de AI-Voice-InterConnector; AI-Voice-InterConnector **no** conoce ni depende del plugin. La relación es unidireccional.
 
@@ -32,14 +32,14 @@ El único punto de acoplamiento es el ejecutable `ai-voice-interconnector` en el
 
 ## Superficies del CLI que consume
 
-| # | Superficie | Uso en el plugin |
-|---|------------|------------------|
-| 1 | `ai-voice-interconnector speech say --text "<msg>" --daemon` | Síntesis y reproducción de cada locución dinámica. **Requiere el daemon vivo** (exit `5` si está caído; no lo arranca solo); por eso el plugin lo mantiene caliente. |
-| 2 | `ai-voice-interconnector doctor --json` | Verificación del entorno al iniciar sesión. Se parsea el objeto plano `{ status, issues[], data_dir, hf_cache, base_status }`: `status` es `ok` o `failed`, y `issues` lista los problemas como cadenas. En caso de fallo el `stdout` trae **dos objetos** JSON concatenados (el reporte y luego un `{error,…}`); solo se toma el **primero** (contrato `docs/CLI/CONTRACT.md §12` del motor). |
-| 3 | `ai-voice-interconnector daemon status --json` | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo. |
-| 4 | `ai-voice-interconnector daemon start` | Levanta el daemon de forma desanclada para dejar el modelo en memoria. |
-| 5 | `ai-voice-interconnector speech synthesize --text "<aviso>" --label <label> --daemon` | Pre-síntesis única de los avisos estáticos (`narrate-ctl presynth`, invocado por la instalación guiada). El label es un slug semántico fijo; exit `6` (label ya existe) se trata como «ya pre-sintetizado» (idempotencia). `narrate-ctl presynth --force` añade `--force` para sobrescribir el WAV existente (re-sync tras cambiar una frase). Exit `5` daemon caído, `4` modelo ausente. |
-| 6 | `ai-voice-interconnector speech play --label <label>` | Reproducción instantánea de un aviso pre-sintetizado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no pre-sintetizado): se registra en `worker.log` y el turno queda sin audio, sin re-sintetizado ni fallback. Exit `2` = label ilegal. |
+| #   | Superficie                                                                            | Uso en el plugin                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `ai-voice-interconnector speech say --text "<msg>" --daemon`                          | Síntesis y reproducción de cada locución dinámica. **Requiere el daemon vivo** (exit `5` si está caído; no lo arranca solo); por eso el plugin lo mantiene caliente.                                                                                                                                                                                                                           |
+| 2   | `ai-voice-interconnector doctor --json`                                               | Verificación del entorno al iniciar sesión. Se parsea el objeto plano `{ status, issues[], data_dir, hf_cache, base_status }`: `status` es `ok` o `failed`, y `issues` lista los problemas como cadenas. En caso de fallo el `stdout` trae **dos objetos** JSON concatenados (el reporte y luego un `{error,…}`); solo se toma el **primero** (contrato `docs/CLI/CONTRACT.md §12` del motor). |
+| 3   | `ai-voice-interconnector daemon status --json`                                        | Comprueba si el daemon corre (`running == true`) antes de intentar levantarlo.                                                                                                                                                                                                                                                                                                                 |
+| 4   | `ai-voice-interconnector daemon start`                                                | Levanta el daemon de forma desanclada para dejar el modelo en memoria.                                                                                                                                                                                                                                                                                                                         |
+| 5   | `ai-voice-interconnector speech synthesize --text "<aviso>" --label <label> --daemon` | Pre-síntesis única de los avisos estáticos (`narrate-ctl presynth`, invocado por la instalación guiada). El label es un slug semántico fijo; exit `6` (label ya existe) se trata como «ya pre-sintetizado» (idempotencia). `narrate-ctl presynth --force` añade `--force` para sobrescribir el WAV existente (re-sync tras cambiar una frase). Exit `5` daemon caído, `4` modelo ausente.      |
+| 6   | `ai-voice-interconnector speech play --label <label>`                                 | Reproducción instantánea de un aviso pre-sintetizado (acuse de `UserPromptSubmit` y fallbacks estáticos), **sin modelo ni daemon**. Exit `3` = cache miss (aviso no pre-sintetizado): se registra en `worker.log` y el turno queda sin audio, sin re-sintetizado ni fallback. Exit `2` = label ilegal.                                                                                         |
 
 ## Cómo lo usan los hooks
 
@@ -70,11 +70,11 @@ La resolución del ejecutable la hace `lib/resolve-cli.ts`, que escanea el `PATH
 Para que la narración funcione, en la máquina del usuario debe existir:
 
 1. `ai-voice-interconnector` en el `PATH`, instalado con el instalador nativo por SO
-    (`install-linux.sh`, `install-macos.sh`, `install-windows.ps1`). El motor expone
-    el grupo `speech` (superficies 1, 5 y 6) que el plugin consume.
+   (`install-linux.sh`, `install-macos.sh`, `install-windows.ps1`). El motor expone
+   el grupo `speech` (superficies 1, 5 y 6) que el plugin consume.
 2. El modelo `qwen3-tts-0.6b` en caché, descargado con `ai-voice-interconnector setup`
-    (los instaladores nativos lo encadenan). La narración usa la voz de fábrica
-    `default` y no pasa `--voice`.
+   (los instaladores nativos lo encadenan). La narración usa la voz de fábrica
+   `default` y no pasa `--voice`.
 
 El comando `/tts-sidecar-narrator:install` del plugin guía ambos pasos.
 

@@ -10,12 +10,21 @@
     "build": "node build.mjs",
     "check-dist": "node build.mjs --check",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "node test.mjs",
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.7.0"
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "3.9.8",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.0"
   }
 }

@@ -5,9 +5,9 @@
 `tts-sidecar-narrator` está en desarrollo activo pre-1.0. Solo la última versión publicada recibe correcciones de seguridad.
 
 | Versión | Soportada |
-|---------|-----------|
-| 0.1.x   | ✅ |
-| < 0.1.0 | ❌ |
+| ------- | --------- |
+| 0.1.x   | ✅        |
+| < 0.1.0 | ❌        |
 
 ## Cómo reportar una vulnerabilidad
 
@@ -30,7 +30,7 @@ El plugin es un cliente delgado que corre dentro de la sesión de Claude Code de
 
 ### Qué se persiste, dónde y con qué permisos
 
-- El único estado sensible es `config.json` en el *state dir* por SO (`%LOCALAPPDATA%\tts-sidecar-narrator` en Windows, `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator` en Linux, `~/Library/Application Support/tts-sidecar-narrator` en macOS). Puede contener las API keys de Gemini/OpenRouter si el usuario opta por el modo `llm` vía archivo (las variables de entorno `GEMINI_API_KEY` / `OPENROUTER_API_KEY` tienen precedencia y evitan persistir la clave).
+- El único estado sensible es `config.json` en el _state dir_ por SO (`%LOCALAPPDATA%\tts-sidecar-narrator` en Windows, `${XDG_STATE_HOME:-~/.local/state}/tts-sidecar-narrator` en Linux, `~/Library/Application Support/tts-sidecar-narrator` en macOS). Puede contener las API keys de Gemini/OpenRouter si el usuario opta por el modo `llm` vía archivo (las variables de entorno `GEMINI_API_KEY` / `OPENROUTER_API_KEY` tienen precedencia y evitan persistir la clave).
 - En POSIX el archivo se escribe con permisos **`0600`** (solo el dueño lee y escribe).
 - **En Windows, `0600` es un no-op**: el modo de archivo no existe en NTFS y Node lo ignora. La protección real son las **ACL por defecto del perfil de usuario** sobre `%LOCALAPPDATA%`: otras cuentas locales sin privilegios elevados no pueden leer ese directorio. Es el mismo nivel de protección que tienen las credenciales de la mayoría de las herramientas de escritorio en Windows; si tu máquina comparte la misma cuenta de Windows entre varias personas, esa frontera no existe — usa variables de entorno de sesión o el modo `local`.
 - El resto del state dir (`worker.pid`, `payload.json`, `worker.log`) contiene metadatos operativos y extractos del último payload de hook; vive bajo el mismo directorio y las mismas protecciones.

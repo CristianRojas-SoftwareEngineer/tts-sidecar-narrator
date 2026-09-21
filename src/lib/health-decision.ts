@@ -13,9 +13,7 @@ export interface DoctorReport {
 
 /** Veredicto discriminado del health-check: avisar, calentar el daemon, o nada. */
 export type Decision =
-  | { kind: "notify"; message: string }
-  | { kind: "warm" }
-  | { kind: "noop" };
+  { kind: "notify"; message: string } | { kind: "warm" } | { kind: "noop" };
 
 /** Aviso por entorno de voz no provisionado (status "failed"). Fuente única. */
 export const NOT_PROVISIONED_MESSAGE =

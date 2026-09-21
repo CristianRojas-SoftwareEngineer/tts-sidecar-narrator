@@ -83,9 +83,11 @@ function fakeCliEnv(dir: string): Record<string, string> {
   return { PATH: p, Path: p };
 }
 
-function runHealth(
-  cliDir: string,
-): { status: number | null; stdout: string; stderr: string } {
+function runHealth(cliDir: string): {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+} {
   const res = spawnSync(process.execPath, [HEALTH], {
     env: healthEnv(fakeCliEnv(cliDir)),
     input: "",

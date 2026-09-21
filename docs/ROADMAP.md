@@ -32,7 +32,7 @@ Ventajas respecto al esquema actual:
   descartar el evento más viejo si se llena, mostrar `pendientes: N` en
   `narrate-ctl status`.
 
-*Decisión diferida:* implementar solo si en uso real se observan ráfagas de
+_Decisión diferida:_ implementar solo si en uso real se observan ráfagas de
 hooks que saturan la cadena de espera de la Opción 1, o si se quieren políticas
 de cola (tope, descarte, estado en `status`).
 
@@ -58,7 +58,7 @@ medidos aún (se determinarán con uso real):
 ### Corrección de bugs
 
 No hay bugs reportados aún (beta). Esta sección se poblará con los reportes
-que lleguen tras el lanzamiento. El pipeline de CI y la suite de 100 tests
+que lleguen tras el lanzamiento. El pipeline de CI y la suite de tests
 son la primera línea de defensa; el canal de reporte es
 [GitHub Security Advisories](https://github.com/CristianRojas-SoftwareEngineer/tts-sidecar-narrator/security/advisories)
 (para bugs de seguridad) e
@@ -137,17 +137,17 @@ clonando el repo).
 
 Suite de 100 tests con `node --test` (sin framework externo), cubriendo:
 
-| Módulo | Qué cubre |
-|--------|-----------|
-| `src/message/sanitize.ts` | Saneamiento de markdown, rutas, bloques de código |
-| `src/message/local-builder.ts` | Construcción determinista del mensaje local |
-| `src/message/provider-chain.ts` | Fallback Gemini → OpenRouter → local |
-| `src/lib/config.ts` | Precedencia env var > archivo > defaults |
-| `src/lib/hook-payload.ts` | Parseo del JSON de Claude Code |
-| `src/lib/state-dir.ts` | Resolución del state dir en los 3 SO |
-| `src/lib/resolve-cli.ts` | Resolución del binario en PATH (con PATHEXT en Windows) |
-| `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Parseo de respuesta y errores HTTP (fetch mockeado) |
-| `src/narrate-ctl.ts` | Subcomandos on/off/mode/status/say; status sin exponer claves |
+| Módulo                                                      | Qué cubre                                                     |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| `src/message/sanitize.ts`                                   | Saneamiento de markdown, rutas, bloques de código             |
+| `src/message/local-builder.ts`                              | Construcción determinista del mensaje local                   |
+| `src/message/provider-chain.ts`                             | Fallback Gemini → OpenRouter → local                          |
+| `src/lib/config.ts`                                         | Precedencia env var > archivo > defaults                      |
+| `src/lib/hook-payload.ts`                                   | Parseo del JSON de Claude Code                                |
+| `src/lib/state-dir.ts`                                      | Resolución del state dir en los 3 SO                          |
+| `src/lib/resolve-cli.ts`                                    | Resolución del binario en PATH (con PATHEXT en Windows)       |
+| `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Parseo de respuesta y errores HTTP (fetch mockeado)           |
+| `src/narrate-ctl.ts`                                        | Subcomandos on/off/mode/status/say; status sin exponer claves |
 
 Quedan fuera a propósito: `narrate-hook.ts`, `narrate-worker.ts`,
 `daemon.ts` y `spawn.ts` son orquestación de procesos; su verificación
@@ -166,6 +166,7 @@ commitea y el release es un tag de git.
 ### Documentación
 
 Las tres piezas documentales requeridas se escribieron:
+
 - `SECURITY.md` — modelo de amenaza, canal de reporte, nota Windows/ACL
 - `CHANGELOG.md` — Keep a Changelog, versión sincronizada con el motor
 - `docs/RELEASING.md` — proceso de release, bump doble, smoke test,
@@ -174,6 +175,7 @@ Las tres piezas documentales requeridas se escribieron:
 ### Sincronización con el motor
 
 El release del motor (v0.7.8) precedió al del plugin. La secuencia fue:
+
 1. Motor corta tag, CI publica binarios nativos por SO
 2. Plugin se verifica contra el motor instalado **desde artefactos publicados**
 3. Recién entonces se corta el tag del plugin

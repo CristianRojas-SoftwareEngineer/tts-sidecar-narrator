@@ -69,7 +69,10 @@ test("loadConfig trata claves vacías o de solo espacios como no configuradas", 
 
 test("las variables de entorno tienen precedencia sobre el archivo", () => {
   writeConfigFile(
-    JSON.stringify({ geminiApiKey: "del-archivo", openRouterApiKey: "del-archivo" }),
+    JSON.stringify({
+      geminiApiKey: "del-archivo",
+      openRouterApiKey: "del-archivo",
+    }),
   );
   process.env.GEMINI_API_KEY = "del-entorno";
   const cfg = loadConfig();
@@ -87,7 +90,10 @@ test("una env var vacía no pisa la clave del archivo", () => {
 test("updateConfig hace merge parcial sin pisar claves no tocadas", () => {
   updateConfig({ geminiApiKey: "clave-uno", messageMode: "local" });
   updateConfig({ enabled: false });
-  const raw = JSON.parse(readFileSync(configPath(), "utf8")) as Record<string, unknown>;
+  const raw = JSON.parse(readFileSync(configPath(), "utf8")) as Record<
+    string,
+    unknown
+  >;
   assert.equal(raw.enabled, false);
   assert.equal(raw.messageMode, "local");
   assert.equal(raw.geminiApiKey, "clave-uno");

@@ -29,9 +29,7 @@ await build({
   sourcemap: "inline",
 });
 
-const compiled = entries.map((f) =>
-  join(outDir, f.replace(/\.ts$/, ".js")),
-);
+const compiled = entries.map((f) => join(outDir, f.replace(/\.ts$/, ".js")));
 const res = spawnSync(process.execPath, ["--test", ...compiled], {
   stdio: "inherit",
 });

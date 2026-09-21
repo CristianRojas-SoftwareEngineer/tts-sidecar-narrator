@@ -87,7 +87,10 @@ test("Gemini: lanza ante una respuesta sin texto", async () => {
 
 test("Gemini: lanza sin llamar a fetch si no hay API key", async () => {
   mockFetch(200, {});
-  await assert.rejects(() => new GeminiProvider("").generate(INPUT), /sin API key/);
+  await assert.rejects(
+    () => new GeminiProvider("").generate(INPUT),
+    /sin API key/,
+  );
   assert.equal(lastRequest, undefined);
 });
 
