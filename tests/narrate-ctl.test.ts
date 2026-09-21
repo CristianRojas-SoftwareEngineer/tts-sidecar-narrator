@@ -151,7 +151,11 @@ function makeFakeCli(dir: string, codes: number[]): { argvLog: string } {
     );
   } else {
     const sh = join(dir, "ai-voice-interconnector");
-    writeFileSync(sh, '#!/bin/sh\nexec node "$(dirname "$0")/impl.cjs" "$@"\n');
+    // ${0%/*} es expansión de parámetros POSIX (built-in del shell): resuelve
+    // el dir del shim sin invocar el binario externo `dirname`, que no está en
+    // el PATH acotado del test (solo shim + Node). Con `dirname` los runners
+    // POSIX de CI fallaban con «dirname: not found».
+    writeFileSync(sh, '#!/bin/sh\nexec node "${0%/*}/impl.cjs" "$@"\n');
     chmodSync(sh, 0o755);
   }
   return { argvLog };
