@@ -38,8 +38,10 @@ function healthEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
 /**
  * Crea un `ai-voice-interconnector` falso en `dir` (shim .cmd en Windows, script
  * sh en Unix, ambos delegando en un impl Node). Despacha por argv: `doctor
- * --json` imprime `doctorJson`; `daemon status --json` imprime {"running":false}
- * para forzar el arranque; cualquier invocación anota su argv en `argv.log`.
+ * --json` imprime `doctorJson`; `daemon status --json` imprime
+ * {"daemon":"running"} (daemon ya en marcha, forma real del motor), de modo que
+ * el hook no arranca el nieto desanclado; cualquier invocación anota su argv en
+ * `argv.log`.
  */
 function makeFakeCli(dir: string, doctorJson: string): { argvLog: string } {
   const argvLog = join(dir, "argv.log");
@@ -56,7 +58,7 @@ function makeFakeCli(dir: string, doctorJson: string): { argvLog: string } {
       "  process.exit(0);",
       "}",
       'if (argv[0] === "daemon" && argv[1] === "status") {',
-      '  process.stdout.write(JSON.stringify({ running: false }));',
+      '  process.stdout.write(JSON.stringify({ daemon: "running" }));',
       "  process.exit(0);",
       "}",
       "process.exit(0);",
@@ -126,6 +128,8 @@ test("status ok: no avisa y consulta el daemon para calentarlo", () => {
     // Alcanzó la rama de calentado: consultó el estado del daemon.
     assert.ok(invoked(argvLog, ["doctor", "--json"]));
     assert.ok(invoked(argvLog, ["daemon", "status", "--json"]));
+    // El daemon ya está en marcha: el hook no debe arrancarlo (sin nieto).
+    assert.ok(!invoked(argvLog, ["daemon", "start"]));
   } finally {
     removeDir(dir);
   }

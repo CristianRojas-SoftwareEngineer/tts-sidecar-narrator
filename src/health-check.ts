@@ -9,51 +9,7 @@ import { loadConfig } from "./lib/config.js";
 import { resolveCli, needsShell } from "./lib/resolve-cli.js";
 import { readStdin } from "./lib/hook-payload.js";
 import { isDaemonRunning, startDaemonDetached } from "./lib/daemon.js";
-
-interface DoctorReport {
-  status: "ok" | "failed";
-  issues?: string[];
-  data_dir?: string;
-  hf_cache?: string;
-  base_status?: string;
-}
-
-/**
- * Extrae el primer objeto JSON de nivel superior del texto y lo parsea. En caso
- * de fallo, `doctor --json` concatena dos objetos (el reporte y un {error,…});
- * el recorrido por profundidad de llaves (respetando cadenas y escapes) toma
- * solo el primero e ignora cualquier objeto posterior. Devuelve undefined si no
- * hay un objeto balanceado o el fragmento no parsea.
- */
-function parseFirstJsonObject(text: string): DoctorReport | undefined {
-  const start = text.indexOf("{");
-  if (start < 0) return undefined;
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        try {
-          return JSON.parse(text.slice(start, i + 1)) as DoctorReport;
-        } catch {
-          return undefined;
-        }
-      }
-    }
-  }
-  return undefined;
-}
+import { parseFirstJsonObject, decideHealthAction } from "./lib/health-decision.js";
 
 /** Emite un aviso al usuario y termina la sesión sin bloquearla. */
 function notify(message: string): never {
@@ -93,21 +49,16 @@ async function main(): Promise<void> {
   // Se toma solo el primer objeto JSON: en caso de fallo el stdout trae el
   // reporte y un {error,…} concatenado que rompería un JSON.parse del total.
   const report = parseFirstJsonObject(res.stdout);
-  if (!report) ok();
 
-  if (report.status === "failed") {
-    notify(
-      "tts-sidecar-narrator: el entorno de voz no está provisionado. Ejecuta " +
-        "ai-voice-interconnector setup para habilitar la narración por voz.",
-    );
-  }
+  // El daemon solo se consulta cuando el reporte es "ok" (única rama que puede
+  // requerir calentarlo); en los demás casos se evita esa I/O.
+  const daemonRunning = report?.status === "ok" ? isDaemonRunning(cli) : false;
+  const decision = decideHealthAction(report, daemonRunning);
 
-  // Todo listo (status ok) y la narración está activada (se comprobó arriba):
-  // deja el daemon caliente para la sesión. Fire-and-forget, sin bloquear ni
-  // molestar si falla.
-  if (report.status === "ok" && !isDaemonRunning(cli)) {
-    startDaemonDetached(cli);
-  }
+  // notify: avisa al usuario. warm: deja el daemon caliente para la sesión
+  // (fire-and-forget, sin bloquear ni molestar si falla). noop: nada que hacer.
+  if (decision.kind === "notify") notify(decision.message);
+  if (decision.kind === "warm") startDaemonDetached(cli);
 
   ok();
 }

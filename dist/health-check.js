@@ -143,7 +143,8 @@ function startDaemonDetached(cliPath) {
   }
 }
 
-// src/health-check.ts
+// src/lib/health-decision.ts
+var NOT_PROVISIONED_MESSAGE = "tts-sidecar-narrator: el entorno de voz no est\xE1 provisionado. Ejecuta ai-voice-interconnector setup para habilitar la narraci\xF3n por voz.";
 function parseFirstJsonObject(text) {
   const start = text.indexOf("{");
   if (start < 0) return void 0;
@@ -173,6 +174,16 @@ function parseFirstJsonObject(text) {
   }
   return void 0;
 }
+function decideHealthAction(report, daemonRunning) {
+  if (!report) return { kind: "noop" };
+  if (report.status === "failed") {
+    return { kind: "notify", message: NOT_PROVISIONED_MESSAGE };
+  }
+  if (report.status === "ok" && !daemonRunning) return { kind: "warm" };
+  return { kind: "noop" };
+}
+
+// src/health-check.ts
 function notify(message) {
   process.stdout.write(JSON.stringify({ systemMessage: message }));
   process.exit(0);
@@ -198,15 +209,10 @@ async function main() {
   });
   if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) ok();
   const report = parseFirstJsonObject(res.stdout);
-  if (!report) ok();
-  if (report.status === "failed") {
-    notify(
-      "tts-sidecar-narrator: el entorno de voz no est\xE1 provisionado. Ejecuta ai-voice-interconnector setup para habilitar la narraci\xF3n por voz."
-    );
-  }
-  if (report.status === "ok" && !isDaemonRunning(cli)) {
-    startDaemonDetached(cli);
-  }
+  const daemonRunning = report?.status === "ok" ? isDaemonRunning(cli) : false;
+  const decision = decideHealthAction(report, daemonRunning);
+  if (decision.kind === "notify") notify(decision.message);
+  if (decision.kind === "warm") startDaemonDetached(cli);
   ok();
 }
 main().catch(() => process.exit(0));
