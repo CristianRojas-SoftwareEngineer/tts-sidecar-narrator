@@ -149,9 +149,16 @@ Suite de 100 tests con `node --test` (sin framework externo), cubriendo:
 | `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Parseo de respuesta y errores HTTP (fetch mockeado)           |
 | `src/narrate-ctl.ts`                                        | Subcomandos on/off/mode/status/say; status sin exponer claves |
 
-Quedan fuera a propósito: `narrate-hook.ts`, `narrate-worker.ts`,
-`daemon.ts` y `spawn.ts` son orquestación de procesos; su verificación
-quedó cubierta por el smoke test E2E.
+La frontera de testing es por **naturaleza del código**, no por módulo: la
+**lógica pura** que vive dentro de estos módulos sí se cubre en unitario —p. ej.
+`daemon.ts`, cuyo parseo de `daemon status --json` en `isDaemonRunning` se fija
+con un shim falso (`tests/daemon.test.ts`)—. Lo que queda fuera a propósito es el
+**efecto de orquestación de procesos** en sí (`narrate-hook.ts`,
+`narrate-worker.ts`, `spawnDetached`/`killWorkerTree` en `spawn.ts`,
+`startDaemonDetached` en `daemon.ts`): lanzar, desanclar y terminar procesos del
+SO depende de primitivas específicas por plataforma que un test unitario
+determinista no puede observar, y su verificación quedó cubierta por el smoke
+test E2E.
 
 ### CI
 
