@@ -5,7 +5,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { delimiter, join } from "node:path";
-import { resolveCli, needsShell } from "../src/lib/resolve-cli.js";
+import {
+  resolveCli,
+  needsShell,
+  buildShellCommand,
+} from "../src/lib/resolve-cli.js";
 import { fakePlatform, withEnv, makeTempDir, removeDir } from "./helpers.js";
 
 function makeBinDir(...fileNames: string[]): string {
@@ -146,4 +150,37 @@ test("needsShell: siempre false fuera de Windows", () => {
   } finally {
     restoreP();
   }
+});
+
+test("buildShellCommand: no cita tokens sin espacios ni metacaracteres", () => {
+  assert.equal(
+    buildShellCommand("C:\\bin\\avi.cmd", ["daemon", "status", "--json"]),
+    "C:\\bin\\avi.cmd daemon status --json",
+  );
+});
+
+test("buildShellCommand: cita la ruta del shim con espacios", () => {
+  assert.equal(
+    buildShellCommand("C:\\Program Files\\avi\\avi.cmd", ["daemon", "start"]),
+    '"C:\\Program Files\\avi\\avi.cmd" daemon start',
+  );
+});
+
+test("buildShellCommand: cita argumentos con espacios o metacaracteres de cmd.exe", () => {
+  assert.equal(
+    buildShellCommand("avi.cmd", [
+      "speech",
+      "say",
+      "--text",
+      "hola mundo & ya",
+    ]),
+    'avi.cmd speech say --text "hola mundo & ya"',
+  );
+});
+
+test("buildShellCommand: dobla las comillas internas de un argumento", () => {
+  assert.equal(
+    buildShellCommand("avi.cmd", ["--text", 'di "hola"']),
+    'avi.cmd --text "di ""hola"""',
+  );
 });

@@ -1,5 +1,4 @@
 // WORKER (proceso independiente del hook). Hace todo el trabajo con latencia: instancia única que ESPERA al worker anterior en vez de interrumpirlo (la narración en curso suena completa antes de la siguiente; sin solapamiento), construcción del mensaje y narración vía el CLI. Degrada en silencio; los errores van a worker.log.
-import { spawn } from "node:child_process";
 import { appendFileSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { loadConfig } from "./lib/config.js";
 import {
@@ -9,7 +8,7 @@ import {
   workerPidPath,
 } from "./lib/state-dir.js";
 import { isAlive, killWorkerTree } from "./lib/spawn.js";
-import { resolveCli, needsShell } from "./lib/resolve-cli.js";
+import { resolveCli, spawnCli } from "./lib/resolve-cli.js";
 import { parsePayload, type HookPayload } from "./lib/hook-payload.js";
 import { buildMessage } from "./message/build-message.js";
 
@@ -101,10 +100,9 @@ function readPayload(): HookPayload {
 function runPlay(cliPath: string, label: string): Promise<void> {
   return new Promise((resolve) => {
     const args = ["speech", "play", "--label", label];
-    const child = spawn(cliPath, args, {
+    const child = spawnCli(cliPath, args, {
       stdio: "ignore",
       windowsHide: true,
-      shell: needsShell(cliPath),
     });
     child.on("error", (err) => {
       log(`speech play error: ${err.message}`);
@@ -127,10 +125,9 @@ function runPlay(cliPath: string, label: string): Promise<void> {
 function runSay(cliPath: string, text: string): Promise<void> {
   return new Promise((resolve) => {
     const args = ["speech", "say", "--text", text, "--daemon"];
-    const child = spawn(cliPath, args, {
+    const child = spawnCli(cliPath, args, {
       stdio: "ignore",
       windowsHide: true,
-      shell: needsShell(cliPath),
     });
     child.on("error", (err) => {
       log(`speech say error: ${err.message}`);

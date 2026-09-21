@@ -1,8 +1,7 @@
 // Consulta y arranque del daemon de AI-Voice-InterConnector vía su CLI pública. El daemon
 // mantiene el modelo en memoria: `speak --daemon` lo requiere corriendo (no lo
 // arranca solo). El health-check lo levanta de forma desanclada al iniciar sesión.
-import { spawn, spawnSync } from "node:child_process";
-import { needsShell } from "./resolve-cli.js";
+import { runCli, spawnCli } from "./resolve-cli.js";
 
 /**
  * ¿El daemon está en ejecución? Consulta síncrona y barata (`daemon status
@@ -10,11 +9,10 @@ import { needsShell } from "./resolve-cli.js";
  */
 export function isDaemonRunning(cliPath: string): boolean {
   try {
-    const res = spawnSync(cliPath, ["daemon", "status", "--json"], {
+    const res = runCli(cliPath, ["daemon", "status", "--json"], {
       encoding: "utf8",
       timeout: 10000,
       windowsHide: true,
-      shell: needsShell(cliPath),
     });
     if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) {
       return false;
@@ -33,11 +31,10 @@ export function isDaemonRunning(cliPath: string): boolean {
  */
 export function startDaemonDetached(cliPath: string): void {
   try {
-    const child = spawn(cliPath, ["daemon", "start"], {
+    const child = spawnCli(cliPath, ["daemon", "start"], {
       detached: true,
       stdio: "ignore",
       windowsHide: true,
-      shell: needsShell(cliPath),
     });
     child.unref();
   } catch {

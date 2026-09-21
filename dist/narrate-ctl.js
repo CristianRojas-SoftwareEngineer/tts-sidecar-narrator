@@ -1,8 +1,5 @@
 // Generado por build.mjs (esbuild). No editar a mano; editar src/ y recompilar.
 
-// src/narrate-ctl.ts
-import { spawnSync } from "node:child_process";
-
 // src/lib/config.ts
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -79,6 +76,10 @@ function emptyToUndef(v) {
 }
 
 // src/lib/resolve-cli.ts
+import {
+  spawn,
+  spawnSync
+} from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
 var BASE = "ai-voice-interconnector";
@@ -106,6 +107,15 @@ function needsShell(cliPath) {
   if (process.platform !== "win32") return false;
   const lower = cliPath.toLowerCase();
   return lower.endsWith(".cmd") || lower.endsWith(".bat");
+}
+function quoteForCmd(token) {
+  return /[\s"&|<>^%]/.test(token) ? `"${token.replace(/"/g, '""')}"` : token;
+}
+function buildShellCommand(cli, args) {
+  return [cli, ...args].map(quoteForCmd).join(" ");
+}
+function runCli(cli, args, opts) {
+  return needsShell(cli) ? spawnSync(buildShellCommand(cli, args), { ...opts, shell: true }) : spawnSync(cli, args, { ...opts, shell: false });
 }
 
 // src/message/static-announcements.ts
@@ -154,10 +164,9 @@ function say(text) {
     );
     return 1;
   }
-  const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
+  const res = runCli(cli, ["speech", "say", "--text", text, "--daemon"], {
     stdio: "inherit",
-    windowsHide: true,
-    shell: needsShell(cli)
+    windowsHide: true
   });
   return res.status ?? 0;
 }
@@ -174,10 +183,9 @@ function presynth(force) {
     const args = ["speech", "synthesize", "--text", text, "--label", label];
     if (force) args.push("--force");
     args.push("--daemon");
-    const res = spawnSync(cli, args, {
+    const res = runCli(cli, args, {
       stdio: ["ignore", "ignore", "inherit"],
-      windowsHide: true,
-      shell: needsShell(cli)
+      windowsHide: true
     });
     const code = res.status ?? 1;
     if (code === 0)

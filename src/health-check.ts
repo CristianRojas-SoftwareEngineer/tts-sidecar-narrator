@@ -4,9 +4,8 @@
 // sesión (elimina el arranque manual tras un reinicio). Ante una carencia, avisa
 // al usuario con el campo systemMessage del JSON de salida (único mecanismo de
 // aviso portable). Nunca falla la sesión: exit 0 siempre.
-import { spawnSync } from "node:child_process";
 import { loadConfig } from "./lib/config.js";
-import { resolveCli, needsShell } from "./lib/resolve-cli.js";
+import { resolveCli, runCli } from "./lib/resolve-cli.js";
 import { readStdin } from "./lib/hook-payload.js";
 import { isDaemonRunning, startDaemonDetached } from "./lib/daemon.js";
 import {
@@ -39,11 +38,10 @@ async function main(): Promise<void> {
   }
 
   // doctor --json imprime el reporte aun cuando falla (exit != 0 si hay FAIL).
-  const res = spawnSync(cli, ["doctor", "--json"], {
+  const res = runCli(cli, ["doctor", "--json"], {
     encoding: "utf8",
     timeout: 20000,
     windowsHide: true,
-    shell: needsShell(cli),
   });
 
   // Si no se pudo ejecutar el diagnóstico, no molestar (no hay dato accionable).

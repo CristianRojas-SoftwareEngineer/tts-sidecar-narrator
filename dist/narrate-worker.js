@@ -1,7 +1,6 @@
 // Generado por build.mjs (esbuild). No editar a mano; editar src/ y recompilar.
 
 // src/narrate-worker.ts
-import { spawn as spawn2 } from "node:child_process";
 import { appendFileSync, readFileSync as readFileSync2, rmSync, writeFileSync as writeFileSync2 } from "node:fs";
 
 // src/lib/config.ts
@@ -105,6 +104,10 @@ function killWorkerTree(pid) {
 }
 
 // src/lib/resolve-cli.ts
+import {
+  spawn as spawn2,
+  spawnSync as spawnSync2
+} from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
 var BASE = "ai-voice-interconnector";
@@ -132,6 +135,15 @@ function needsShell(cliPath) {
   if (process.platform !== "win32") return false;
   const lower = cliPath.toLowerCase();
   return lower.endsWith(".cmd") || lower.endsWith(".bat");
+}
+function quoteForCmd(token) {
+  return /[\s"&|<>^%]/.test(token) ? `"${token.replace(/"/g, '""')}"` : token;
+}
+function buildShellCommand(cli, args) {
+  return [cli, ...args].map(quoteForCmd).join(" ");
+}
+function spawnCli(cli, args, opts) {
+  return needsShell(cli) ? spawn2(buildShellCommand(cli, args), { ...opts, shell: true }) : spawn2(cli, args, { ...opts, shell: false });
 }
 
 // src/lib/hook-payload.ts
@@ -444,10 +456,9 @@ function readPayload() {
 function runPlay(cliPath, label) {
   return new Promise((resolve) => {
     const args = ["speech", "play", "--label", label];
-    const child = spawn2(cliPath, args, {
+    const child = spawnCli(cliPath, args, {
       stdio: "ignore",
-      windowsHide: true,
-      shell: needsShell(cliPath)
+      windowsHide: true
     });
     child.on("error", (err) => {
       log(`speech play error: ${err.message}`);
@@ -465,10 +476,9 @@ function runPlay(cliPath, label) {
 function runSay(cliPath, text) {
   return new Promise((resolve) => {
     const args = ["speech", "say", "--text", text, "--daemon"];
-    const child = spawn2(cliPath, args, {
+    const child = spawnCli(cliPath, args, {
       stdio: "ignore",
-      windowsHide: true,
-      shell: needsShell(cliPath)
+      windowsHide: true
     });
     child.on("error", (err) => {
       log(`speech say error: ${err.message}`);

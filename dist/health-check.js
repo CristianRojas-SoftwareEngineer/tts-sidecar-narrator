@@ -1,8 +1,5 @@
 // Generado por build.mjs (esbuild). No editar a mano; editar src/ y recompilar.
 
-// src/health-check.ts
-import { spawnSync as spawnSync2 } from "node:child_process";
-
 // src/lib/config.ts
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -64,6 +61,10 @@ function emptyToUndef(v) {
 }
 
 // src/lib/resolve-cli.ts
+import {
+  spawn,
+  spawnSync
+} from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join as join2 } from "node:path";
 var BASE = "ai-voice-interconnector";
@@ -92,6 +93,18 @@ function needsShell(cliPath) {
   const lower = cliPath.toLowerCase();
   return lower.endsWith(".cmd") || lower.endsWith(".bat");
 }
+function quoteForCmd(token) {
+  return /[\s"&|<>^%]/.test(token) ? `"${token.replace(/"/g, '""')}"` : token;
+}
+function buildShellCommand(cli, args) {
+  return [cli, ...args].map(quoteForCmd).join(" ");
+}
+function runCli(cli, args, opts) {
+  return needsShell(cli) ? spawnSync(buildShellCommand(cli, args), { ...opts, shell: true }) : spawnSync(cli, args, { ...opts, shell: false });
+}
+function spawnCli(cli, args, opts) {
+  return needsShell(cli) ? spawn(buildShellCommand(cli, args), { ...opts, shell: true }) : spawn(cli, args, { ...opts, shell: false });
+}
 
 // src/lib/hook-payload.ts
 function readStdin() {
@@ -112,14 +125,12 @@ function readStdin() {
 }
 
 // src/lib/daemon.ts
-import { spawn, spawnSync } from "node:child_process";
 function isDaemonRunning(cliPath) {
   try {
-    const res = spawnSync(cliPath, ["daemon", "status", "--json"], {
+    const res = runCli(cliPath, ["daemon", "status", "--json"], {
       encoding: "utf8",
       timeout: 1e4,
-      windowsHide: true,
-      shell: needsShell(cliPath)
+      windowsHide: true
     });
     if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) {
       return false;
@@ -132,11 +143,10 @@ function isDaemonRunning(cliPath) {
 }
 function startDaemonDetached(cliPath) {
   try {
-    const child = spawn(cliPath, ["daemon", "start"], {
+    const child = spawnCli(cliPath, ["daemon", "start"], {
       detached: true,
       stdio: "ignore",
-      windowsHide: true,
-      shell: needsShell(cliPath)
+      windowsHide: true
     });
     child.unref();
   } catch {
@@ -201,11 +211,10 @@ async function main() {
       "tts-sidecar-narrator: AI-Voice-InterConnector no est\xE1 en el PATH. Inst\xE1lalo y ejecuta ai-voice-interconnector setup para habilitar la narraci\xF3n por voz."
     );
   }
-  const res = spawnSync2(cli, ["doctor", "--json"], {
+  const res = runCli(cli, ["doctor", "--json"], {
     encoding: "utf8",
     timeout: 2e4,
-    windowsHide: true,
-    shell: needsShell(cli)
+    windowsHide: true
   });
   if (res.error || typeof res.stdout !== "string" || !res.stdout.trim()) ok();
   const report = parseFirstJsonObject(res.stdout);

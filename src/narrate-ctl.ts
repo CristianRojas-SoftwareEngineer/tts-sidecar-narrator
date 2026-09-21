@@ -8,10 +8,9 @@
 //   status             muestra el estado (sin revelar las claves)
 //   say "<texto>"      narra un texto a demanda vía ai-voice-interconnector
 //   presynth [--force] pre-sintetiza los anuncios estáticos (idempotente; --force reescribe)
-import { spawnSync } from "node:child_process";
 import { loadConfig, updateConfig } from "./lib/config.js";
 import { configPath, stateDir } from "./lib/state-dir.js";
-import { resolveCli, needsShell } from "./lib/resolve-cli.js";
+import { resolveCli, runCli } from "./lib/resolve-cli.js";
 import { ANNOUNCEMENTS } from "./message/static-announcements.js";
 
 function printStatus(): void {
@@ -35,10 +34,9 @@ function say(text: string): number {
     );
     return 1;
   }
-  const res = spawnSync(cli, ["speech", "say", "--text", text, "--daemon"], {
+  const res = runCli(cli, ["speech", "say", "--text", text, "--daemon"], {
     stdio: "inherit",
     windowsHide: true,
-    shell: needsShell(cli),
   });
   return res.status ?? 0;
 }
@@ -65,10 +63,9 @@ function presynth(force: boolean): number {
     const args = ["speech", "synthesize", "--text", text, "--label", label];
     if (force) args.push("--force");
     args.push("--daemon");
-    const res = spawnSync(cli, args, {
+    const res = runCli(cli, args, {
       stdio: ["ignore", "ignore", "inherit"],
       windowsHide: true,
-      shell: needsShell(cli),
     });
     const code = res.status ?? 1;
     if (code === 0)
