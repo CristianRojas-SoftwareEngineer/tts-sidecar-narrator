@@ -6,7 +6,11 @@
 // eventos (`Notification`, `SubagentStop`, `StopFailure`, `UserPromptSubmit`)
 // reproduce su anuncio pre-sintetizado (`play`), sin LLM ni síntesis por evento.
 // Degradación de la ruta `Stop`: cadena LLM (input acotado con clampHead) →
-// resumen local determinista (clampSentences) → anuncio estático por evento.
+// resumen local determinista (`clampSentences`: hasta
+// `LOCAL_SPEECH_MAX_SENTENCES` oraciones, con `LOCAL_SPEECH_MAX_CHARS` como freno
+// de emergencia) → anuncio estático por evento. El sano descarta el cuerpo de
+// los bloques de código cercados, así que una respuesta que solo sea código no
+// entra en ninguna ruta dinámica.
 import type { Config } from "../lib/config.js";
 import type { HookPayload } from "../lib/hook-payload.js";
 import {
@@ -21,7 +25,12 @@ import {
   type NarrationRequest,
 } from "./static-announcements.js";
 import { sanitizeForSpeech } from "./sanitize.js";
-import { clampHead, clampSentences, LOCAL_SPEECH_MAX_CHARS } from "./clamp.js";
+import {
+  clampHead,
+  clampSentences,
+  LOCAL_SPEECH_MAX_CHARS,
+  LOCAL_SPEECH_MAX_SENTENCES,
+} from "./clamp.js";
 
 /** Punto de entrada del subsistema. Devuelve la petición de narración para el worker. */
 export async function buildMessage(
@@ -48,8 +57,10 @@ export async function buildMessage(
   const raw = payload.last_assistant_message ?? "";
   const primary = sanitizeForSpeech(raw);
 
-  // Umbral: sin material narrable no se invoca el LLM. En este punto el evento
-  // solo puede ser `Stop` (los demás retornaron arriba) o desconocido/ausente.
+  // Umbral: sin material narrable no se invoca el LLM. Una respuesta sin prosa
+  // —porque solo contenía bloques de código cercados, que el saneo descarta— cae
+  // aquí y degrada al anuncio estático del evento. En este punto el evento solo
+  // puede ser `Stop` (los demás retornaron arriba) o desconocido/ausente.
   if (primary === "") {
     const fallback =
       event === "Stop" ? ANNOUNCEMENTS.Stop : ANNOUNCEMENTS.Default;
@@ -68,8 +79,18 @@ export async function buildMessage(
     }
   }
 
-  // Degradación local determinista: resumen acotado del texto primario.
-  return { kind: "say", text: clampSentences(primary, LOCAL_SPEECH_MAX_CHARS) };
+  // Degradación local determinista: las primeras oraciones del turno, que es
+  // donde la hipótesis de producto sitúa el resumen, acotadas por el tope de
+  // oraciones y frenadas por el techo de caracteres. Ninguno de los dos topes
+  // parte una oración.
+  return {
+    kind: "say",
+    text: clampSentences(
+      primary,
+      LOCAL_SPEECH_MAX_CHARS,
+      LOCAL_SPEECH_MAX_SENTENCES,
+    ),
+  };
 }
 
 /** Providers en orden de prioridad; se omite el que no tenga key. */

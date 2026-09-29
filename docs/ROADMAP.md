@@ -44,13 +44,19 @@ medidos aún (se determinarán con uso real):
 - **Degradación local:** en el MVP determinista el transcript ya **no** alimenta
   al LLM (el input es solo `last_assistant_message`), por lo que
   `readTranscriptMessages` y el parseo JSONL fueron retirados. La degradación
-  local usa `clampSentences` (recorte determinista por oraciones completas) sobre
-  el texto ya saneado; su costo es acotado y no depende del tamaño del
-  transcript. Si una iteración futura reintroduce contexto al LLM, volvería a
-  aplicar el punto sobre cachear/limitar la cola.
-- **Cadena de providers:** hoy los tres providers (`gemini`, `openrouter`,
-  `local`) se intentan en secuencia; un timeout temprano en los providers
-  externos aceleraría la caída a `local` cuando no hay conectividad.
+  local usa `clampSentences` sobre el texto ya saneado, con dos topes: hasta
+  `LOCAL_SPEECH_MAX_SENTENCES` (2) oraciones, que es el criterio de selección
+  porque las primeras frases del turno concentran el resumen general, y
+  `LOCAL_SPEECH_MAX_CHARS` (500) como freno de emergencia ante turnos
+  patológicos. Ninguno de los dos topes parte una oración: el que frena retira
+  siempre la última oración completa, para que el mensaje narrado sea
+  autocontenido. Su costo es acotado y no depende del tamaño del transcript. Si
+  una iteración futura reintroduce contexto al LLM, volvería a aplicar el punto
+  sobre cachear/limitar la cola.
+- **Cadena de providers:** hoy los dos providers de la cadena (`gemini` y
+  `openrouter`) se intentan en secuencia; `local` no es un provider sino la
+  rama de degradación, que vive fuera de la cadena. Un timeout temprano en los
+  providers externos aceleraría la caída a `local` cuando no hay conectividad.
 - **Worker de narración:** el worker actual se lanza, espera, sintetiza y
   muere por hook; un worker persistente (ver cola FIFO arriba) eliminaría el
   costo de levantar el subproceso en cada llamada.
@@ -135,19 +141,19 @@ clonando el repo).
 
 ### Cobertura de testing
 
-Suite de 100 tests con `node --test` (sin framework externo), cubriendo:
+Suite de 148 tests con `node --test` (sin framework externo), cubriendo:
 
-| Módulo                                                      | Qué cubre                                                     |
-| ----------------------------------------------------------- | ------------------------------------------------------------- |
-| `src/message/sanitize.ts`                                   | Saneamiento de markdown, rutas, bloques de código             |
-| `src/message/local-builder.ts`                              | Construcción determinista del mensaje local                   |
-| `src/message/provider-chain.ts`                             | Fallback Gemini → OpenRouter → local                          |
-| `src/lib/config.ts`                                         | Precedencia env var > archivo > defaults                      |
-| `src/lib/hook-payload.ts`                                   | Parseo del JSON de Claude Code                                |
-| `src/lib/state-dir.ts`                                      | Resolución del state dir en los 3 SO                          |
-| `src/lib/resolve-cli.ts`                                    | Resolución del binario en PATH (con PATHEXT en Windows)       |
-| `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Parseo de respuesta y errores HTTP (fetch mockeado)           |
-| `src/narrate-ctl.ts`                                        | Subcomandos on/off/mode/status/say; status sin exponer claves |
+| Módulo                                                      | Qué cubre                                                                    |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `src/message/sanitize.ts`                                   | Saneamiento de markdown, URLs y descarte del cuerpo de los bloques de código |
+| `src/message/clamp.ts`                                      | Recorte determinista por oraciones completas y topes de la degradación local |
+| `src/message/provider-chain.ts`                             | Fallback Gemini → OpenRouter → local                                         |
+| `src/lib/config.ts`                                         | Precedencia env var > archivo > defaults                                     |
+| `src/lib/hook-payload.ts`                                   | Parseo del JSON de Claude Code                                               |
+| `src/lib/state-dir.ts`                                      | Resolución del state dir en los 3 SO                                         |
+| `src/lib/resolve-cli.ts`                                    | Resolución del binario en PATH (con PATHEXT en Windows)                      |
+| `src/message/gemini-provider.ts` / `openrouter-provider.ts` | Parseo de respuesta y errores HTTP (fetch mockeado)                          |
+| `src/narrate-ctl.ts`                                        | Subcomandos on/off/mode/status/say; status sin exponer claves                |
 
 La frontera de testing es por **naturaleza del código**, no por módulo: la
 **lógica pura** que vive dentro de estos módulos sí se cubre en unitario —p. ej.

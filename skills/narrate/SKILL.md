@@ -46,4 +46,4 @@ Sin claves configuradas, el modo `llm` degrada de facto a `local`, que funciona 
 
 ## Privacidad (adviértelo al activar el modo LLM)
 
-El modo `llm` envía contenido de la sesión (el último mensaje del asistente y un extracto del transcript) a un tercero (Google u OpenRouter). Es un cambio de postura respecto al motor AI-Voice-InterConnector, que sintetiza 100 % offline. Si el usuario activa el modo `llm` o configura claves, recuérdaselo en una frase y menciona que `mode local` evita cualquier envío externo.
+El modo `llm` envía el último mensaje del asistente a un tercero (Google u OpenRouter), y solo en la ruta `Stop`: no envía el transcript ni el historial. Es un cambio de postura respecto al motor AI-Voice-InterConnector, que sintetiza 100 % offline. Si el usuario activa el modo `llm` o configura claves, recuérdaselo en una frase y menciona que `mode local` evita cualquier envío externo.

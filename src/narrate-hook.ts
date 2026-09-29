@@ -1,7 +1,8 @@
 // LAUNCHER (fire-and-forget). Corre DENTRO del hook de Claude Code: lee el
 // payload, decide si narrar, lo persiste y lanza el worker desanclado. Debe
-// salir en <100 ms — nada de red, síntesis ni espera. Sirve a Stop y
-// Notification (el worker distingue el evento por hook_event_name).
+// salir en <100 ms — nada de red, síntesis ni espera. Sirve a los cinco hooks
+// que narran (Stop, SubagentStop, StopFailure, UserPromptSubmit, Notification);
+// el worker distingue el evento por hook_event_name.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

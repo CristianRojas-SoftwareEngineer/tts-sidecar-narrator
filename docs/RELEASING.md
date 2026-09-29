@@ -242,13 +242,18 @@ claude --plugin-dir $PLUGIN_E2E
      ```
   2. En la sesión de Claude, dispara **cada una** de las cinco superficies y
      confirma **por audible** que suena una locución en español, con el texto
-     **limpio** (sin markdown, sin bloques de código ni URLs), casi textual:
+     **limpio** (sin markdown, sin bloques de código ni URLs):
      - **`UserPromptSubmit`** — envía un prompt simple.
-     - **`Stop`** — el asistente termina su turno.
+     - **`Stop`** — el asistente termina su turno. En modo `local` el texto ya
+       **no** es casi textual: es la lectura de las **dos primeras oraciones**
+       de la prosa del turno, con el cuerpo de los bloques de código descartado.
+       No debe sonar código.
      - **`SubagentStop`** — lanza un subagente que concluya.
      - **`StopFailure`** — fuerza un fallo de turno.
      - **`Notification`** — deja una petición de permiso en espera.
-  3. **Comprobación:** para las cinco, el texto narrado es limpio y casi textual.
+  3. **Comprobación:** para las cuatro superficies de anuncio fijo, el texto
+     narrado es limpio y casi textual; para `Stop` en modo `local`, son las dos
+     primeras oraciones en prosa.
 
 - **(B) Las superficies clave en modo `llm` (con clave de proveedor):**
   1. Define la clave en el entorno de la sesión de PowerShell:

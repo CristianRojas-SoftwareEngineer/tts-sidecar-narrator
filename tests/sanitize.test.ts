@@ -1,26 +1,43 @@
 // La barrera de saneamiento antes de narrar o de enviar texto a un LLM externo:
 // verifica que efectivamente quita lo que dice quitar. Comportamiento portado de
-// normalize-speech-text del Orchestrator (§4 fila 11): whitelist SIN
-// paréntesis/comillas/guiones y SIN truncamiento de oraciones.
+// normalize-speech-text del Orchestrator (§4 fila 11), con dos desviaciones
+// deliberadas del producto: el CUERPO de los bloques de código cercados se
+// descarta (el código en línea sí se conserva), y la whitelist incluye
+// paréntesis, comillas y guiones. SIN truncamiento de oraciones.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { toPlainText, sanitizeForSpeech } from "../src/message/sanitize.js";
 
-test("toPlainText quita delimitadores de bloque y conserva el contenido", () => {
+test("toPlainText descarta el cuerpo del bloque cercado y conserva la prosa circundante", () => {
   const input = 'Antes.\n```js\nconst clave = "secreto";\n```\nDespués.';
   const out = toPlainText(input);
-  assert.equal(out, 'Antes. js const clave "secreto"; Después.');
+  assert.equal(out, "Antes. Después.");
   assert.ok(!out.includes("```"), "sin delimitadores");
-  assert.ok(
-    out.includes("secreto"),
-    "contenido conservado (ruta pronunciable)",
-  );
+  assert.ok(!out.includes("secreto"), "cuerpo del bloque descartado");
 });
 
-test("toPlainText quita delimitadores de virgulillas y conserva el contenido", () => {
+test("toPlainText descarta el cuerpo de los bloques cercados con virgulillas", () => {
   const out = toPlainText("Uno ~~~\ncódigo\n~~~ dos");
-  assert.equal(out, "Uno código dos");
+  assert.equal(out, "Uno dos");
   assert.ok(!out.includes("~~~"));
+  assert.ok(!out.includes("código"));
+});
+
+test("toPlainText descarta el cuerpo de un bloque cercado sin cerrar", () => {
+  // Mensaje truncado a mitad: la valla abierta y su cuerpo no deben narrarse.
+  const out = toPlainText("Antes.\n```js\nconst a = 1;\nconst b = 2;");
+  assert.equal(out, "Antes.");
+  assert.ok(!out.includes("const"));
+});
+
+test("toPlainText descarta varios bloques cercados y conserva la prosa", () => {
+  const out = toPlainText("Uno.\n```\nA\n```\nDos.\n```\nB\n```\nTres.");
+  assert.equal(out, "Uno. Dos. Tres.");
+});
+
+test("toPlainText devuelve cadena vacía si la entrada es solo un bloque cercado", () => {
+  assert.equal(toPlainText('```js\nconst clave = "secreto";\n```'), "");
+  assert.equal(sanitizeForSpeech("```js\nconst clave = 1;\n```"), "");
 });
 
 test("toPlainText conserva el contenido de código en línea (rutas pronunciables)", () => {

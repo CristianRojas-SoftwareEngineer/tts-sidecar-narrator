@@ -70,9 +70,11 @@ Primera versión pública, lanzada en conjunto con el primer release público de
   `:free`, con opt-in explícito vía API keys) y `local` (determinista,
   100 % offline, el comportamiento por defecto sin claves). La cadena de
   providers degrada en silencio nivel a nivel.
-- **Saneamiento para voz** (`sanitize.ts`): elimina markdown, bloques de
-  código con su contenido, código en línea y URLs antes de narrar o de enviar
-  texto a un proveedor externo.
+- **Saneamiento para voz** (`sanitize.ts`): antes de narrar o de enviar texto a un
+  proveedor externo, elimina markdown, URLs y símbolos no narrables, y descarta
+  el cuerpo de los bloques de código cercados. Del código en línea solo retira
+  los delimitadores: su texto se conserva para que las rutas y los nombres de
+  archivo sigan siendo pronunciables.
 - **Superficie de control** (`narrate-ctl`): subcomandos `on`/`off`/`mode`/
   `status`/`say`; `status` nunca imprime el valor de una clave.
 - **Comando de instalación guiada** (`/tts-sidecar-narrator:install`) y

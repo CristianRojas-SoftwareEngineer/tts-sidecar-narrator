@@ -1,7 +1,10 @@
 // Caracterización de buildMessage: enrutado MVP determinista. Solo `Stop` (y el
 // default) genera locución dinámica sobre `last_assistant_message`; el resto de
-// eventos reproduce su anuncio pre-sintetizado (`play`). Blinda el invariante «el LLM
-// nunca recibe nada que no sea last_assistant_message» y el caso «Hola».
+// eventos reproduce su anuncio pre-sintetizado (`play`). La degradación local
+// narra hasta `LOCAL_SPEECH_MAX_SENTENCES` oraciones del texto saneado, y el
+// saneo descarta el cuerpo de los bloques de código cercados: una respuesta que
+// solo sea código degrada al anuncio estático. Blinda el invariante «el LLM nunca
+// recibe nada que no sea last_assistant_message» y el caso «Hola».
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -99,6 +102,63 @@ test("Stop (local) con last_assistant narra el resumen local vía say", async ()
     LOCAL,
   );
   assert.deepEqual(out, { kind: "say", text: "Terminé la tarea." });
+});
+
+test("Stop con respuesta solo de código degrada al anuncio estático sin invocar al LLM", async () => {
+  // El saneo descarta el cuerpo de los bloques cercados: sin prosa no hay
+  // material narrable, así que ni el LLM ni el recorte local intervienen.
+  const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
+  try {
+    mockGemini("no debería llamarse");
+    const out = await buildMessage(
+      {
+        hook_event_name: "Stop",
+        last_assistant_message: '```js\nconst clave = "secreto";\n```',
+      },
+      LLM,
+    );
+    assert.deepEqual(out, { kind: "play", label: ANNOUNCEMENTS.Stop.label });
+    assert.equal(lastBody, undefined, "ningún proveedor invocado");
+  } finally {
+    restoreEnv();
+  }
+});
+
+test("Stop (local) narra solo las dos primeras oraciones del turno", async () => {
+  const out = await buildMessage(
+    {
+      hook_event_name: "Stop",
+      last_assistant_message:
+        "Actualicé el saneo. Verifiqué la suite. Dejé un comentario. Pendiente: publicar.",
+    },
+    LOCAL,
+  );
+  assert.deepEqual(out, {
+    kind: "say",
+    text: "Actualicé el saneo. Verifiqué la suite.",
+  });
+});
+
+test("Stop (local) conserva la prosa que rodea a un bloque de código", async () => {
+  const out = await buildMessage(
+    {
+      hook_event_name: "Stop",
+      last_assistant_message: [
+        "Listo, apliqué el cambio.",
+        "",
+        "```ts",
+        "export function foo() { return 1; }",
+        "```",
+        "",
+        "Los tests pasan.",
+      ].join("\n"),
+    },
+    LOCAL,
+  );
+  assert.deepEqual(out, {
+    kind: "say",
+    text: "Listo, apliqué el cambio. Los tests pasan.",
+  });
 });
 
 // --- Ruta Stop vía Gemini (fetch mockeado) ---
@@ -249,6 +309,28 @@ test("Stop (llm) con LLM caído degrada al resumen local acotado (clampSentences
       LLM,
     );
     assert.deepEqual(out, { kind: "say", text: "Trabajo completado." });
+  } finally {
+    restoreEnv();
+  }
+});
+
+test("Stop (llm) con LLM caído degrada a las dos primeras oraciones del turno", async () => {
+  const restoreEnv = withEnv({ GEMINI_API_KEY: "dummy" });
+  try {
+    globalThis.fetch = (async () =>
+      new Response("{}", { status: 500 })) as typeof fetch;
+    const out = await buildMessage(
+      {
+        hook_event_name: "Stop",
+        last_assistant_message:
+          "Corregí el umbral. Los tests pasan. Queda revisar el roadmap.",
+      },
+      LLM,
+    );
+    assert.deepEqual(out, {
+      kind: "say",
+      text: "Corregí el umbral. Los tests pasan.",
+    });
   } finally {
     restoreEnv();
   }

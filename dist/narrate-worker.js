@@ -284,8 +284,10 @@ var ANNOUNCEMENTS = {
 // src/message/sanitize.ts
 function toPlainText(input) {
   let t = input ?? "";
-  t = t.replace(/```([\s\S]*?)```/g, "$1");
-  t = t.replace(/~~~([\s\S]*?)~~~/g, "$1");
+  t = t.replace(/```[\s\S]*?```/g, " ");
+  t = t.replace(/~~~[\s\S]*?~~~/g, " ");
+  t = t.replace(/```[\s\S]*$/g, " ");
+  t = t.replace(/~~~[\s\S]*$/g, " ");
   t = t.replace(/`([^`]*)`/g, "$1");
   t = t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
   t = t.replace(/https?:\/\/\S+/g, " ");
@@ -305,7 +307,8 @@ function sanitizeForSpeech(input) {
 
 // src/message/clamp.ts
 var LLM_INPUT_MAX_CHARS = 16e3;
-var LOCAL_SPEECH_MAX_CHARS = 400;
+var LOCAL_SPEECH_MAX_SENTENCES = 2;
+var LOCAL_SPEECH_MAX_CHARS = 500;
 var SENTENCE_TERMINATORS = /* @__PURE__ */ new Set([".", "!", "?", "\u2026"]);
 function clampHead(text) {
   const t = text ?? "";
@@ -317,16 +320,19 @@ function clampHead(text) {
   if (lastSpace > 0) return window.slice(0, lastSpace).trimEnd();
   return window;
 }
-function clampSentences(text, maxChars) {
+function clampSentences(text, maxChars, maxSentences) {
   const t = (text ?? "").trim();
   if (!t) return "";
-  if (t.length <= maxChars) return t;
   const sentences = splitSentences(t);
+  if (t.length <= maxChars && sentences.length <= maxSentences) return t;
   let acc = "";
+  let count = 0;
   for (const sentence of sentences) {
+    if (count >= maxSentences) break;
     const next = acc ? `${acc} ${sentence}` : sentence;
     if (next.length > maxChars) break;
     acc = next;
+    count++;
   }
   if (acc) return acc;
   const window = t.slice(0, maxChars);
@@ -339,6 +345,9 @@ function splitSentences(text) {
   let start = 0;
   for (let i = 0; i < text.length; i++) {
     if (SENTENCE_TERMINATORS.has(text[i])) {
+      if (text[i] === "." && isDigit(text[i - 1]) && isDigit(text[i + 1])) {
+        continue;
+      }
       let end = i + 1;
       while (end < text.length && SENTENCE_TERMINATORS.has(text[end])) end++;
       const sentence = text.slice(start, end).trim();
@@ -350,6 +359,9 @@ function splitSentences(text) {
   const tail = text.slice(start).trim();
   if (tail) sentences.push(tail);
   return sentences;
+}
+function isDigit(char) {
+  return char !== void 0 && char >= "0" && char <= "9";
 }
 
 // src/message/build-message.ts
@@ -384,7 +396,14 @@ async function buildMessage(payload, cfg) {
       }
     }
   }
-  return { kind: "say", text: clampSentences(primary, LOCAL_SPEECH_MAX_CHARS) };
+  return {
+    kind: "say",
+    text: clampSentences(
+      primary,
+      LOCAL_SPEECH_MAX_CHARS,
+      LOCAL_SPEECH_MAX_SENTENCES
+    )
+  };
 }
 function buildProviders(cfg) {
   const providers = [];
